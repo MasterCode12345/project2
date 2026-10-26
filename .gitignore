@@ -1,0 +1,19 @@
+# Python / môi trường ảo
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Công cụ hỗ trợ AI (BMAD / Claude Code) – không phải mã nguồn sản phẩm
+_bmad/
+.agents/
+.claude/
+skills-lock.json
+
+# File âm thanh thử nghiệm
+*.aiff
+*.wav
+*.mp3
