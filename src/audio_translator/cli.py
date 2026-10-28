@@ -8,6 +8,7 @@ import sys
 import threading
 
 from .config import Settings
+from .denoise import NS_MODES
 from .model_manager import CATALOG
 from .models import ERROR, RESULT, STATUS, STOPPED, Event
 
@@ -24,7 +25,34 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Whisper model (default: medium; see --list-models)")
     p.add_argument("--translator", default="offline", choices=["offline", "google"],
                    help="translation backend (default: offline, falls back to google)")
+    d = Settings()
+    p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
+                   help="noise suppression before VAD/ASR (experimental; default: off)")
+    p.add_argument("--ns-mix", type=_unit_float, default=d.ns_mix,
+                   help=f"observation-adding weight of the raw signal, 0..1 (default: {d.ns_mix})")
+    p.add_argument("--ns-gate-db", type=_gate_db, default=d.ns_gate_snr_db,
+                   help=f"skip suppression above this input SNR in dB, or 'none' to always "
+                        f"suppress (default: {d.ns_gate_snr_db})")
     return p
+
+
+def _unit_float(text: str) -> float:
+    try:
+        v = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {text!r}") from None
+    if not 0.0 <= v <= 1.0:
+        raise argparse.ArgumentTypeError(f"must be between 0 and 1, got {v}")
+    return v
+
+
+def _gate_db(text: str) -> float | None:
+    if text.strip().lower() == "none":
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a number of dB or 'none', got {text!r}") from None
 
 
 def print_devices(out=sys.stdout) -> int:
@@ -79,7 +107,8 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     from .orchestrator import Orchestrator
 
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
-                        translator=args.translator)
+                        translator=args.translator, ns_mode=args.ns, ns_mix=args.ns_mix,
+                        ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()
     failed = []
 

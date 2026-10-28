@@ -23,6 +23,7 @@ audio-translator = "audio_translator.__main__:main"
 
 [dependency-groups]
 dev = ["pytest>=8.0"]
+eval = ["jiwer>=4.0"]
 
 [build-system]
 requires = ["hatchling"]

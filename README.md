@@ -82,10 +82,39 @@ uv run audio-translator --cli --model small [--input "Tên micro"] [--translator
 
 **Dùng trong ứng dụng chat:** vào phần cài đặt âm thanh của Zoom / Meet / Discord và chọn **BlackHole 2ch** làm micro. Âm thanh đã dịch chỉ đi vào BlackHole, không bao giờ phát ra loa.
 
+### Lọc nhiễu (thử nghiệm)
+
+Có một bước lọc nhiễu tùy chọn (M3a) chạy **trước VAD**, **mặc định tắt**. Lý do: các nghiên cứu tìm được (xem `_bmad-output/initiative-audio-translator/research-speech-noise-suppression-for-live-asr/`) cho thấy lọc nhiễu dùng ngây thơ thường *làm tăng* WER của Whisper vì tạo ra artifacts. Chỉ nên bật mặc định khi đã đo được là nó giúp tiếng Việt.
+
+Cách hoạt động: bộ lọc log-MMSE (Ephraim & Malah) tạo tín hiệu đã lọc ŝ; webrtcvad nhận ŝ, còn Whisper nhận bản trộn "observation adding" `(1−ω)·ŝ + ω·y` với y là tín hiệu gốc. Một cổng SNR đặt ω → 1 (bỏ qua lọc, có ramp mượt) khi đầu vào đã đủ sạch. Bước này thêm 15 ms độ trễ; độ trễ được trừ vào timestamp nên số đo end-to-end vẫn đúng.
+
+```sh
+uv run audio-translator --cli --model small --ns logmmse [--ns-mix 0.4] [--ns-gate-db 20|none]
+```
+
+| Flag | Ý nghĩa | Mặc định |
+|---|---|---|
+| `--ns {off,logmmse}` | bật/tắt lọc nhiễu | `off` |
+| `--ns-mix ω` | tỷ lệ tín hiệu gốc trộn lại (0 = chỉ dùng bản đã lọc, 1 = như không lọc) | `0.4` |
+| `--ns-gate-db X` | bỏ qua lọc khi SNR ước lượng > X + 3 dB, bật lại khi < X; `none` = luôn lọc | `20` |
+
+**Đo bằng bench** (`eval/denoise_bench.py`): trộn giọng sạch với nhiễu ở SNR {clean, 20, 10, 5, 0} dB, chạy các arm {none, logmmse, logmmse+OA ω∈{0.2, 0.4, 0.6}} qua đúng Segmenter + Whisper của app, ghi CSV gồm `arm, snr_db, n_utts, wer, cer, added_latency_ms, rtf, vad_false_triggers` (số đoạn VAD cắt ra trên clip chỉ có nhiễu). Script không tự tải dữ liệu:
+
+- VIVOS (CC BY-NC-SA 4.0, chỉ dùng cho nghiên cứu): giải nén để có `vivos/test/prompts.txt` và `vivos/test/waves/<speaker>/<id>.wav`.
+- Nhiễu: thư mục `.wav` bất kỳ, ví dụ `musan/noise` hoặc `musan/music` của MUSAN (OpenSLR 17).
+
+```sh
+uv run --group eval python eval/denoise_bench.py --vivos-dir ~/data/vivos --noise-dir ~/data/musan/noise \
+    --model small --limit 100 --out results/denoise.csv
+uv run --group eval python eval/denoise_bench.py --smoke --out /tmp/ns_smoke.csv   # chạy thử offline, dữ liệu tổng hợp
+```
+
+WER/CER được tính sau khi chuẩn hóa văn bản (chữ thường, bỏ dấu câu, giữ dấu thanh). Không đưa dataset vào repo.
+
 ## 5. Kiểm thử
 
 ```sh
-uv run pytest -q     # 99 passed
+uv run pytest -q     # 129 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -165,9 +194,10 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── gui.py, cli.py      tầng giao diện
 │   ├── orchestrator.py     tầng điều phối (M1)
 │   ├── model_manager.py    quản lý model Whisper
-│   ├── capture.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
+│   ├── capture.py → denoise.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py   dùng chung
-├── tests/                  99 test (pytest)
+├── tests/                  129 test (pytest)
+├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
 ├── README.md               (tài liệu này)
