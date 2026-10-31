@@ -34,8 +34,9 @@ def make(gated=(), fail=(), downloaded=("small", "medium"), cap=2):
     return m, f, ch
 
 
-def test_catalog_is_multilingual_only():
-    assert list(CATALOG) == ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3"]
+def test_catalog_is_multilingual_hub_models_then_local_vietnamese_models():
+    assert list(CATALOG) == ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3",
+                             "phowhisper-small", "phowhisper-medium"]
     assert not any(n.endswith(".en") or n.startswith("distil") for n in CATALOG)
 
 

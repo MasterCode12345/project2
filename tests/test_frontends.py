@@ -183,11 +183,17 @@ def test_cli_list_models_prints_catalog_with_status(capsys):
     mgr = ModelManager(lambda n: None, is_downloaded=lambda n: n in ("small", "medium"))
     assert cli.print_models("small", manager=mgr) == 0
     out = capsys.readouterr().out
-    lines = {ln.split()[1] if ln.startswith(" *") else ln.split()[0]: ln for ln in out.splitlines()[1:-1]}
-    assert list(lines) == ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3"]
+    rows = [ln for ln in out.splitlines()[1:] if ln.startswith(" ")]  # model rows are indented
+    lines = {ln.split()[1] if ln.startswith(" *") else ln.split()[0]: ln for ln in rows}
+    assert list(lines) == list(CATALOG)
     assert "downloaded" in lines["small"] and lines["small"].startswith(" *")
     assert lines["medium"].rstrip().endswith(" downloaded")
     assert "not-downloaded" in lines["large-v3"] and "3.1 GB" in lines["large-v3"]
+    # local (converted) models that are missing come with the one-time convert command
+    assert "not-downloaded" in lines["phowhisper-small"]
+    assert ("'phowhisper-small' must be converted once first: uv run --with transformers --with torch "
+            "python scripts/convert_phowhisper.py small") in out
+    assert "convert_phowhisper.py medium" in out
 
 
 def test_cli_rejects_model_outside_catalog():
@@ -227,12 +233,13 @@ def _pick(w, name):
 def test_gui_model_dropdown_initial_view(qapp):
     w, orch = _model_window(qapp)
     texts = _texts(w)
-    assert [w.model_combo.itemData(i) for i in range(6)] == list(CATALOG)
+    assert [w.model_combo.itemData(i) for i in range(w.model_combo.count())] == list(CATALOG)
     assert w.model_combo.currentData() == "medium" and w.model_combo.isEnabled()
     assert texts[CATALOG_INDEX["medium"]] == "medium — đã tải ✓"
     assert texts[CATALOG_INDEX["small"]] == "small — đã tải"
     assert texts[CATALOG_INDEX["large-v3"]] == "large-v3 — chưa tải (~3.1 GB)"
     assert texts[CATALOG_INDEX["tiny"]] == "tiny — chưa tải (~75 MB)"
+    assert texts[CATALOG_INDEX["phowhisper-small"]] == "phowhisper-small — chưa convert (xem --list-models)"
     assert orch.select_calls == []  # programmatic setup never selects
 
 

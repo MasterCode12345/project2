@@ -76,3 +76,28 @@ def test_silence_only_tail_after_forced_cut_is_discarded():
     assert not seg.triggered
     # segmenter still works for the next utterance
     assert len(run(seg, utterance(20, 15))) == 1
+
+
+def test_vad_frame_drives_detection_while_audio_comes_from_frame():
+    # VAD sees speech-like frames, but the kept audio is a different signal:
+    # segmentation follows vad_frame, the utterance carries frame.
+    seg = Segmenter(energy_vad, silence_ms=300, pre_roll_ms=300)
+    vad_frames = [silence_frame()] * 5 + utterance(20, 15)
+    audio_frames = [np.full(FRAME, 7, np.int16) for _ in vad_frames]
+    out = []
+    for i, (a, v) in enumerate(zip(audio_frames, vad_frames)):
+        out += seg.feed(a, (i + 1) * 0.03, vad_frame=v)
+    assert len(out) == 1
+    assert np.all(out[0].audio == 7)
+    # without vad_frame the constant (quiet) audio itself never triggers
+    seg2 = Segmenter(energy_vad, silence_ms=300, pre_roll_ms=300)
+    assert run(seg2, audio_frames) == []
+
+
+def test_rejects_wrong_vad_frame_size():
+    seg = Segmenter(energy_vad)
+    try:
+        seg.feed(np.zeros(FRAME, np.int16), 0.0, vad_frame=np.zeros(100, np.int16))
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError")

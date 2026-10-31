@@ -75,12 +75,22 @@ class Segmenter:
         self._voiced_in_seg = 0
         return utt
 
-    def feed(self, frame: np.ndarray, t: float) -> list[Utterance]:
-        """Feed one frame captured at time ``t``; return finished utterances."""
+    def feed(self, frame: np.ndarray, t: float, vad_frame: np.ndarray | None = None) -> list[Utterance]:
+        """Feed one frame captured at time ``t``; return finished utterances.
+
+        ``vad_frame`` (default: ``frame``) is what the VAD sees, e.g. the
+        denoised signal, while ``frame`` is the audio kept for ASR.
+        """
         frame = np.asarray(frame, dtype=np.int16)
         if frame.shape[0] != self.frame_samples:
             raise ValueError(f"expected {self.frame_samples} samples, got {frame.shape[0]}")
-        voiced = bool(self.vad(frame.tobytes(), self.sample_rate))
+        if vad_frame is None:
+            vad_frame = frame
+        else:
+            vad_frame = np.asarray(vad_frame, dtype=np.int16)
+            if vad_frame.shape[0] != self.frame_samples:
+                raise ValueError(f"expected {self.frame_samples} VAD samples, got {vad_frame.shape[0]}")
+        voiced = bool(self.vad(vad_frame.tobytes(), self.sample_rate))
         out: list[Utterance] = []
 
         if not self._triggered:

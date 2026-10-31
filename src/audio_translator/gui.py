@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .asr import LOCAL_MODELS
 from .config import Settings
 from .models import (ERROR, IDLE, INFO, MODEL, RESULT, RUNNING, STARTING, STATUS, STOPPED, STOPPING, WARNING,
                      Event)
@@ -41,7 +42,9 @@ _MODEL_STATUS = {
 
 def model_item_text(info) -> str:
     """Dropdown text for a ``ModelInfo``: name, status and ``✓`` when selected."""
-    if info.status == "not-downloaded":
+    if info.status == "not-downloaded" and info.name in LOCAL_MODELS:
+        status = "chưa convert (xem --list-models)"  # converted once locally, never downloaded
+    elif info.status == "not-downloaded":
         status = f"chưa tải (~{info.size_label})"
     else:
         status = _MODEL_STATUS.get(info.status, info.status)

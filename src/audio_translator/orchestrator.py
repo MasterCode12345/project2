@@ -18,6 +18,7 @@ from typing import Any, Callable
 
 from .capture import AudioCapture
 from .config import Settings
+from .denoise import NoiseSuppressor, from_settings as noise_suppressor_from_settings
 from .devices import DeviceInfo, resolve_device
 from .model_manager import ModelInfo, ModelManager
 from .models import (
@@ -112,6 +113,7 @@ class Orchestrator:
         self._output: VirtualOutput | None = None
         self._playout: Playout | None = None
         self._segmenter: Segmenter | None = None
+        self._ns: NoiseSuppressor | None = None  # M3a stage of the current session (None = off)
         self._in_dev: DeviceInfo | None = None
         self._out_dev: DeviceInfo | None = None
 
@@ -190,7 +192,8 @@ class Orchestrator:
 
         s = self.settings
         return WhisperASR(name, language=s.source_lang, device=s.asr_device,
-                          compute_type=s.compute_type, beam_size=s.beam_size)
+                          compute_type=s.compute_type, beam_size=s.beam_size,
+                          initial_prompt=s.asr_initial_prompt)
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None
@@ -271,6 +274,9 @@ class Orchestrator:
             # Resolve devices first: a missing BlackHole must not wait for a model download.
             in_dev = self._resolve(input_name, "input")
             out_dev = self._resolve(output_name, "output")
+            # Fresh M3a stage per session (validates the ns_* settings early):
+            # no enhancer/gate/delay-line state leaks from a previous session.
+            ns = noise_suppressor_from_settings(s)
             self._prepare_translator()
             with self._lock:
                 if self._abort_start:  # Stop during the translation-model download
@@ -326,6 +332,7 @@ class Orchestrator:
                 silence_ms=s.silence_ms,
                 max_segment_s=s.max_segment_s,
             )
+            self._ns = ns
             self._playout = Playout(
                 int(out_dev.samplerate),
                 min(2, max(1, out_dev.max_channels)),
@@ -458,6 +465,7 @@ class Orchestrator:
             discarded = self._playout.clear() if self._playout else 0
             discarded += self._drain_stale()
             self._segmenter = None
+            self._ns = None
             self._release_model()
             if error:
                 self._emit(Event(ERROR, error, session_id=sid))
@@ -585,9 +593,17 @@ class Orchestrator:
                 continue
             sid, frame, t = item
             seg = self._segmenter
+            ns = self._ns
             if sid != self._session or seg is None:
                 continue  # stale raw frames are discarded silently
-            for utt in seg.feed(frame, t):
+            vad_frame, lat = None, 0.0
+            if ns is not None:
+                # M3a: VAD sees the denoised signal, ASR the OA mix; both lag
+                # the capture time by the enhancer delay, so timestamps are
+                # shifted back to when the sound was actually captured.
+                vad_frame, frame = ns.process(frame)
+                lat = ns.latency_s
+            for utt in seg.feed(frame, t, vad_frame=vad_frame):
                 with self._lock:
                     if sid != self._session:
                         break
@@ -595,7 +611,7 @@ class Orchestrator:
                     seg_id = self._seg_counter
                 segment = Segment(
                     sid, seg_id, utt.audio, self.settings.capture_rate, forced_cut=utt.forced_cut,
-                    timestamps={"speech_start": utt.speech_start, "speech_end": utt.speech_end,
+                    timestamps={"speech_start": utt.speech_start - lat, "speech_end": utt.speech_end - lat,
                                 "segmented": self.clock()},
                 )
                 self._put(self._seg_q, segment)

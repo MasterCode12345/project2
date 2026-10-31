@@ -4,6 +4,7 @@ import threading
 import time
 
 import numpy as np
+import pytest
 
 from audio_translator.config import Settings
 from audio_translator.models import ERROR, INFO, RESULT, STOPPED, WARNING
@@ -576,3 +577,95 @@ def test_offline_load_failure_uses_google_and_retries_next_session(harness):
     assert b.prepare_calls == 2
     h.say(utterance(15))
     assert h.log.wait_for(lambda e: e.kind == RESULT and h.log.events.index(e) > n).data["text"].startswith("EN<")
+
+
+# ------------------------------------------------------- M3a noise suppression
+class _DelayEnhancer:
+    """Pass-through enhancer delayed by exactly one frame (makes shifts exact)."""
+
+    latency_samples = 480
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self._prev = np.zeros(480, np.float32)
+
+    def process(self, frame):
+        out, self._prev = self._prev, frame.astype(np.float32)
+        return out
+
+
+def _segments_from_worker(orch, frames, ns):
+    """Drive _segment_worker directly with exact capture times t = (i+1)*30 ms."""
+    from audio_translator.segmenter import Segmenter
+    from conftest import energy_vad
+
+    orch._session = 99
+    orch._segmenter = Segmenter(energy_vad, silence_ms=300)
+    orch._ns = ns
+    for i, f in enumerate(frames):
+        orch._frames_q.put((99, f, (i + 1) * 0.03))
+    th = threading.Thread(target=orch._segment_worker, daemon=True)
+    th.start()
+    deadline = time.monotonic() + 5
+    while orch._frames_q.qsize() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    time.sleep(0.1)
+    orch._shutdown.set()
+    th.join(2)
+    out = []
+    while not orch._seg_q.empty():
+        out.append(orch._seg_q.get_nowait())
+    return out
+
+
+def test_ns_off_by_default_keeps_no_stage(harness):
+    h = harness()
+    h.start()
+    assert h.orch._ns is None
+    h.say(utterance(15))
+    h.log.wait_for(lambda e: e.kind == RESULT)
+
+
+def test_ns_timestamps_subtract_enhancer_latency(harness):
+    from audio_translator.denoise import NoiseSuppressor
+
+    frames = [silence_frame()] * 5 + utterance(20, 15)
+    off = _segments_from_worker(harness().orch, frames, None)
+    ns = NoiseSuppressor(_DelayEnhancer(), mix=1.0, gate_snr_db=None)
+    on = _segments_from_worker(harness().orch, frames, ns)
+    assert len(off) == len(on) == 1
+    # Everything arrives one frame late; subtracting the declared latency puts
+    # speech_start/speech_end back on the capture timeline exactly.
+    for k in ("speech_start", "speech_end"):
+        assert on[0].timestamps[k] == pytest.approx(off[0].timestamps[k])
+    assert np.array_equal(on[0].audio, off[0].audio)
+
+
+def test_ns_logmmse_session_reaches_asr_and_resets_per_session(harness):
+    s = Settings(ns_mode="logmmse", ns_mix=0.4, ns_gate_snr_db=None)
+    h = harness(settings=s)
+    h.start()
+    first_ns = h.orch._ns
+    assert first_ns is not None and first_ns.latency_samples > 0
+    h.say([silence_frame()] * 5, utterance(30))
+    ev = h.log.wait_for(lambda e: e.kind == RESULT)
+    ts = ev.data["timestamps"]
+    assert ts["speech_end"] <= ts["segmented"] - first_ns.latency_s + 1e-9
+    assert h.asr.calls and h.asr.calls[0].dtype == np.int16
+    h.orch.stop()
+    n = len(h.log.events)
+    h.log.wait_state(STOPPED)
+    assert h.orch._ns is None
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state("running", after=n)
+    assert h.orch._ns is not None and h.orch._ns is not first_ns  # fresh state per session
+
+
+def test_ns_unknown_mode_fails_start(harness):
+    h = harness(settings=Settings(ns_mode="gtcrn"))
+    assert h.orch.start(None, "BlackHole")
+    err = h.log.wait_for(lambda e: e.kind == ERROR)
+    assert "noise suppression" in err.message
+    h.log.wait_state(STOPPED)

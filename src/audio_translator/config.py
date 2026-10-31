@@ -33,12 +33,21 @@ class Settings:
     pre_roll_ms: int = 300
     silence_ms: int = 600
     max_segment_s: float = 15.0
+    # M3a noise suppression (experimental, off by default: naive enhancement
+    # tends to raise Whisper WER; measure with eval/denoise_bench.py first).
+    ns_mode: str = "off"  # "off" | "logmmse"
+    ns_mix: float = 0.4  # observation adding ω: 0 = fully denoised, 1 = raw
+    ns_gate_snr_db: float | None = 20.0  # bypass above this SNR (+3 dB hysteresis); None = always enhance
+    ns_vad_input: str = "denoised"  # "denoised" | "raw": what webrtcvad sees
 
     # M4 ASR
     model_size: str = "medium"
     asr_device: str = "cpu"
     compute_type: str = "int8"
     beam_size: int = 5
+    # Whisper initial_prompt (decoder priming text), e.g. a Vietnamese sentence
+    # with full diacritics. None = no prompt; measure with eval/asr_bench.py.
+    asr_initial_prompt: str | None = None
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 
