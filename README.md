@@ -143,10 +143,57 @@ uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv   
 
 FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
 
+### Đo chất lượng dịch (M5)
+
+**Bench dịch** (`eval/mt_bench.py`) trả lời hai câu hỏi:
+- Khâu dịch tốt đến đâu khi đầu vào là câu nguồn chuẩn? Đo với hai điều kiện:
+  - `text`: câu nguồn nguyên bản;
+  - `text_norm`: cùng câu đó nhưng viết thường, bỏ dấu câu, giống chữ ASR trả về.
+- Lỗi ASR làm bản dịch tệ đi bao nhiêu? Điều kiện `asr`: Whisper `small` và `phowhisper-small` nhận cả câu audio FLEURS sạch, không qua VAD, rồi đưa chữ đó đi dịch.
+
+So `text` → `text_norm` thấy được thiệt hại do mất chữ hoa và dấu câu. So `text_norm` → `asr` thấy được thiệt hại do nhận dạng sai.
+
+Chỉ số và cấu hình:
+- Chỉ số: sacrebleu (Apache-2.0, chỉ nằm trong group `eval`). BLEU tính theo corpus, `tok:13a`, giữ nguyên chữ hoa/thường. chrF2 (`nc:6, nw:0`). Một bản tham chiếu. Chữ ký của sacrebleu được in cuối mỗi lần chạy.
+- Độ trễ: đo từng lệnh dịch, có một câu khởi động không tính giờ.
+- Google bị lỗi câu nào thì câu đó được đếm vào `n_failed` và không được chấm.
+- `src_wer`: WER của câu đưa vào dịch so với câu nguồn chuẩn.
+- Tập câu: `--limit N` bốc N câu bằng `--seed`, nên chạy lại ra đúng tập cũ.
+
+```sh
+uv run --group eval python eval/mt_bench.py --src vi --tgt en \
+    --fleurs-src-dir ~/data/fleurs_vi --fleurs-tgt-tsv ~/data/fleurs_en/test.tsv \
+    --custom-tsv eval/data/mt_custom_vi_en.tsv --asr-cache results/mt_asr_cache_vi.tsv \
+    --out results/mt_vi_en.csv            # thêm --limit 50 để chạy thử
+uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # offline, dữ liệu và bộ dịch giả
+```
+
+- **CSV:** `corpus, src_lang, tgt_lang, backend, condition, asr_model, n_sents, src_wer, bleu, chrf, mean_latency_ms, p95_latency_ms, n_failed`.
+- **File mẫu `<out>_samples.tsv`:** 20 câu FLEURS cố định, kèm toàn bộ tập tự viết. Mỗi dòng có câu nguồn, chữ đưa vào dịch, bản dịch và tham chiếu.
+
+**Dữ liệu:**
+- FLEURS (CC-BY-4.0): câu nguồn và câu đích ghép theo id câu FLoRes. Cả 347 câu của `vi_vn` test đều có trong `en_us` test.
+- Phía tiếng Anh chỉ cần file chữ: tải `data/en_us/test.tsv` (368 KB) từ `google/fleurs` về `~/data/fleurs_en/test.tsv`.
+- `eval/data/mt_custom_vi_en.tsv`: 25 câu tự viết có tên riêng, số, ngày giờ, đơn vị, từ mượn. Bản dịch tham chiếu là bản nháp **cần duyệt**. Bench ghi `corpus=custom_unreviewed` cho tới khi mọi câu có `reviewed=yes`, và kết quả của tập này không được dùng để kết luận.
+
+**Hạn chế:**
+- FLoRes vốn được dịch từ tiếng Anh sang các ngôn ngữ khác, nên chiều vi→en dùng câu nguồn kiểu "văn dịch" (translationese).
+- Mỗi câu chỉ có một bản tham chiếu, nên BLEU thấp hơn mức khi có nhiều bản.
+- Hướng mở rộng: COMET (cần torch nên chạy riêng ngoài app), chrF++.
+
+**Bảng ngôn ngữ** (`src/audio_translator/languages.py`): mỗi ngôn ngữ một dòng, gồm:
+- mã của từng backend dịch;
+- ngôn ngữ Whisper và model ASR ưu tiên;
+- giọng Edge TTS;
+- config FLEURS;
+- cách chuẩn hóa văn bản và tokenize BLEU.
+
+Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳng; chỉ khi không có model dịch thẳng mới dịch vòng qua tiếng Anh (`pivot:en`), và tên route luôn được ghi ra. App hiện chưa dùng bảng này, nên hành vi không đổi.
+
 ## 5. Kiểm thử
 
 ```sh
-uv run pytest -q     # 165 passed
+uv run --group eval pytest -q     # 191 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -201,7 +248,8 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [x] Thử **PhoWhisper** (VinAI) và **Whisper large-v3-turbo**, convert sang CTranslate2 để dùng với faster-whisper (mục 4, "Model tiếng Việt").
 - [x] Truyền **câu mồi tiếng Việt** cho Whisper (`--asr-prompt`).
 - [ ] Lọc câu theo `no_speech_prob` / `avg_logprob`, thay webrtcvad bằng **Silero VAD**.
-- [ ] Đo **WER** trên bộ 30–50 câu tự thu âm hoặc bộ dữ liệu VIVOS; đo chất lượng dịch; ghi CSV; tính trung bình và P95 độ trễ của từng khâu.
+- [x] Đo **WER** trên VIVOS/FLEURS (`eval/asr_bench.py`) và **chất lượng dịch** BLEU/chrF + độ trễ dịch trung bình/P95 (`eval/mt_bench.py`), ghi CSV.
+- [ ] Đo độ trễ trung bình và P95 của từng khâu trong app thật.
 - [ ] Thử model dịch tốt hơn cho tiếng Việt.
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
 - [ ] Giảm độ trễ: phát TTS dần theo từng phần, chỉnh thời gian chờ im lặng, giảm beam size; thêm TTS offline (Piper).
@@ -228,10 +276,12 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── orchestrator.py     tầng điều phối (M1)
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
-│   └── config.py, models.py, devices.py   dùng chung
-├── tests/                  165 test (pytest)
+│   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
+├── tests/                  191 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
+├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch
+├── eval/data/              tập câu tự viết cho bench dịch (tham chiếu cần duyệt)
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
 ├── results/                CSV kết quả các bench
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline

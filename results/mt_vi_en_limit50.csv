@@ -1,0 +1,13 @@
+corpus,src_lang,tgt_lang,backend,condition,asr_model,n_sents,src_wer,bleu,chrf,mean_latency_ms,p95_latency_ms,n_failed
+fleurs_vi_vn,vi,en,argos,text,-,50,0.0000,27.15,54.49,365,668,0
+fleurs_vi_vn,vi,en,argos,text_norm,-,50,0.0000,17.80,48.51,326,517,0
+fleurs_vi_vn,vi,en,argos,asr,small,50,0.2152,10.85,39.73,397,659,0
+fleurs_vi_vn,vi,en,argos,asr,phowhisper-small,50,0.1450,14.91,44.49,458,813,0
+custom_unreviewed,vi,en,argos,text,-,25,0.0000,42.39,59.60,191,337,0
+custom_unreviewed,vi,en,argos,text_norm,-,25,0.0000,31.57,54.55,194,263,0
+fleurs_vi_vn,vi,en,google,text,-,0,0.0000,,,,,50
+fleurs_vi_vn,vi,en,google,text_norm,-,0,0.0000,,,,,50
+fleurs_vi_vn,vi,en,google,asr,small,0,0.2152,,,,,50
+fleurs_vi_vn,vi,en,google,asr,phowhisper-small,0,0.1450,,,,,50
+custom_unreviewed,vi,en,google,text,-,0,0.0000,,,,,25
+custom_unreviewed,vi,en,google,text_norm,-,0,0.0000,,,,,25

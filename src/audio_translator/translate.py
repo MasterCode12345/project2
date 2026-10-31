@@ -6,6 +6,11 @@ Backends:
   directly with CTranslate2 + SentencePiece (no ``argostranslate`` library).
 * ``GoogleTranslator`` -- Google Translate via ``deep-translator`` (network).
 * ``FallbackTranslator`` -- tries a primary backend, falls back per call.
+* ``PivotTranslator`` -- two backends chained through a pivot language.
+
+``supports(src, tgt)`` (app language codes, see ``languages.py``) says whether
+a backend can translate a pair directly; ``plan_route`` picks a direct route
+or, only when there is none, a pivot through English.
 """
 
 from __future__ import annotations
@@ -25,6 +30,13 @@ class Translator(Protocol):
     def translate(self, text: str) -> str: ...
 
 
+def _mt_code(code: str, backend: str) -> str | None:
+    from .languages import LANGUAGES
+
+    lang = LANGUAGES.get(code)
+    return lang.mt.get(backend) if lang else None
+
+
 class GoogleTranslator:
     """Google Translate via ``deep-translator`` (network)."""
 
@@ -32,6 +44,11 @@ class GoogleTranslator:
         from deep_translator import GoogleTranslator as _DT
 
         self._impl = _DT(source=source, target=target)
+
+    @staticmethod
+    def supports(src: str, tgt: str) -> bool:
+        """Both app languages have a Google code in the language table (and differ)."""
+        return src != tgt and _mt_code(src, "google") is not None and _mt_code(tgt, "google") is not None
 
     def translate(self, text: str) -> str:
         result = self._impl.translate(text)
@@ -193,6 +210,17 @@ class OfflineTranslator:
         self._sp = None
         self._lock = threading.Lock()
 
+    def supports(self, src: str, tgt: str) -> bool:
+        """The installed package translates exactly ``src``→``tgt`` (its ``metadata.json``)."""
+        try:
+            meta = json.loads((self.package_dir / "metadata.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        if not isinstance(meta, dict):
+            return False
+        a, b = _mt_code(src, "argos"), _mt_code(tgt, "argos")
+        return a is not None and b is not None and meta.get("from_code") == a and meta.get("to_code") == b
+
     def load(self) -> None:
         with self._lock:
             if self._model is None:
@@ -239,3 +267,25 @@ class FallbackTranslator:
             if self._on_fallback is not None:
                 self._on_fallback(exc)
             return self.fallback.translate(text)
+
+
+class PivotTranslator:
+    """``first`` (src→pivot) then ``second`` (pivot→tgt): used only when no direct model exists."""
+
+    def __init__(self, first: Translator, second: Translator, pivot: str = "en") -> None:
+        self.first, self.second, self.pivot = first, second, pivot
+
+    def translate(self, text: str) -> str:
+        middle = self.first.translate(text)
+        return self.second.translate(middle) if middle.strip() else ""
+
+
+def plan_route(supports: Callable[[str, str], bool], src: str, tgt: str, pivot: str = "en") -> str | None:
+    """``"direct"`` if ``supports(src, tgt)``; else ``"pivot:<pivot>"`` if both legs are supported; else None."""
+    if src == tgt:
+        raise ValueError(f"source and target are the same language ({src})")
+    if supports(src, tgt):
+        return "direct"
+    if pivot not in (src, tgt) and supports(src, pivot) and supports(pivot, tgt):
+        return f"pivot:{pivot}"
+    return None

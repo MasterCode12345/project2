@@ -191,3 +191,52 @@ def test_fallback_factory_is_lazy_and_errors_propagate():
     with pytest.raises(RuntimeError):
         t.translate("x")
     assert made == [1]
+
+
+# ------------------------------------------------------- supports / pivot route
+def _package(tmp_path, meta):
+    pkg = tmp_path / "pkg"
+    pkg.mkdir(exist_ok=True)
+    (pkg / "metadata.json").write_text(json.dumps(meta) if not isinstance(meta, str) else meta)
+    return pkg
+
+
+def test_offline_supports_exactly_its_package_pair(tmp_path):
+    tr = OfflineTranslator(_package(tmp_path, {"from_code": "vi", "to_code": "en"}))
+    assert tr.supports("vi", "en")
+    assert not tr.supports("en", "vi") and not tr.supports("vi", "xx")
+    assert not OfflineTranslator(_package(tmp_path, "not json")).supports("vi", "en")
+    assert not OfflineTranslator(tmp_path / "missing").supports("vi", "en")
+
+
+def test_google_supports_languages_in_the_table():
+    from audio_translator.translate import GoogleTranslator
+
+    assert GoogleTranslator.supports("vi", "en") and GoogleTranslator.supports("en", "vi")
+    assert not GoogleTranslator.supports("vi", "vi") and not GoogleTranslator.supports("vi", "xx")
+
+
+def test_route_is_direct_when_possible_and_pivots_through_english_otherwise():
+    from audio_translator.translate import plan_route
+
+    pairs = {("vi", "en"), ("en", "fr")}
+    sup = lambda a, b: (a, b) in pairs  # noqa: E731
+    assert plan_route(sup, "vi", "en") == "direct"
+    assert plan_route(sup, "vi", "fr") == "pivot:en"
+    assert plan_route(lambda a, b: (a, b) in pairs | {("vi", "fr")}, "vi", "fr") == "direct"  # direct wins
+    assert plan_route(sup, "fr", "vi") is None
+    assert plan_route(sup, "en", "vi") is None  # no pivot when English is an end of the pair
+    with pytest.raises(ValueError):
+        plan_route(sup, "vi", "vi")
+
+
+def test_pivot_translator_chains_both_legs():
+    from audio_translator.translate import PivotTranslator
+
+    first = SimpleNamespace(translate=lambda t: f"en({t})")
+    second = SimpleNamespace(translate=lambda t: f"fr({t})")
+    assert PivotTranslator(first, second).translate("xin chào") == "fr(en(xin chào))"
+    calls = []
+    empty = PivotTranslator(SimpleNamespace(translate=lambda t: "  "),
+                            SimpleNamespace(translate=lambda t: calls.append(t) or "x"))
+    assert empty.translate("ừm") == "" and calls == []
