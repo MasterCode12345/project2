@@ -101,8 +101,11 @@ def test_failed_calls_are_counted_and_left_out():
     assert len(secs) == 3 and all(s == 1 for s in secs)  # empty input is not a call
     scorer = mt.Scorer("en")
     assert scorer.score([None, None], ["a", "b"]) is None
-    bleu, chrf, n = scorer.score(["I go to school every day", None], ["I go to school every day", "x"])
-    assert n == 1 and bleu == pytest.approx(100.0) and chrf == pytest.approx(100.0)
+    got = scorer.score(["I go to school every day", None], ["I go to school every day", "x"])
+    assert got["n"] == 1 and got["bleu"] == pytest.approx(100.0) and got["chrf"] == pytest.approx(100.0)
+    cased = scorer.score(["i went to hanoi last year"], ["I went to Hanoi last year"])
+    assert cased["bleu_lc"] == pytest.approx(100.0) and cased["chrf_lc"] == pytest.approx(100.0)
+    assert cased["bleu"] < 100.0 and cased["chrf"] < 100.0  # the cased scores still see the case
 
 
 def test_pivot_route_is_named_in_the_row_label():

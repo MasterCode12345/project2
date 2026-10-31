@@ -24,7 +24,9 @@ Data (never downloaded by this script):
 
 Scores are sacrebleu corpus BLEU (``tokenize`` from the target language's row
 in ``languages.py``; 13a for English) and chrF2 (``nc=6, nw=0``), one
-reference, mixed case; the signatures are printed. A failed call (Google
+reference, mixed case; ``bleu_lc``/``chrf_lc`` are the same scores ignoring
+case (the app's output is speech, where case is not heard); the signatures are
+printed. A failed call (Google
 blocked…) counts in ``n_failed`` and that sentence is left out of the scores of
 that row only; ``n_sents`` is the number scored. ``src_wer`` is the WER of the
 translator's input against the normalised source. Latency times each
@@ -59,7 +61,7 @@ from audio_translator.languages import LANGUAGES, get_language, mt_code, normali
 from audio_translator.translate import PivotTranslator, plan_route  # noqa: E402
 
 COLUMNS = ["corpus", "src_lang", "tgt_lang", "backend", "condition", "asr_model", "n_sents", "src_wer",
-           "bleu", "chrf", "mean_latency_ms", "p95_latency_ms", "n_failed"]
+           "bleu", "chrf", "bleu_lc", "chrf_lc", "mean_latency_ms", "p95_latency_ms", "n_failed"]
 SAMPLE_COLUMNS = ["corpus", "id", "backend", "condition", "asr_model", "source", "input", "hypothesis",
                   "reference"]
 CONDITIONS = ("text", "text_norm", "asr")
@@ -240,20 +242,23 @@ class Scorer:
     def __init__(self, tgt: str) -> None:
         from sacrebleu.metrics import BLEU, CHRF
 
-        self.bleu = BLEU(tokenize=get_language(tgt).bleu_tokenize)
-        self.chrf = CHRF()
+        tok = get_language(tgt).bleu_tokenize
+        # cased = the standard report; *_lc ignore case, which a listener of the TTS output never hears
+        self.metrics = {"bleu": BLEU(tokenize=tok), "chrf": CHRF(),
+                        "bleu_lc": BLEU(tokenize=tok, lowercase=True), "chrf_lc": CHRF(lowercase=True)}
         self.scored = False  # sacrebleu signatures need one evaluation first
 
     def signatures(self) -> str:
-        return f"BLEU: {self.bleu.get_signature()} | chrF: {self.chrf.get_signature()}"
+        return " | ".join(f"{k}: {m.get_signature()}" for k, m in self.metrics.items())
 
-    def score(self, hyps: list[str | None], refs: list[str]) -> tuple[float, float, int] | None:
+    def score(self, hyps: list[str | None], refs: list[str]) -> dict[str, float] | None:
+        """Corpus scores over the sentences whose call succeeded, plus ``n`` (their count)."""
         ok = [(h, r) for h, r in zip(hyps, refs) if h is not None]
         if not ok:
             return None
         h, r = [p[0] for p in ok], [[p[1] for p in ok]]
         self.scored = True
-        return self.bleu.corpus_score(h, r).score, self.chrf.corpus_score(h, r).score, len(ok)
+        return {**{k: m.corpus_score(h, r).score for k, m in self.metrics.items()}, "n": len(ok)}
 
 
 def _latency(secs: list[float]) -> tuple[str, str]:
@@ -312,8 +317,8 @@ def run(corpora: list[Corpus], src: str, tgt: str, backends: list[Backend], cond
                 scores = scorer.score(hyps, refs)
                 mean_ms, p95_ms = _latency(secs)
                 emit({"corpus": c.name, "src_lang": src, "tgt_lang": tgt, "backend": label, "condition": cond,
-                      "asr_model": model, "n_sents": scores[2] if scores else 0, "src_wer": f"{wer:.4f}",
-                      "bleu": f"{scores[0]:.2f}" if scores else "", "chrf": f"{scores[1]:.2f}" if scores else "",
+                      "asr_model": model, "n_sents": scores["n"] if scores else 0, "src_wer": f"{wer:.4f}",
+                      **{k: f"{scores[k]:.2f}" if scores else "" for k in ("bleu", "chrf", "bleu_lc", "chrf_lc")},
                       "mean_latency_ms": mean_ms, "p95_latency_ms": p95_ms, "n_failed": failed})
                 for p, x, h in zip(c.pairs, inputs, hyps):
                     if p.id in sample_ids.get(c.name, ()):

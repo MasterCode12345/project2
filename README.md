@@ -168,7 +168,7 @@ uv run --group eval python eval/mt_bench.py --src vi --tgt en \
 uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # offline, dữ liệu và bộ dịch giả
 ```
 
-- **CSV:** `corpus, src_lang, tgt_lang, backend, condition, asr_model, n_sents, src_wer, bleu, chrf, mean_latency_ms, p95_latency_ms, n_failed`.
+- **CSV:** `corpus, src_lang, tgt_lang, backend, condition, asr_model, n_sents, src_wer, bleu, chrf, bleu_lc, chrf_lc, mean_latency_ms, p95_latency_ms, n_failed`. `bleu_lc`/`chrf_lc` là cùng điểm đó nhưng không phân biệt hoa thường, vì đầu ra của app là giọng nói, người nghe không thấy chữ hoa. `bleu`/`chrf` (có phân biệt) vẫn là chỉ số chính.
 - **File mẫu `<out>_samples.tsv`:** 20 câu FLEURS cố định, kèm toàn bộ tập tự viết. Mỗi dòng có câu nguồn, chữ đưa vào dịch, bản dịch và tham chiếu.
 
 **Dữ liệu:**
@@ -216,6 +216,23 @@ Máy dùng để đo: MacBook Pro (Apple Silicon), Whisper chạy bằng CPU (in
 | **Độ trễ trung bình** | **2,74 s** | **4,61 s** |
 
 **Khi gọi thật qua Google Meet:** người bên kia nghe được tiếng Anh, nhưng độ trễ tăng lên **≈ 4,7–10,5 s** và xuất hiện các câu "ma" (xem mục 8).
+
+**Chất lượng dịch (Argos vi→en, FLEURS test, 347 câu, `results/mt_vi_en.csv`):**
+
+| Đầu vào dịch | WER đầu vào | BLEU | chrF | BLEU (bỏ hoa/thường) | chrF (bỏ hoa/thường) | Trễ dịch TB / P95 |
+|---|---|---|---|---|---|---|
+| Câu nguồn chuẩn (`text`) | 0 | **27,8** | **55,4** | 28,4 | 55,9 | 308 / 551 ms |
+| Câu chuẩn viết thường, bỏ dấu câu (`text_norm`) | 0 | 18,1 | 49,7 | 19,9 | 51,5 | 429 / 889 ms |
+| Chữ ASR `small` | 21,0% | 12,7 | 41,7 | 13,4 | 42,6 | 416 / 726 ms |
+| Chữ ASR `phowhisper-small` | 13,0% | 15,8 | 45,4 | 16,7 | 46,6 | 356 / 599 ms |
+
+Đọc bảng:
+- Với PhoWhisper, BLEU giảm 12,1 điểm so với câu chuẩn. **9,7 điểm là do mất chữ hoa và dấu câu**: PhoWhisper trả về chữ thường, không có dấu câu, và Argos dịch kém hẳn với kiểu đầu vào này. Chỉ 2,4 điểm là do nhận sai chữ.
+- Bỏ phân biệt hoa thường thì mức giảm do định dạng vẫn còn 8,5 điểm, nên đây là lỗi dịch thật chứ không chỉ do cách chấm.
+- PhoWhisper giúp bản dịch tốt hơn `small` 3,1 BLEU và 3,8 chrF.
+- Google bị chặn (HTTP 429) suốt lượt đo, nên chưa có số so sánh.
+- Độ trễ được đo khi CPU đang chạy song song bench ASR, nên cao hơn thực tế.
+- Hai lần chạy cho cùng điểm số.
 
 ## 7. Đã giải quyết được
 

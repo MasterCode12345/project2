@@ -3,7 +3,7 @@ title: 'M5 — đo chất lượng dịch (mt_bench), bảng ngôn ngữ trung t
 type: 'feature'
 ticket: ''
 created: '2026-10-31'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '8ce7e3aae35b1bee207f009ca2d5525e65435839'
 route: 'full'
 route_source: 'auto'
@@ -138,3 +138,13 @@ Nguồn:
   - FLEURS wav (float, int16 scale) is converted to int16 before `WhisperASR.transcribe`, because transcribe only rescales int16 input.
   - sacrebleu signatures are available only after one evaluation, so they are printed at the end of a run.
 - The 50-sentence trial ran at the same time as the step-1 ASR bench (task bch4emju5, phowhisper-medium rows). Its latency columns are pessimistic, and the step-1 latency of the rows measured during the trial is suspect.
+- Added `bleu_lc`/`chrf_lc` (sacrebleu `lowercase=True`), approved by the human: the app's output is speech.
+- Custom set: 9 draft references revised by Claude (c04, c08, c10, c11, c14, c16, c19, c20, c24). For c19 the source was made unambiguous ("với bạn thân"). Every row is still `reviewed=no` and waits for the human.
+- Full run, FLEURS 347 (Argos; Google got HTTP 429 on every call, including manual spaced calls):
+  - text: 27.83 BLEU / 55.37 chrF
+  - text_norm: 18.14 / 49.70
+  - asr small (WER 21.0%): 12.69 / 41.67
+  - asr phowhisper-small (WER 13.0%): 15.75 / 45.44
+  - A rerun from the ASR cache gave identical FLEURS scores. The latency columns are measured under CPU contention from the step-1 bench.
+- Anomaly: unpunctuated input merges sentences, and Argos can drop a whole clause (FLEURS id 1662). Names are mistranslated as words ("Hải Phòng" → "the Customs"), worse in lowercase.
+- 4A complete: waiting for the human to choose the model for 4B.
