@@ -101,12 +101,49 @@ def error_rates(refs: list[str], hyps: list[str]) -> tuple[float, float]:
 
 
 # ------------------------------------------------------------------------ audio
+def _read_float_wav(path: Path) -> tuple[int, int, np.ndarray]:
+    """(channels, rate, samples in [-1, 1]) of an IEEE-float WAV (format 3; e.g. FLEURS)."""
+    data = path.read_bytes()
+    if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+        raise ValueError(f"{path}: not a RIFF/WAVE file")
+    pos, fmt, samples = 12, None, None
+    while pos + 8 <= len(data):
+        cid, size = data[pos:pos + 4], int.from_bytes(data[pos + 4:pos + 8], "little")
+        body = data[pos + 8:pos + 8 + size]
+        if cid == b"fmt ":
+            tag, ch, rate = int.from_bytes(body[0:2], "little"), int.from_bytes(body[2:4], "little"), \
+                int.from_bytes(body[4:8], "little")
+            bits = int.from_bytes(body[14:16], "little")
+            if tag == 0xFFFE and len(body) >= 26:  # WAVE_FORMAT_EXTENSIBLE: subformat GUID starts with the tag
+                tag = int.from_bytes(body[24:26], "little")
+            fmt = (tag, ch, rate, bits)
+        elif cid == b"data":
+            samples = body
+        pos += 8 + size + (size & 1)
+    if fmt is None or samples is None:
+        raise ValueError(f"{path}: missing fmt or data chunk")
+    tag, ch, rate, bits = fmt
+    if tag != 3 or bits not in (32, 64):
+        raise ValueError(f"{path}: unsupported WAV format {tag} with {bits}-bit samples")
+    x = np.frombuffer(samples[: len(samples) - len(samples) % (bits // 8)], "<f4" if bits == 32 else "<f8")
+    return ch, rate, x.astype(np.float64)
+
+
 def read_wav(path: Path) -> np.ndarray:
-    """Read a PCM wav as 16 kHz mono float64 on the int16 scale."""
-    with wave.open(str(path), "rb") as w:
-        ch, width, rate = w.getnchannels(), w.getsampwidth(), w.getframerate()
-        raw = w.readframes(w.getnframes())
-    if width == 2:
+    """Read a PCM or IEEE-float wav as 16 kHz mono float64 on the int16 scale."""
+    try:
+        with wave.open(str(path), "rb") as w:
+            ch, width, rate = w.getnchannels(), w.getsampwidth(), w.getframerate()
+            raw = w.readframes(w.getnframes())
+    except wave.Error as exc:
+        if "unknown format: 3" not in str(exc) and "unknown format: 65534" not in str(exc):
+            raise
+        ch, rate, x = _read_float_wav(Path(path))
+        width, raw = 0, b""
+        x = x * 32768.0
+    if width == 0:
+        pass  # float samples, already scaled
+    elif width == 2:
         x = np.frombuffer(raw, "<i2").astype(np.float64)
     elif width == 4:
         x = np.frombuffer(raw, "<i4").astype(np.float64) / 65536.0

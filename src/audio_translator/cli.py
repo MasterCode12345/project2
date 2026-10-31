@@ -7,9 +7,10 @@ import signal
 import sys
 import threading
 
+from .asr import LOCAL_MODELS, convert_command
 from .config import Settings
 from .denoise import NS_MODES
-from .model_manager import CATALOG
+from .model_manager import CATALOG, NOT_DOWNLOADED
 from .models import ERROR, RESULT, STATUS, STOPPED, Event
 
 
@@ -23,6 +24,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="list Whisper models with size and download status, and exit")
     p.add_argument("--model", default="medium", choices=list(CATALOG),
                    help="Whisper model (default: medium; see --list-models)")
+    p.add_argument("--asr-prompt", default=None, metavar="TEXT",
+                   help="Whisper initial prompt, e.g. a Vietnamese sentence with diacritics (default: none)")
     p.add_argument("--translator", default="offline", choices=["offline", "google"],
                    help="translation backend (default: offline, falls back to google)")
     d = Settings()
@@ -79,11 +82,16 @@ def print_models(selected: str | None = None, manager=None, out=None) -> int:
 
     out = out or sys.stdout
     mgr = manager or ModelManager(lambda name: None)  # factory unused: nothing is loaded here
-    print("Whisper models (multilingual):", file=out)
+    print("Whisper models:", file=out)
+    to_convert = []
     for m in mgr.models():
         mark = "*" if m.name == selected else " "
-        print(f" {mark} {m.name:<15} ~{m.size_label:>7}  {m.status}", file=out)
-    print("Not-downloaded models are fetched on first use. * = --model", file=out)
+        print(f" {mark} {m.name:<17} ~{m.size_label:>7}  {m.status}", file=out)
+        if m.name in LOCAL_MODELS and m.status == NOT_DOWNLOADED:
+            to_convert.append(m.name)
+    print("Not-downloaded hub models are fetched on first use. * = --model", file=out)
+    for name in to_convert:
+        print(f"'{name}' must be converted once first: {convert_command(name)}", file=out)
     return 0
 
 
@@ -107,8 +115,8 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     from .orchestrator import Orchestrator
 
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
-                        translator=args.translator, ns_mode=args.ns, ns_mix=args.ns_mix,
-                        ns_gate_snr_db=args.ns_gate_db)
+                        asr_initial_prompt=args.asr_prompt, translator=args.translator,
+                        ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()
     failed = []
 

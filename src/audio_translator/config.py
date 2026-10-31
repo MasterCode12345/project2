@@ -45,6 +45,9 @@ class Settings:
     asr_device: str = "cpu"
     compute_type: str = "int8"
     beam_size: int = 5
+    # Whisper initial_prompt (decoder priming text), e.g. a Vietnamese sentence
+    # with full diacritics. None = no prompt; measure with eval/asr_bench.py.
+    asr_initial_prompt: str | None = None
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 

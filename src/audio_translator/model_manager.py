@@ -12,10 +12,11 @@ import threading
 from dataclasses import dataclass
 from typing import Callable
 
-from .asr import Recognizer
+from .asr import LOCAL_MODELS, Recognizer, local_model_dir
 
-# Multilingual faster-whisper models (``.en`` / ``distil-*`` are English-only).
-# Approximate download size in MB (int8 CPU memory use is of the same order).
+# Multilingual faster-whisper models (``.en`` / ``distil-*`` are English-only),
+# then Vietnamese fine-tunes converted locally (see asr.LOCAL_MODELS).
+# Approximate download/disk size in MB (int8 CPU memory use is of the same order).
 CATALOG: dict[str, int] = {
     "tiny": 75,
     "base": 145,
@@ -23,6 +24,8 @@ CATALOG: dict[str, int] = {
     "medium": 1530,
     "large-v3-turbo": 1620,
     "large-v3": 3090,
+    "phowhisper-small": 485,
+    "phowhisper-medium": 1530,
 }
 
 NOT_DOWNLOADED = "not-downloaded"
@@ -49,7 +52,9 @@ class ModelInfo:
 
 
 def hf_is_downloaded(name: str) -> bool:
-    """True when the model is in the local Hugging Face cache (no network)."""
+    """True when the model is in the local Hugging Face cache, or converted locally (no network)."""
+    if name in LOCAL_MODELS:
+        return (local_model_dir(name) / "model.bin").is_file()
     try:
         from faster_whisper.utils import download_model
 
@@ -187,7 +192,9 @@ class ModelManager:
 
     def _start(self, name: str, job: _Job) -> None:
         size = ModelInfo(name, CATALOG[name], "").size_label
-        detail = "loading" if self.is_downloaded(name) else f"downloading (~{size}) and loading"
+        # Local (converted) models are never downloaded: a missing one fails at load with the convert command.
+        fetch = not self.is_downloaded(name) and name not in LOCAL_MODELS
+        detail = f"downloading (~{size}) and loading" if fetch else "loading"
         self._notify(name, LOADING, detail)
         threading.Thread(target=self._load, args=(name, job), name=f"at-model-{name}", daemon=True).start()
 

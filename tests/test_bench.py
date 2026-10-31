@@ -157,3 +157,29 @@ def test_segment_times_are_compensated_for_stage_latency():
     # The delayed output lands one frame later (+30 ms); removing the 15 ms latency keeps
     # both edges within half a frame of the undelayed run (uncompensated: 30 ms off).
     assert abs(delayed[0][0] - a) <= 0.015 + 1e-9 and abs(delayed[0][1] - b) <= 0.015 + 1e-9
+
+
+def _float_wav(path, x, rate=16000, channels=1):
+    import struct
+
+    import numpy as np
+
+    data = np.asarray(x, "<f4").tobytes()
+    fmt = struct.pack("<HHIIHH", 3, channels, rate, rate * 4 * channels, 4 * channels, 32)
+    body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(data)) + data
+    path.write_bytes(b"RIFF" + struct.pack("<I", len(body)) + body)
+
+
+def test_read_wav_accepts_ieee_float_files(tmp_path):
+    """FLEURS ships 32-bit float WAVs, which the stdlib wave module cannot open."""
+    import numpy as np
+
+    x = np.sin(np.arange(1600) * 0.1) * 0.5
+    _float_wav(tmp_path / "f.wav", x)
+    got = bench.read_wav(tmp_path / "f.wav")
+    assert got.shape == (1600,) and np.allclose(got, x * 32768.0, atol=0.01)
+    _float_wav(tmp_path / "st.wav", np.repeat(x, 2), channels=2)  # interleaved stereo -> mono mean
+    assert np.allclose(bench.read_wav(tmp_path / "st.wav"), x * 32768.0, atol=0.01)
+    (tmp_path / "bad.wav").write_bytes(b"RIFF\x04\x00\x00\x00WAVE")
+    with pytest.raises(Exception):
+        bench.read_wav(tmp_path / "bad.wav")

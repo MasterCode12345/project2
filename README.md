@@ -118,10 +118,35 @@ uv run --group eval python eval/denoise_bench.py --smoke --out /tmp/ns_smoke.csv
 
 WER/CER được tính sau khi chuẩn hóa văn bản (chữ thường, bỏ dấu câu, giữ dấu thanh). Không đưa dataset vào repo.
 
+### Model tiếng Việt (PhoWhisper) và câu mồi
+
+[PhoWhisper](https://github.com/VinAIResearch/PhoWhisper) (VinAI, giấy phép BSD-3-Clause) là Whisper được fine-tune trên 844 giờ tiếng Việt nhiều giọng vùng miền. Repo gốc chỉ có bản cho `transformers`, nên phải convert **một lần** sang CTranslate2 để chạy bằng faster-whisper. torch/transformers chỉ được cài tạm cho lệnh này, không thành dependency của project:
+
+```sh
+uv run --with transformers --with torch python scripts/convert_phowhisper.py small medium
+uv run audio-translator --cli --model phowhisper-small [--asr-prompt "Xin chào, sau đây là đoạn hội thoại bằng tiếng Việt."]
+```
+
+Script tải `vinai/PhoWhisper-{small,medium}` ở revision cố định, ghi model vào `~/.cache/audio-translator/models/phowhisper-<size>-ct2/` kèm file `SOURCE.json` ghi rõ nguồn. `--list-models` in lệnh convert cho model nào chưa có. `large-v3-turbo` thì tải thẳng từ Hugging Face khi dùng lần đầu.
+
+`--asr-prompt` truyền câu mồi (`initial_prompt`) cho Whisper. Mặc định không có câu mồi.
+
+**Lưu ý khi so sánh:** PhoWhisper được train trên cả **tập train của VIVOS** (bài báo PhoWhisper, Bảng 1), nên VIVOS test là dữ liệu cùng miền (in-domain) với nó. Vì vậy bench chạy thêm **FLEURS tiếng Việt** (Google, CC-BY-4.0), một bộ không thuộc các nguồn train mà bài báo liệt kê, để kiểm tra ngoài miền (out-of-domain).
+
+**Bench ASR** (`eval/asr_bench.py`): cùng cách dựng clip và cách chấm như bench lọc nhiễu, không có bước lọc nhiễu. So model × câu mồi (tắt/bật) × SNR, ghi CSV `corpus, noise, model, prompt, snr_db, n_utts, wer, cer, asr_ms_mean, asr_ms_p95, asr_rtf, load_s, extra_segs`. Độ trễ là thời gian `transcribe` trên các đoạn được chấm (trung bình, P95, RTF).
+
+```sh
+uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/vivos --noise-dir ~/data/demand_ch01 --out results/asr_vivos_demand.csv
+uv run --group eval python eval/asr_bench.py --corpus fleurs --fleurs-dir ~/data/fleurs_vi --noise-dir ~/data/demand_ch01 --out results/asr_fleurs_demand.csv
+uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv   # chạy thử offline
+```
+
+FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
+
 ## 5. Kiểm thử
 
 ```sh
-uv run pytest -q     # 137 passed
+uv run pytest -q     # 165 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -173,8 +198,9 @@ Máy dùng để đo: MacBook Pro (Apple Silicon), Whisper chạy bằng CPU (in
 
 Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Việt → Anh chính xác**, sau đó mở rộng **càng nhiều ngôn ngữ càng tốt**.
 
-- [ ] Thử **PhoWhisper** (VinAI; Whisper được huấn luyện thêm trên 844 giờ tiếng Việt, nhiều giọng vùng miền) và **Whisper large-v3-turbo**. Chuyển sang định dạng CTranslate2 để dùng với faster-whisper.
-- [ ] Truyền **câu mồi tiếng Việt** cho Whisper (`initial_prompt`), lọc câu theo `no_speech_prob` / `avg_logprob`, thay webrtcvad bằng **Silero VAD**.
+- [x] Thử **PhoWhisper** (VinAI) và **Whisper large-v3-turbo**, convert sang CTranslate2 để dùng với faster-whisper (mục 4, "Model tiếng Việt").
+- [x] Truyền **câu mồi tiếng Việt** cho Whisper (`--asr-prompt`).
+- [ ] Lọc câu theo `no_speech_prob` / `avg_logprob`, thay webrtcvad bằng **Silero VAD**.
 - [ ] Đo **WER** trên bộ 30–50 câu tự thu âm hoặc bộ dữ liệu VIVOS; đo chất lượng dịch; ghi CSV; tính trung bình và P95 độ trễ của từng khâu.
 - [ ] Thử model dịch tốt hơn cho tiếng Việt.
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
@@ -203,8 +229,11 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py   dùng chung
-├── tests/                  129 test (pytest)
+├── tests/                  165 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
+├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
+├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
+├── results/                CSV kết quả các bench
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
 ├── README.md               (tài liệu này)

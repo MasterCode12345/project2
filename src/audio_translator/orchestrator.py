@@ -192,7 +192,8 @@ class Orchestrator:
 
         s = self.settings
         return WhisperASR(name, language=s.source_lang, device=s.asr_device,
-                          compute_type=s.compute_type, beam_size=s.beam_size)
+                          compute_type=s.compute_type, beam_size=s.beam_size,
+                          initial_prompt=s.asr_initial_prompt)
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None
