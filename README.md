@@ -181,6 +181,16 @@ uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # 
 - Mỗi câu chỉ có một bản tham chiếu, nên BLEU thấp hơn mức khi có nhiều bản.
 - Hướng mở rộng: COMET (cần torch nên chạy riêng ngoài app), chrF++.
 
+**Model dịch đa ngôn ngữ offline (thử nghiệm, chưa phải mặc định):** NLLB-200-distilled-600M (200 ngôn ngữ, CC-BY-NC-4.0: dùng được cho đồ án, không dùng thương mại) và M2M100-418M (100 ngôn ngữ, MIT). Mỗi model chạy được mọi cặp ngôn ngữ nó hỗ trợ. Model phải convert **một lần** sang CTranslate2 int8; torch chỉ được cài tạm cho lệnh này. Lệnh convert tải checkpoint gốc: khoảng 2,5 GB với NLLB, 1,9 GB với M2M100.
+
+```sh
+uv run --with transformers --with torch --with sentencepiece python scripts/convert_mt_model.py nllb-600m m2m100-418m
+uv run audio-translator --cli --model phowhisper-small --translator nllb-600m
+uv run --group eval python eval/mt_bench.py ... --backends argos,nllb-600m,m2m100-418m
+```
+
+Nếu model chưa convert, app cảnh báo kèm lệnh convert rồi dùng Google. Câu nào dịch lỗi thì câu đó dùng Google, giống Argos. Mặc định vẫn là Argos (`--translator offline`).
+
 **Bảng ngôn ngữ** (`src/audio_translator/languages.py`): mỗi ngôn ngữ một dòng, gồm:
 - mã của từng backend dịch;
 - ngôn ngữ Whisper và model ASR ưu tiên;
@@ -193,7 +203,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 191 passed
+uv run --group eval pytest -q     # 206 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -294,12 +304,13 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  191 test (pytest)
+├── tests/                  206 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch
 ├── eval/data/              tập câu tự viết cho bench dịch (tham chiếu cần duyệt)
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
+├── scripts/convert_mt_model.py     convert NLLB-200 / M2M100 sang CTranslate2 (chạy một lần)
 ├── results/                CSV kết quả các bench
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version

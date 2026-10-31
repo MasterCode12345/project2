@@ -355,6 +355,15 @@ def argos_backend(packages: list[Path], beam_size: int = 4) -> Backend:
     return Backend("argos", lambda a, b: find(a, b) is not None, make)
 
 
+def ct2_model_backend(name: str) -> Backend:
+    """A converted NLLB/M2M100 model (``scripts/convert_mt_model.py``); one loaded model per pair."""
+    from audio_translator.translate import MT_MODELS, CT2MultilingualTranslator
+
+    family = MT_MODELS[name][2]
+    return Backend(name, lambda a, b: CT2MultilingualTranslator.supports_family(family, a, b),
+                   lambda a, b: CT2MultilingualTranslator(name, a, b))
+
+
 def google_backend() -> Backend:
     from audio_translator.translate import GoogleTranslator
 
@@ -450,7 +459,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fleurs-src-dir", type=Path, help="FLEURS source-language dir (test.tsv + test/*.wav)")
     p.add_argument("--fleurs-tgt-tsv", type=Path, help="FLEURS target-language test.tsv")
     p.add_argument("--custom-tsv", type=Path, help="hand-written sentences (id, category, reviewed, src, ref)")
-    p.add_argument("--backends", default="argos,google")
+    p.add_argument("--backends", default="argos,google",
+                   help="comma list of argos, google, nllb-600m, m2m100-418m (converted models only)")
     p.add_argument("--conditions", default=",".join(CONDITIONS))
     p.add_argument("--asr-models", default="small,phowhisper-small")
     p.add_argument("--asr-cache", type=Path, help="TSV of transcripts reused across runs")
@@ -516,10 +526,13 @@ def main(argv: list[str] | None = None) -> int:
         except (FileNotFoundError, ValueError, RuntimeError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
+        from audio_translator.translate import MT_MODELS, mt_convert_command, mt_model_dir
+
         wanted = _csv_list(args.backends)
-        unknown = [b for b in wanted if b not in ("argos", "google")]
+        known = ("argos", "google", *MT_MODELS)
+        unknown = [b for b in wanted if b not in known]
         if unknown:
-            print(f"error: unknown backend(s) {unknown} (use argos, google)", file=sys.stderr)
+            print(f"error: unknown backend(s) {unknown} (use {', '.join(known)})", file=sys.stderr)
             return 2
         backends = []
         for b in wanted:
@@ -527,6 +540,11 @@ def main(argv: list[str] | None = None) -> int:
                 pkgs = [p.expanduser() for p in (args.argos_package or [default_argos_package()])]
                 log(f"argos packages: {[str(p) for p in pkgs if p.is_dir()] or 'none installed'}")
                 backends.append(argos_backend(pkgs))
+            elif b in MT_MODELS:
+                if not (mt_model_dir(b) / "model.bin").is_file():
+                    log(f"{b}: skipped, not converted (run: {mt_convert_command(b)})")
+                    continue
+                backends.append(ct2_model_backend(b))
             else:
                 backends.append(google_backend())
         make_recognizer = whisper_recognizer(src_lang.whisper, args.beam_size)

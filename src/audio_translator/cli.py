@@ -12,6 +12,7 @@ from .config import Settings
 from .denoise import NS_MODES
 from .model_manager import CATALOG, NOT_DOWNLOADED
 from .models import ERROR, RESULT, STATUS, STOPPED, Event
+from .translate import MT_MODELS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,8 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Whisper model (default: medium; see --list-models)")
     p.add_argument("--asr-prompt", default=None, metavar="TEXT",
                    help="Whisper initial prompt, e.g. a Vietnamese sentence with diacritics (default: none)")
-    p.add_argument("--translator", default="offline", choices=["offline", "google"],
-                   help="translation backend (default: offline, falls back to google)")
+    p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
+                   help="translation backend: offline = Argos (default), google, or a converted multilingual "
+                        "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")
     d = Settings()
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="noise suppression before VAD/ASR (experimental; default: off)")

@@ -65,6 +65,7 @@ class Orchestrator:
         package_preparer: Callable[..., Any] | None = None,
         offline_translator_factory: Callable[[Any], Any] | None = None,
         google_translator_factory: Callable[[str, str], Any] | None = None,
+        mt_model_factory: Callable[[str, str, str], Any] | None = None,
     ) -> None:
         self.settings = settings or Settings()
         self._asr = asr
@@ -76,6 +77,8 @@ class Orchestrator:
         self._package_preparer = package_preparer
         self._offline_factory = offline_translator_factory
         self._google_factory = google_translator_factory
+        self._mt_model_factory = mt_model_factory  # (name, source, target) -> translator; None: CT2 model
+        self._mt_model = None  # ((name, source, target), loaded multilingual model), reused across sessions
         self._synth = synthesizer
         self._vad_factory = vad_factory or webrtc_vad
         self._in_factory = input_stream_factory
@@ -386,12 +389,17 @@ class Orchestrator:
         Offline mode downloads/loads the Argos package once and wraps it with a
         per-segment Google fallback; if the package cannot be obtained or loaded
         the session uses Google with a warning (and offline is retried next start).
+        A multilingual model (``translate.MT_MODELS``, converted once by
+        ``scripts/convert_mt_model.py``) is loaded the same way, never downloaded.
         """
         if self._translator_fixed:
             return
         s = self.settings
-        if s.translator not in ("offline", "google"):
-            raise ValueError(f"Unknown translator '{s.translator}' (use 'offline' or 'google')")
+        from .translate import MT_MODELS
+
+        choices = ("offline", "google", *MT_MODELS)
+        if s.translator not in choices:
+            raise ValueError(f"Unknown translator '{s.translator}' (use one of {', '.join(choices)})")
 
         def google():
             if self._google_factory is not None:
@@ -404,7 +412,28 @@ class Orchestrator:
             self._translator = google()
             return
 
-        from .translate import FallbackTranslator, OfflineTranslator, ensure_argos_package
+        from .translate import CT2MultilingualTranslator, FallbackTranslator, OfflineTranslator, ensure_argos_package
+
+        def on_fallback(exc: BaseException) -> None:
+            self._emit(Event(WARNING, f"Offline translation failed ({exc}); "
+                                      "using Google Translate for this segment"))
+
+        if s.translator in MT_MODELS:
+            key = (s.translator, s.source_lang, s.target_lang)
+            if self._mt_model is None or self._mt_model[0] != key:
+                try:
+                    model = (self._mt_model_factory or CT2MultilingualTranslator)(*key)
+                    load = getattr(model, "load", None)
+                    if load is not None:
+                        load()
+                    self._mt_model = (key, model)
+                except Exception as exc:
+                    self._emit(Event(WARNING, f"Offline translation model {s.translator} unavailable ({exc}); "
+                                              "using Google Translate"))
+                    self._translator = google()
+                    return
+            self._translator = FallbackTranslator(self._mt_model[1], google, on_fallback)
+            return
 
         if self._offline_tr is None:
             def on_download():
@@ -425,10 +454,6 @@ class Orchestrator:
                                           "using Google Translate"))
                 self._translator = google()
                 return
-
-        def on_fallback(exc: BaseException) -> None:
-            self._emit(Event(WARNING, f"Offline translation failed ({exc}); "
-                                      "using Google Translate for this segment"))
 
         self._translator = FallbackTranslator(self._offline_tr, google, on_fallback)
 

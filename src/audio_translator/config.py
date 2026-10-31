@@ -20,7 +20,7 @@ class Settings:
 
     # M5 MT: "offline" (Argos vi->en model via CTranslate2, Google as fallback)
     # or "google" (Google Translate only, network).
-    translator: str = "offline"
+    translator: str = "offline"  # offline (Argos) | google | a translate.MT_MODELS name (nllb-600m, m2m100-418m)
     translation_cache_dir: str = "~/.cache/audio-translator/argos"
     argos_vi_en_url: str = "https://argos-net.com/v1/translate-vi_en-1_9.argosmodel"
 
