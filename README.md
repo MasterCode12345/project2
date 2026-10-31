@@ -98,7 +98,14 @@ uv run audio-translator --cli --model small --ns logmmse [--ns-mix 0.4] [--ns-ga
 | `--ns-mix ω` | tỷ lệ tín hiệu gốc trộn lại (0 = chỉ dùng bản đã lọc, 1 = như không lọc) | `0.4` |
 | `--ns-gate-db X` | bỏ qua lọc khi SNR ước lượng > X + 3 dB, bật lại khi < X; `none` = luôn lọc | `20` |
 
-**Đo bằng bench** (`eval/denoise_bench.py`): trộn giọng sạch với nhiễu ở SNR {clean, 20, 10, 5, 0} dB, chạy các arm {none, logmmse, logmmse+OA ω∈{0.2, 0.4, 0.6}} qua đúng Segmenter + Whisper của app, ghi CSV gồm `arm, snr_db, n_utts, wer, cer, added_latency_ms, rtf, vad_false_triggers` (số đoạn VAD cắt ra trên clip chỉ có nhiễu). Script không tự tải dữ liệu:
+**Đo bằng bench** (`eval/denoise_bench.py`): trộn giọng sạch với nhiễu ở SNR {clean, 20, 10, 5, 0} dB, chạy các arm {none, logmmse, logmmse+OA ω∈{0.2, 0.4, 0.6}} qua đúng Segmenter + Whisper của app, ghi CSV gồm `arm, snr_db, n_utts, wer, cer, added_latency_ms, rtf, vad_false_triggers, vad_extra_segs`. Script không tự tải dữ liệu.
+
+Cách chấm (mỗi clip mô phỏng một đoạn của luồng âm thanh liên tục):
+
+- Clip = 2 s nhiễu khởi động (không chấm, để VAD và bộ ước lượng nhiễu thích nghi như trong một phiên đang chạy) + 0,5 s nhiễu + câu nói + 1 s nhiễu. Nhiễu fade-in/fade-out 300 ms ở hai đầu clip, nên không có bước nhảy giữa im lặng tuyệt đối và nhiễu làm VAD kích hoạt giả. SNR tính trên đúng khoảng có câu nói. VAD và stage được tạo mới cho mỗi clip.
+- WER/CER chỉ lấy text của các đoạn VAD chồng lên khoảng có câu nói (thời gian đã trừ độ trễ của stage). Đoạn nằm ngoài khoảng đó không bị tính là từ thừa, mà được đếm vào `vad_extra_segs`.
+- `vad_false_triggers`: số đoạn VAD cắt ra trong phần nhiễu được chấm của clip chỉ có nhiễu, dựng giống hệt clip có câu nói.
+- `--limit N` lấy câu luân phiên qua các người nói, nên chạy ít câu vẫn phủ đủ 19 người nói của VIVOS test.
 
 - VIVOS (CC BY-NC-SA 4.0, chỉ dùng cho nghiên cứu): giải nén để có `vivos/test/prompts.txt` và `vivos/test/waves/<speaker>/<id>.wav`.
 - Nhiễu: thư mục `.wav` bất kỳ, ví dụ `musan/noise` hoặc `musan/music` của MUSAN (OpenSLR 17).
@@ -114,7 +121,7 @@ WER/CER được tính sau khi chuẩn hóa văn bản (chữ thường, bỏ d�
 ## 5. Kiểm thử
 
 ```sh
-uv run pytest -q     # 129 passed
+uv run pytest -q     # 137 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 

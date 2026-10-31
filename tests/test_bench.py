@@ -87,3 +87,73 @@ def test_rtf_denominator_counts_all_processed_audio():
     frames = -(-clip.size // bench.FRAME) + 600 // 30 + 2 + (240 // bench.FRAME + 1)
     assert r.processed_s == pytest.approx(frames * bench.FRAME / bench.RATE)
     assert r.processed_s > clip.size / bench.RATE
+
+
+def test_utterance_ending_at_clip_end_survives_vad_hangover():
+    """Noise up to the clip end + a VAD that keeps voicing into the flush must not drop the utterance."""
+    import numpy as np
+
+    hangover = {"left": 0}
+
+    def sticky_vad(frame: bytes, rate: int) -> bool:  # like webrtcvad after loud noise
+        if bench.energy_vad(frame, rate):
+            hangover["left"] = 5
+            return True
+        hangover["left"] -= 1
+        return hangover["left"] >= 0
+
+    rng = np.random.default_rng(0)
+    clip = (rng.standard_normal(bench.FRAME * 60) * 3000).astype(np.int16)  # voiced to the last sample
+    # raw VAD input: log-MMSE would remove this stationary "speech" before the VAD
+    for stage in (None, bench.NoiseSuppressor(bench.LogMmseEnhancer(), mix=0.4, vad_input="raw")):
+        hangover["left"] = 0
+        r = bench.run_pipeline(clip, stage, sticky_vad, None)
+        assert len(r.texts) == 1
+
+
+def test_round_robin_covers_every_speaker_before_repeating():
+    entries = [(f"SPK{s}_{i:03d}", f"t{s}{i}") for s in (1, 2, 3) for i in range(4 if s != 3 else 1)]
+    got = [uid for uid, _ in bench.pick_round_robin(entries, 5)]
+    assert got == ["SPK1_000", "SPK2_000", "SPK3_000", "SPK1_001", "SPK2_001"]
+    assert len(bench.pick_round_robin(entries, None)) == len(entries)  # no limit: everything, once
+
+
+def test_clip_layout_snr_and_fades():
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    speech = np.sin(np.arange(16000) * 0.05) * 5000.0
+    noise = rng.standard_normal(16000 * 10) * 1000.0
+    clip = bench.build_clip(speech, noise, 10.0, rng)
+    a, b = clip.speech_s
+    assert a == pytest.approx(bench.WARMUP_S + bench.LEAD_S) and b - a == pytest.approx(1.0)
+    seg = clip.noise_only[int(a * bench.RATE):int(b * bench.RATE)].astype(float)
+    assert 20 * np.log10(bench.rms(speech) / bench.rms(seg)) == pytest.approx(10.0, abs=0.05)
+    assert clip.noise_only[0] == 0 and abs(int(clip.noise_only[-1])) <= 1  # faded: no step at the edges
+    assert clip.noise_window_s == (bench.WARMUP_S, pytest.approx(clip.noisy.size / bench.RATE - bench.FADE_S))
+    clean = bench.build_clip(speech, noise, None, rng)
+    assert not clean.noise_only.any()
+
+
+def test_only_segments_overlapping_the_utterance_are_scored():
+    run = bench.ArmRun([(0.0, 1.0, "warmup"), (2.4, 3.6, "câu nói"), (4.0, 4.5, "subscribe")], 0.0, 5.0)
+    assert run.text_in((2.5, 3.5)) == "câu nói"
+    assert run.count_in((2.5, 3.5)) == 1
+    assert run.texts == ["warmup", "câu nói", "subscribe"]
+
+
+def test_segment_times_are_compensated_for_stage_latency():
+    import numpy as np
+
+    clip = np.zeros(bench.FRAME * 100, np.int16)
+    clip[bench.FRAME * 40:bench.FRAME * 60] = 5000  # "speech" at 1.2 s .. 1.8 s
+    plain = bench.run_pipeline(clip, None, bench.energy_vad, None).segments
+    # mix=1 + raw VAD input: the stage only delays the signal by its latency (15 ms)
+    stage = bench.NoiseSuppressor(bench.LogMmseEnhancer(), mix=1.0, vad_input="raw")
+    delayed = bench.run_pipeline(clip, stage, bench.energy_vad, None).segments
+    assert len(plain) == len(delayed) == 1
+    a, b, _ = plain[0]
+    assert a <= 1.2 < b and b == pytest.approx(1.8)
+    # The delayed output lands one frame later (+30 ms); removing the 15 ms latency keeps
+    # both edges within half a frame of the undelayed run (uncompensated: 30 ms off).
+    assert abs(delayed[0][0] - a) <= 0.015 + 1e-9 and abs(delayed[0][1] - b) <= 0.015 + 1e-9

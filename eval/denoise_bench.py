@@ -4,6 +4,22 @@ Mixes clean Vietnamese speech with noise at controlled SNRs, runs each arm of
 the M3a stage (NoiseSuppressor) + the real Segmenter + Whisper exactly as the
 app does (minus threads), and writes one CSV row per arm x SNR.
 
+Scoring protocol (each clip stands in for a slice of a live stream):
+
+* clip = noise warm-up (``WARMUP_S``, not scored, so the VAD and the enhancer's
+  noise tracker have adapted like in a running session) + ``LEAD_S`` noise +
+  utterance + ``TAIL_S`` noise; the noise fades in/out over ``FADE_S`` so no
+  digital-silence/noise step can trigger the VAD; SNR is measured over the
+  utterance span. VAD and stage are fresh per clip (the app makes both per
+  session).
+* WER/CER use the text of the segments that overlap the utterance span
+  (segment times compensated for the stage latency); segments that do not are
+  counted in ``vad_extra_segs`` instead of being scored as hallucinated words.
+* ``vad_false_triggers``: segments overlapping the scored noise window of a
+  noise-only clip built the same way.
+* ``--limit`` takes utterances round-robin over speakers, so a small run still
+  covers every VIVOS test speaker.
+
 Real run (data is never downloaded by this script)::
 
     uv run --group eval python eval/denoise_bench.py \\
@@ -42,8 +58,12 @@ ARMS: list[tuple[str, float | None]] = [
     ("logmmse+oa0.6", 0.6),
 ]
 SNRS: list[float | None] = [None, 20.0, 10.0, 5.0, 0.0]  # None = clean
-COLUMNS = ["arm", "snr_db", "n_utts", "wer", "cer", "added_latency_ms", "rtf", "vad_false_triggers"]
+COLUMNS = ["arm", "snr_db", "n_utts", "wer", "cer", "added_latency_ms", "rtf", "vad_false_triggers",
+           "vad_extra_segs"]
 LEAD_S, TAIL_S = 0.5, 1.0  # noise-only padding around each utterance
+WARMUP_S = 2.0  # unscored noise before the lead: VAD/enhancer adapt as in a running session
+FADE_S = 0.3  # raised-cosine noise fade-in/out at the clip edges
+MAX_EXTRA_FLUSH_FRAMES = 200  # 6 s of extra silence at most while an utterance is still open
 
 
 # ------------------------------------------------------------------ text/metrics
@@ -113,27 +133,64 @@ def noise_for(noise: np.ndarray, n: int, rng: np.random.Generator) -> np.ndarray
     return noise[start:start + n]
 
 
+@dataclass
+class Clip:
+    noisy: np.ndarray  # int16: warm-up + lead + speech + tail, speech mixed with noise
+    noise_only: np.ndarray  # int16: the same noise without speech
+    speech_s: tuple[float, float]  # utterance span in the clip (seconds)
+    noise_window_s: tuple[float, float]  # scored noise span (after warm-up, before the fade-out)
+
+
+def fade_edges(x: np.ndarray, n: int) -> np.ndarray:
+    """Raised-cosine fade-in over the first ``n`` samples and fade-out over the last ``n``."""
+    n = min(n, x.size // 2)
+    if n <= 0:
+        return x
+    ramp = 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / n)
+    y = x.copy()
+    y[:n] *= ramp
+    y[-n:] *= ramp[::-1]
+    return y
+
+
 def build_clip(speech: np.ndarray, noise: np.ndarray, snr_db: float | None,
-               rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
-    """Return (noisy clip with lead/tail padding, noise-only clip of the same length)."""
-    lead, tail = int(LEAD_S * RATE), int(TAIL_S * RATE)
-    clean = np.concatenate([np.zeros(lead), speech, np.zeros(tail)])
+               rng: np.random.Generator) -> Clip:
+    """Warm-up + lead + utterance + tail, with noise at ``snr_db`` over the utterance span."""
+    head = int((WARMUP_S + LEAD_S) * RATE)
+    tail = int(TAIL_S * RATE)
+    clean = np.concatenate([np.zeros(head), speech, np.zeros(tail)])
     if snr_db is None:
         n = np.zeros_like(clean)
     else:
         n = noise_for(noise, clean.size, rng)
-        scale = rms(speech) / (max(rms(n), 1e-9) * 10.0 ** (snr_db / 20.0))
-        n = n * scale
+        scale = rms(speech) / (max(rms(n[head:head + speech.size]), 1e-9) * 10.0 ** (snr_db / 20.0))
+        n = fade_edges(n * scale, int(FADE_S * RATE))
     to16 = lambda x: np.clip(np.rint(x), -32768, 32767).astype(np.int16)  # noqa: E731
-    return to16(clean + n), to16(n)
+    total_s = clean.size / RATE
+    return Clip(to16(clean + n), to16(n), (head / RATE, (head + speech.size) / RATE),
+                (WARMUP_S, total_s - FADE_S))
+
+
+def overlaps(seg: tuple[float, float], span: tuple[float, float]) -> bool:
+    return seg[0] < span[1] and seg[1] > span[0]
 
 
 # --------------------------------------------------------------------- pipeline
 @dataclass
 class ArmRun:
-    texts: list[str]
+    segments: list[tuple[float, float, str]]  # (start_s, end_s, text) in clip time, latency removed
     stage_s: float
     processed_s: float  # audio actually run through the stage (clip + pad + flush)
+
+    @property
+    def texts(self) -> list[str]:
+        return [text for _, _, text in self.segments]
+
+    def text_in(self, span: tuple[float, float]) -> str:
+        return " ".join(text for a, b, text in self.segments if overlaps((a, b), span))
+
+    def count_in(self, span: tuple[float, float]) -> int:
+        return sum(overlaps((a, b), span) for a, b, _ in self.segments)
 
 
 def make_stage(mix: float | None, gate_db: float | None) -> NoiseSuppressor | None:
@@ -144,26 +201,41 @@ def make_stage(mix: float | None, gate_db: float | None) -> NoiseSuppressor | No
 
 def run_pipeline(clip: np.ndarray, stage: NoiseSuppressor | None, vad: Callable[[bytes, int], bool],
                  asr, silence_ms: int = 600) -> ArmRun:
-    """Stage + Segmenter (+ ASR when given) over one clip; flushed with digital silence."""
+    """Stage + Segmenter (+ ASR when given) over one clip; flushed with digital silence.
+
+    The flush runs until the segmenter is idle again: webrtcvad keeps voicing a
+    few frames after loud noise stops (hangover), so a fixed ``silence_ms``
+    flush would leave a noisy clip's utterance open and silently drop it.
+    """
     seg = Segmenter(vad, sample_rate=RATE, silence_ms=silence_ms)
     pad = (-clip.size) % FRAME
     lat_frames = (stage.latency_samples // FRAME + 1) if stage else 0
-    flush = np.zeros(FRAME * (silence_ms // 30 + 2 + lat_frames), np.int16)
-    x = np.concatenate([clip, np.zeros(pad, np.int16), flush])
-    texts, stage_s = [], 0.0
-    for i in range(0, x.size, FRAME):
-        frame = x[i:i + FRAME]
+    min_flush = silence_ms // 30 + 2 + lat_frames
+    max_flush = min_flush + MAX_EXTRA_FLUSH_FRAMES
+    x = np.concatenate([clip, np.zeros(pad, np.int16)])
+    silence = np.zeros(FRAME, np.int16)
+    n_clip = x.size // FRAME
+    lat_s = stage.latency_s if stage else 0.0
+    frame_s = FRAME / RATE
+    segments, stage_s = [], 0.0
+    i = 0
+    while i < n_clip + min_flush or (seg.triggered and i < n_clip + max_flush):
+        frame = x[i * FRAME:(i + 1) * FRAME] if i < n_clip else silence
         vad_frame = None
         if stage is not None:
             t0 = time.perf_counter()
             vad_frame, frame = stage.process(frame)
             stage_s += time.perf_counter() - t0
-        for utt in seg.feed(frame, (i + FRAME) / RATE, vad_frame=vad_frame):
-            texts.append(asr.transcribe(utt.audio, RATE) if asr is not None else "")
-    return ArmRun(texts, stage_s, x.size / RATE)
+        i += 1
+        for utt in seg.feed(frame, i * FRAME / RATE, vad_frame=vad_frame):
+            # Segmenter times are frame *end* times of the (delayed) stage output.
+            span = (utt.speech_start - frame_s - lat_s, utt.speech_end - lat_s)
+            segments.append((*span, asr.transcribe(utt.audio, RATE) if asr is not None else ""))
+    return ArmRun(segments, stage_s, i * FRAME / RATE)
 
 
-def bench(utts: list[tuple[np.ndarray, str]], noises: list[np.ndarray], asr, vad,
+def bench(utts: list[tuple[np.ndarray, str]], noises: list[np.ndarray], asr,
+          make_vad: Callable[[], Callable[[bytes, int], bool]],
           gate_db: float | None, seed: int, log=print) -> list[dict]:
     rows = []
     for snr in SNRS:
@@ -171,23 +243,26 @@ def bench(utts: list[tuple[np.ndarray, str]], noises: list[np.ndarray], asr, vad
             rng = np.random.default_rng(seed)  # same noise excerpts for every arm
             refs, hyps = [], []
             stage_s = audio_s = 0.0
-            false_triggers = 0
+            false_triggers = extra_segs = 0
             latency_ms = 0.0
             for k, (speech, ref) in enumerate(utts):
-                noisy, noise_only = build_clip(speech, noises[k % len(noises)], snr, rng)
+                clip = build_clip(speech, noises[k % len(noises)], snr, rng)
                 stage = make_stage(mix, gate_db)
                 latency_ms = stage.latency_samples * 1000.0 / RATE if stage else 0.0
-                r = run_pipeline(noisy, stage, vad, asr)
+                r = run_pipeline(clip.noisy, stage, make_vad(), asr)
                 refs.append(normalize_vi(ref))
-                hyps.append(normalize_vi(" ".join(r.texts)))
+                hyps.append(normalize_vi(r.text_in(clip.speech_s)))
+                extra_segs += len(r.segments) - r.count_in(clip.speech_s)
                 stage_s += r.stage_s
                 audio_s += r.processed_s
-                false_triggers += len(run_pipeline(noise_only, make_stage(mix, gate_db), vad, None).texts)
+                noise_run = run_pipeline(clip.noise_only, make_stage(mix, gate_db), make_vad(), None)
+                false_triggers += noise_run.count_in(clip.noise_window_s)
             wer, cer = error_rates(refs, hyps)
             row = {
                 "arm": arm, "snr_db": "clean" if snr is None else f"{snr:g}", "n_utts": len(utts),
                 "wer": f"{wer:.4f}", "cer": f"{cer:.4f}", "added_latency_ms": f"{latency_ms:.1f}",
                 "rtf": f"{stage_s / audio_s if audio_s else 0.0:.4f}", "vad_false_triggers": false_triggers,
+                "vad_extra_segs": extra_segs,
             }
             rows.append(row)
             log("  ".join(f"{c}={row[c]}" for c in COLUMNS))
@@ -264,16 +339,36 @@ def smoke_data(seed: int) -> tuple[list[tuple[np.ndarray, str]], list[np.ndarray
 
 
 # ------------------------------------------------------------------------- real
+def pick_round_robin(entries: list[tuple[str, str]], limit: int | None) -> list[tuple[str, str]]:
+    """Take ``(uid, text)`` entries one speaker at a time (file order within a speaker)."""
+    by_spk: dict[str, list[tuple[str, str]]] = {}
+    for uid, text in entries:
+        by_spk.setdefault(uid.split("_")[0], []).append((uid, text))
+    queues = list(by_spk.values())
+    out: list[tuple[str, str]] = []
+    depth = 0
+    while queues and (not limit or len(out) < limit):
+        queues = [q for q in queues if depth < len(q)]
+        for q in queues:
+            if limit and len(out) >= limit:
+                break
+            out.append(q[depth])
+        depth += 1
+    return out
+
+
 def load_vivos(root: Path, limit: int | None) -> list[tuple[np.ndarray, str]]:
     test = root / "test" if (root / "test" / "prompts.txt").is_file() else root
     prompts = test / "prompts.txt"
     if not prompts.is_file():
         raise FileNotFoundError(f"VIVOS prompts not found: {root}/test/prompts.txt (or {root}/prompts.txt)")
-    utts = []
+    entries = []
     for line in prompts.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        uid, _, text = line.strip().partition(" ")
+        if line.strip():
+            uid, _, text = line.strip().partition(" ")
+            entries.append((uid, text))
+    utts = []
+    for uid, text in pick_round_robin(entries, limit):
         spk = uid.split("_")[0]
         wav = test / "waves" / spk / f"{uid}.wav"
         if not wav.is_file():
@@ -282,8 +377,6 @@ def load_vivos(root: Path, limit: int | None) -> list[tuple[np.ndarray, str]]:
                 raise FileNotFoundError(f"VIVOS wav missing for {uid}: {wav}")
             wav = found[0]
         utts.append((read_wav(wav), text))
-        if limit and len(utts) >= limit:
-            break
     if not utts:
         raise FileNotFoundError(f"no utterances listed in {prompts}")
     return utts
@@ -311,7 +404,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--model", default="small", help="Whisper model (default: small)")
     p.add_argument("--beam-size", type=int, default=5)
     p.add_argument("--vad-aggressiveness", type=int, default=2)
-    p.add_argument("--limit", type=int, default=50, help="max utterances (0 = all; default 50)")
+    p.add_argument("--limit", type=int, default=50, help="max utterances, taken round-robin over speakers (0 = all; default 50)")
     p.add_argument("--noise-files", type=int, default=20, help="noise files sampled (default 20)")
     p.add_argument("--gate-db", type=_gate, default=None,
                    help="SNR gate threshold for the stage, or 'none' (default: none = always enhance)")
@@ -324,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.smoke:
         utts, noises = smoke_data(args.seed)
-        asr, vad = ToyASR(), energy_vad
+        asr, make_vad = ToyASR(), (lambda: energy_vad)
     else:
         missing = [f"{flag} {path}" if path else f"{flag} (not given)"
                    for flag, path in (("--vivos-dir", args.vivos_dir), ("--noise-dir", args.noise_dir))
@@ -344,11 +437,12 @@ def main(argv: list[str] | None = None) -> int:
 
         asr = WhisperASR(args.model, language="vi", beam_size=args.beam_size)
         asr.load()
-        vad = webrtc_vad(args.vad_aggressiveness)
+        def make_vad():
+            return webrtc_vad(args.vad_aggressiveness)
 
     print(f"{len(utts)} utterance(s), {len(noises)} noise source(s), "
           f"{len(ARMS)} arms x {len(SNRS)} SNRs", flush=True)
-    rows = bench(utts, noises, asr, vad, args.gate_db, args.seed, log=lambda s: print(s, flush=True))
+    rows = bench(utts, noises, asr, make_vad, args.gate_db, args.seed, log=lambda s: print(s, flush=True))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS)
