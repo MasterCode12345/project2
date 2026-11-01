@@ -3,7 +3,7 @@
 One-time step per model; transformers/torch are needed only here, in a
 throwaway environment, never as project dependencies::
 
-    uv run --with transformers --with torch --with sentencepiece \\
+    uv run --with transformers --with torch --with sentencepiece --with accelerate \\
         python scripts/convert_mt_model.py nllb-600m m2m100-418m
 
 Downloads the repo at the revision pinned in
@@ -13,7 +13,8 @@ the PyTorch weights, configs and tokenizer files; ~2.5 GB for NLLB-600M,
 ``~/.cache/audio-translator/models/<name>-ct2/`` (the only place the app
 looks) with ``SOURCE.json`` naming the exact source. The output appears only
 when complete (written to a temp dir, then renamed). Existing output is kept
-unless ``--force``. Converting needs several GB of free RAM.
+unless ``--force``. Converting needs a few GB of free RAM (about the size of the
+checkpoint, with ``low_cpu_mem_usage``).
 """
 
 from __future__ import annotations
@@ -49,7 +50,9 @@ def convert(name: str, out_root: Path, *, force: bool = False, quantization: str
     tmp = Path(tempfile.mkdtemp(prefix=f".{name}-", dir=out.parent))
     try:
         log(f"converting to CTranslate2 ({quantization}) …")
-        TransformersConverter(src, copy_files=COPY_FILES).convert(str(tmp), quantization=quantization, force=True)
+        # low_cpu_mem_usage: load the checkpoint once instead of twice (peak RAM ~ model size, 8 GB machine)
+        TransformersConverter(src, copy_files=COPY_FILES, low_cpu_mem_usage=True).convert(
+            str(tmp), quantization=quantization, force=True)
         (tmp / "SOURCE.json").write_text(json.dumps(
             {"repo": repo, "revision": revision, "quantization": quantization,
              "converter": "ctranslate2.converters.TransformersConverter"}, indent=2) + "\n")
@@ -76,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
         for name in args.names:
             convert(name, MT_MODELS_DIR, force=args.force, quantization=args.quantization)
     except ImportError as exc:
-        print(f"error: {exc}\nrun with: uv run --with transformers --with torch --with sentencepiece python "
+        print(f"error: {exc}\nrun with: uv run --with transformers --with torch --with sentencepiece --with accelerate python "
               f"scripts/convert_mt_model.py {' '.join(args.names)}", file=sys.stderr)
         return 2
     except Exception as exc:  # network, conversion

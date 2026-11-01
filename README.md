@@ -184,7 +184,7 @@ uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # 
 **Model dịch đa ngôn ngữ offline (thử nghiệm, chưa phải mặc định):** NLLB-200-distilled-600M (200 ngôn ngữ, CC-BY-NC-4.0: dùng được cho đồ án, không dùng thương mại) và M2M100-418M (100 ngôn ngữ, MIT). Mỗi model chạy được mọi cặp ngôn ngữ nó hỗ trợ. Model phải convert **một lần** sang CTranslate2 int8; torch chỉ được cài tạm cho lệnh này. Lệnh convert tải checkpoint gốc: khoảng 2,5 GB với NLLB, 1,9 GB với M2M100.
 
 ```sh
-uv run --with transformers --with torch --with sentencepiece python scripts/convert_mt_model.py nllb-600m m2m100-418m
+uv run --with transformers --with torch --with sentencepiece --with accelerate python scripts/convert_mt_model.py nllb-600m m2m100-418m
 uv run audio-translator --cli --model phowhisper-small --translator nllb-600m
 uv run --group eval python eval/mt_bench.py ... --backends argos,nllb-600m,m2m100-418m
 ```

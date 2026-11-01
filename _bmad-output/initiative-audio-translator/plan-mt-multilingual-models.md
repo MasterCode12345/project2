@@ -95,5 +95,5 @@ context: ['{project-root}/_bmad-output/initiative-audio-translator/plan-mt-eval.
 
 **Commands:**
 - `uv run --group eval pytest -q` -- expected: tất cả pass
-- `uv run --with transformers --with torch --with sentencepiece python scripts/convert_mt_model.py nllb-600m m2m100-418m` -- expected: hai thư mục `-ct2` (chỉ chạy sau khi người dùng cho tải)
+- `uv run --with transformers --with torch --with sentencepiece --with accelerate python scripts/convert_mt_model.py nllb-600m m2m100-418m` -- expected: hai thư mục `-ct2` (chỉ chạy sau khi người dùng cho tải)
 - `uv run --group eval python eval/mt_bench.py ... --backends argos,nllb-600m,m2m100-418m --out results/mt_vi_en_models.csv` -- expected: có dòng của cả ba backend

@@ -263,7 +263,7 @@ def mt_model_dir(name: str, root: Path | None = None) -> Path:
 
 
 def mt_convert_command(name: str) -> str:
-    return f"uv run --with transformers --with torch --with sentencepiece python scripts/convert_mt_model.py {name}"
+    return f"uv run --with transformers --with torch --with sentencepiece --with accelerate python scripts/convert_mt_model.py {name}"
 
 
 def _lang_token(family: str, code: str) -> str | None:

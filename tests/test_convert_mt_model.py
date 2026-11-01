@@ -24,11 +24,11 @@ def fake_tools(monkeypatch, tmp_path):
         return str(tmp_path / "hf-src")
 
     class TransformersConverter:
-        def __init__(self, src, copy_files):
-            self.src, self.copy_files = src, copy_files
+        def __init__(self, src, copy_files, low_cpu_mem_usage=False):
+            self.src, self.copy_files, self.low_mem = src, copy_files, low_cpu_mem_usage
 
         def convert(self, out, quantization, force):
-            calls["convert"].append((self.copy_files, quantization))
+            calls["convert"].append((self.copy_files, quantization, self.low_mem))
             for f in behaviour["files"]:
                 (Path(out) / f).write_text("x")
             if behaviour["fail"]:
@@ -48,7 +48,7 @@ def test_converts_pinned_revision_and_only_needed_files(tmp_path, fake_tools, na
     repo, revision, patterns = calls["download"][0]
     assert (repo, revision) == cv.MT_MODELS[name][:2] and len(revision) == 40
     assert "pytorch_model.bin" in patterns and not any("rust" in p or p == "*" for p in patterns)
-    assert calls["convert"][0] == (["sentencepiece.bpe.model"], "int8")
+    assert calls["convert"][0] == (["sentencepiece.bpe.model"], "int8", True)
     src = json.loads((out / "SOURCE.json").read_text())
     assert (src["repo"], src["revision"], src["quantization"]) == (repo, revision, "int8")
     assert sorted(p.name for p in (tmp_path / "models").iterdir()) == [f"{name}-ct2"]  # no temp left
