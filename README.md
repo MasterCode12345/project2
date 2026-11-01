@@ -244,6 +244,22 @@ Máy dùng để đo: MacBook Pro (Apple Silicon), Whisper chạy bằng CPU (in
 - Độ trễ được đo khi CPU đang chạy song song bench ASR, nên cao hơn thực tế.
 - Hai lần chạy cho cùng điểm số.
 
+**So sánh model dịch offline (FLEURS test, 347 câu, BLEU / chrF, `results/mt_vi_en_models.csv`):**
+
+| Đầu vào dịch | Argos | NLLB-200-600M | M2M100-418M |
+|---|---|---|---|
+| Câu nguồn chuẩn (`text`) | 27,8 / 55,4 | **34,6 / 60,1** | 27,3 / 54,9 |
+| Viết thường, bỏ dấu câu (`text_norm`) | 18,1 / 49,7 | **25,0 / 54,2** | 19,2 / 50,6 |
+| Chữ ASR `small` | 12,7 / 41,7 | **16,9 / 44,2** | 12,9 / 41,6 |
+| Chữ ASR `phowhisper-small` | 15,8 / 45,4 | **21,3 / 49,4** | 11,9 / 44,8 |
+| Trễ dịch TB / P95 khi máy rảnh (50 câu, chữ PhoWhisper, beam 4) | **226 / 412 ms** | 1108 / 1560 ms | 863 / 1285 ms |
+
+- NLLB tốt nhất ở cả bốn điều kiện. Với đầu vào thật của app (chữ PhoWhisper), NLLB hơn Argos 5,6 BLEU và 3,9 chrF.
+- NLLB chậm gấp khoảng 5 lần Argos và vượt mục tiêu 500 ms/câu. Dùng beam 1 thì nhanh hơn (TB 779 ms, P95 1145 ms, 4 luồng) mà BLEU chỉ giảm 0,8 (20,1 so với 20,8, trên 50 câu). Dùng 8 luồng lại chậm hơn 4 luồng. Câu FLEURS dài, còn đoạn nói thật trong app thường ngắn hơn, nên độ trễ thực tế có thể thấp hơn, nhưng chưa đo.
+- M2M100 không hơn Argos. Một điểm bất thường chưa giải thích: BLEU của M2M100 với chữ PhoWhisper thấp hơn với chữ `small`, dù chrF lại cao hơn.
+- Ở bảng này, điểm chất lượng đo trên 347 câu. Độ trễ đo lại riêng khi máy rảnh: hàng số trễ dùng 50 câu, các số beam 1 cũng là 50 câu.
+- Giấy phép NLLB là CC-BY-NC-4.0, chỉ dùng phi thương mại. Mặc định của app vẫn là Argos.
+
 ## 7. Đã giải quyết được
 
 - ✅ Đi trọn vẹn từ micro đến bên nghe qua micro ảo, theo đúng kiến trúc 8 module. Đã chạy được với Google Meet.

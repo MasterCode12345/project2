@@ -86,6 +86,15 @@ context: ['{project-root}/_bmad-output/initiative-audio-translator/plan-mt-eval.
 - One class serves both families. The family selects the `languages.py` column and the language-token format. Output starts with the forced target token, which is stripped.
 - Orchestrator: the multilingual model is cached under key (name, src, tgt) and reused across sessions. A load failure (not converted) emits a WARNING naming the convert command, and the session uses Google. The next session retries.
 - 206 tests pass. Conversion and measurement are waiting for the human's OK on the >1 GB download.
+- 2026-11-01: The download was approved and both models were converted (NLLB model.bin 623 MB, M2M100 491 MB).
+- Bench on FLEURS 347 (`results/mt_vi_en_models.csv`, commit f226d6c): NLLB is best in all 4 conditions.
+  - PhoWhisper ASR text: 21.3 BLEU vs Argos 15.8. M2M100 is roughly equal to Argos.
+  - Google was blocked (HTTP 429).
+- Idle-machine latency (50 sentences, PhoWhisper text):
+  - Argos 226/412 ms.
+  - NLLB beam 4: 1108/1560 ms.
+  - NLLB beam 1: 779/1145 ms at -0.8 BLEU. 8 threads is slower than 4.
+  - The ≤500 ms target is not met. The default is unchanged pending the human's decision.
 
 ## Plan Change Log
 
