@@ -108,6 +108,17 @@ def test_failed_calls_are_counted_and_left_out():
     assert cased["bleu"] < 100.0 and cased["chrf"] < 100.0  # the cased scores still see the case
 
 
+def test_segmented_input_is_one_call_per_segment_joined_per_sentence():
+    tr = mt.FlakyTranslator()  # third call fails
+    ticks = iter(range(100))
+    segs = [["tôi đi", "học"], ["trời mưa", "to"], [], ["tôi"]]
+    hyps, secs, failed = mt.translate_segmented(tr, segs, clock=lambda: next(ticks))
+    assert hyps[0] == "I go to school" and hyps[1] is None and hyps[2] == "" and hyps[3] == "I"
+    assert failed == 1 and len(secs) == 4  # per-call latency, the unit the app translates
+    assert mt.split_segments(" a  |||  b c ||| ") == ["a", "b c"] and mt.split_segments("") == []
+    assert mt.seg_model_key("phowhisper-small", 2, 600) == "phowhisper-small+seg(vad2,600ms)"
+
+
 def test_pivot_route_is_named_in_the_row_label():
     legs = {("vi", "en"), ("en", "fr")}
     b = mt.Backend("toy", lambda a, c: (a, c) in legs, lambda a, c: mt.ToyTranslator())
@@ -126,11 +137,14 @@ def test_smoke_writes_every_backend_condition_row_and_samples(tmp_path):
     for backend in ("toy", "flaky", "down"):
         assert {("smoke", backend, "text", "-"), ("smoke", backend, "text_norm", "-"),
                 ("smoke", backend, "asr", "toy-asr-good"), ("smoke", backend, "asr", "toy-asr-bad"),
-                ("custom_unreviewed", backend, "text", "-")} <= keys
-    assert not any(r["corpus"] == "custom_unreviewed" and r["condition"] == "asr" for r in rows)
+                ("smoke", backend, "asr_seg", "toy-asr-good"), ("custom_unreviewed", backend, "text", "-")} <= keys
+    assert not any(r["corpus"] == "custom_unreviewed" and r["condition"].startswith("asr") for r in rows)
     by = {(r["corpus"], r["backend"], r["condition"], r["asr_model"]): r for r in rows}
     good, bad = by["smoke", "toy", "asr", "toy-asr-good"], by["smoke", "toy", "asr", "toy-asr-bad"]
     assert float(good["src_wer"]) == 0 and float(bad["src_wer"]) > 0 and float(bad["bleu"]) < float(good["bleu"])
+    seg = by["smoke", "toy", "asr_seg", "toy-asr-good"]
+    assert int(seg["n_inputs"]) > int(good["n_inputs"]) == 6 and float(seg["mean_words"]) <= 2
+    assert seg["bleu"] == good["bleu"]  # word-by-word toy: cutting into segments changes nothing
     down = by["smoke", "down", "text", "-"]
     assert down["n_failed"] == "6" and down["n_sents"] == "0" and down["bleu"] == ""
     assert int(by["smoke", "flaky", "text", "-"]["n_failed"]) > 0

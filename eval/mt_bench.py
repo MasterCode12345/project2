@@ -8,7 +8,13 @@ Two questions:
 * (B) how much worse it gets on what ASR heard (``condition=asr``), for each
   ``--asr-models`` model: Whisper transcribes the whole clean FLEURS recording
   (no VAD/segmenter, no noise, no prompt, beam 5), so the gap text_norm -> asr
-  is recognition errors only and text -> text_norm is lost casing/punctuation.
+  is recognition errors only and text -> text_norm is lost casing/punctuation;
+* (C) what the app really does (``condition=asr_seg``): the recording goes
+  through the app's webrtcvad + Segmenter (``Settings`` aggressiveness and
+  silence), each segment is transcribed and translated on its own, and the
+  segment translations are joined for scoring. Latency is then per segment,
+  the unit the app translates; ``n_inputs``/``mean_words`` say how many
+  translator inputs a row had and how long they were.
 
 Data (never downloaded by this script):
 
@@ -61,11 +67,13 @@ from audio_translator.languages import LANGUAGES, get_language, mt_code, normali
 from audio_translator.translate import PivotTranslator, plan_route  # noqa: E402
 
 COLUMNS = ["corpus", "src_lang", "tgt_lang", "backend", "condition", "asr_model", "n_sents", "src_wer",
-           "bleu", "chrf", "bleu_lc", "chrf_lc", "mean_latency_ms", "p95_latency_ms", "n_failed"]
+           "bleu", "chrf", "bleu_lc", "chrf_lc", "n_inputs", "mean_words", "mean_latency_ms", "p95_latency_ms",
+           "n_failed"]
 SAMPLE_COLUMNS = ["corpus", "id", "backend", "condition", "asr_model", "source", "input", "hypothesis",
                   "reference"]
-CONDITIONS = ("text", "text_norm", "asr")
+CONDITIONS = ("text", "text_norm", "asr", "asr_seg")
 FAILED = "<FAILED>"
+SEG_SEP = "|||"  # between the segments of one recording, in the ASR cache and the samples file
 
 
 @dataclass(frozen=True)
@@ -238,6 +246,22 @@ def translate_all(translator, sources: list[str], clock: Callable[[], float] = t
     return hyps, secs, failed
 
 
+def translate_segmented(translator, segments: list[list[str]], clock: Callable[[], float] = time.perf_counter):
+    """Each sentence's segments translated one call each and joined; a sentence with a failed call is None."""
+    flat = [x for segs in segments for x in segs]
+    out, secs, failed = translate_all(translator, flat, clock)
+    hyps, k = [], 0
+    for segs in segments:
+        part = out[k:k + len(segs)]
+        k += len(segs)
+        hyps.append(None if None in part else " ".join(h for h in part if h))
+    return hyps, secs, failed
+
+
+def split_segments(text: str) -> list[str]:
+    return [x.strip() for x in text.split(SEG_SEP) if x.strip()]
+
+
 class Scorer:
     def __init__(self, tgt: str) -> None:
         from sacrebleu.metrics import BLEU, CHRF
@@ -275,13 +299,14 @@ def run(corpora: list[Corpus], src: str, tgt: str, backends: list[Backend], cond
         log: Callable[[str], None] = print) -> int:
     """Emit one row per backend x corpus x condition (x ASR model). Returns the number of backends run."""
     scorer = Scorer(tgt)
-    asr = {}  # (corpus, model) -> id -> text; one model loaded at a time
-    if "asr" in conditions:
-        for model in asr_models:
-            for c in corpora:
-                if c.with_audio:
-                    asr[c.name, model] = asr_texts(model, c.pairs)
-            gc.collect()
+    asr = {}  # (condition, corpus, model) -> id -> text; one model loaded at a time
+    for cond in ("asr", "asr_seg"):
+        if cond in conditions:
+            for model in asr_models:
+                for c in corpora:
+                    if c.with_audio:
+                        asr[cond, c.name, model] = asr_texts(model, c.pairs, cond == "asr_seg")
+                gc.collect()
 
     done = 0
     for backend in backends:
@@ -303,27 +328,32 @@ def run(corpora: list[Corpus], src: str, tgt: str, backends: list[Backend], cond
         for c in corpora:
             refs = [p.ref for p in c.pairs]
             norm_src = [normalize(p.src, src) for p in c.pairs]
-            runs = []
+            runs = []  # (condition, ASR model, segments per sentence)
             for cond in conditions:
                 if cond == "text":
-                    runs.append((cond, "-", [p.src for p in c.pairs]))
+                    runs.append((cond, "-", [[p.src] for p in c.pairs]))
                 elif cond == "text_norm":
-                    runs.append((cond, "-", norm_src))
+                    runs.append((cond, "-", [[x] for x in norm_src]))
                 elif c.with_audio:
-                    runs.extend((cond, m, [asr[c.name, m][p.id] for p in c.pairs]) for m in asr_models)
-            for cond, model, inputs in runs:
-                hyps, secs, failed = translate_all(translator, inputs)
-                wer = db.error_rates(norm_src, [normalize(x, src) for x in inputs])[0]
+                    split = split_segments if cond == "asr_seg" else lambda t: [t]
+                    runs.extend((cond, m, [split(asr[cond, c.name, m][p.id]) for p in c.pairs])
+                                for m in asr_models)
+            for cond, model, segments in runs:
+                hyps, secs, failed = translate_segmented(translator, segments)
+                inputs = [x for segs in segments for x in segs if x.strip()]
+                wer = db.error_rates(norm_src, [normalize(" ".join(segs), src) for segs in segments])[0]
                 scores = scorer.score(hyps, refs)
                 mean_ms, p95_ms = _latency(secs)
+                words = np.mean([len(x.split()) for x in inputs]) if inputs else 0.0
                 emit({"corpus": c.name, "src_lang": src, "tgt_lang": tgt, "backend": label, "condition": cond,
                       "asr_model": model, "n_sents": scores["n"] if scores else 0, "src_wer": f"{wer:.4f}",
                       **{k: f"{scores[k]:.2f}" if scores else "" for k in ("bleu", "chrf", "bleu_lc", "chrf_lc")},
+                      "n_inputs": len(inputs), "mean_words": f"{words:.1f}",
                       "mean_latency_ms": mean_ms, "p95_latency_ms": p95_ms, "n_failed": failed})
-                for p, x, h in zip(c.pairs, inputs, hyps):
+                for p, segs, h in zip(c.pairs, segments, hyps):
                     if p.id in sample_ids.get(c.name, ()):
                         emit_sample({"corpus": c.name, "id": p.id, "backend": label, "condition": cond,
-                                     "asr_model": model, "source": p.src, "input": x,
+                                     "asr_model": model, "source": p.src, "input": f" {SEG_SEP} ".join(segs),
                                      "hypothesis": FAILED if h is None else h, "reference": p.ref})
     if scorer.scored:
         log(scorer.signatures())
@@ -371,16 +401,28 @@ def google_backend() -> Backend:
                    lambda a, b: GoogleTranslator(mt_code(a, "google"), mt_code(b, "google")))
 
 
-def whisper_recognizer(language: str, beam_size: int):
+def seg_model_key(model: str, aggressiveness: int, silence_ms: int) -> str:
+    """ASR cache name of a segmented run: another segmentation is another transcript."""
+    return f"{model}+seg(vad{aggressiveness},{silence_ms}ms)"
+
+
+def whisper_recognizer(language: str, beam_size: int, segmented_vad: tuple[int, int] | None = None):
+    """Whole-recording transcript, or with ``segmented_vad=(aggressiveness, silence_ms)`` the app's
+    webrtcvad + Segmenter, one transcript per segment joined with SEG_SEP (empty segments dropped)."""
     def make(model: str) -> Callable[[Pair], str]:
         from audio_translator.asr import WhisperASR
+        from audio_translator.segmenter import webrtc_vad
 
         asr = WhisperASR(model, language=language, beam_size=beam_size)
         asr.load()
 
         def recognize(pair: Pair) -> str:
-            x = db.read_wav(pair.audio)
-            return asr.transcribe(np.clip(np.rint(x), -32768, 32767).astype(np.int16), db.RATE)
+            x = np.clip(np.rint(db.read_wav(pair.audio)), -32768, 32767).astype(np.int16)
+            if segmented_vad is None:
+                return asr.transcribe(x, db.RATE)
+            aggressiveness, silence_ms = segmented_vad
+            r = db.run_pipeline(x, None, webrtc_vad(aggressiveness), asr, silence_ms=silence_ms)
+            return f" {SEG_SEP} ".join(" ".join(t.split()) for t in r.texts if t.strip())
 
         return recognize
 
@@ -435,12 +477,15 @@ def smoke_parts():
                 Backend("flaky", always, lambda a, b: FlakyTranslator()),
                 Backend("down", always, lambda a, b: DownTranslator())]
 
-    def make_recognizer(model: str):
+    def make_recognizer(model: str, segmented: bool = False):
         drop = 1 if model == "toy-asr-bad" else 0
 
         def recognize(pair: Pair) -> str:  # lowercase, no punctuation; "bad" also loses the last word
             words = normalize(pair.src, "vi").split()
-            return " ".join(words[:len(words) - drop])
+            words = words[:len(words) - drop]
+            if not segmented:
+                return " ".join(words)
+            return f" {SEG_SEP} ".join(" ".join(words[i:i + 2]) for i in range(0, len(words), 2))  # 2-word segments
 
         return recognize
 
@@ -493,9 +538,15 @@ def main(argv: list[str] | None = None) -> int:
     src_lang = get_language(args.src)
 
     if args.smoke:
-        fleurs, custom, backends, asr_models, make_recognizer = smoke_parts()
+        fleurs, custom, backends, asr_models, toy_recognizer = smoke_parts()
         corpora = [Corpus("smoke", fleurs, True), Corpus("custom_unreviewed", custom, False)]
         cache = AsrCache(None)
+
+        def make_recognizer(model: str, segmented: bool):
+            return toy_recognizer(model, segmented)
+
+        def asr_key(model: str, segmented: bool) -> str:
+            return f"{model}+seg" if segmented else model
     else:
         missing = [f"{flag} {path}" if path else f"{flag} (not given)"
                    for flag, path, ok in (("--fleurs-src-dir", args.fleurs_src_dir, Path.is_dir),
@@ -507,7 +558,7 @@ def main(argv: list[str] | None = None) -> int:
             print("error: missing data: " + "; ".join(missing) + "\n(use --smoke for an offline run without data)",
                   file=sys.stderr)
             return 2
-        asr_models = _csv_list(args.asr_models) if "asr" in conditions else []
+        asr_models = _csv_list(args.asr_models) if {"asr", "asr_seg"} & set(conditions) else []
         try:
             pairs = subset(load_fleurs_pairs(args.fleurs_src_dir.expanduser(), args.fleurs_tgt_tsv.expanduser(), log),
                            args.limit or None, args.seed)
@@ -547,8 +598,19 @@ def main(argv: list[str] | None = None) -> int:
                 backends.append(ct2_model_backend(b))
             else:
                 backends.append(google_backend())
-        make_recognizer = whisper_recognizer(src_lang.whisper, args.beam_size)
+        from audio_translator.config import Settings
+
+        app = Settings()
+        seg_vad = (app.vad_aggressiveness, app.silence_ms)
+        recognizers = {False: whisper_recognizer(src_lang.whisper, args.beam_size),
+                       True: whisper_recognizer(src_lang.whisper, args.beam_size, segmented_vad=seg_vad)}
         cache = AsrCache(args.asr_cache)
+
+        def make_recognizer(model: str, segmented: bool):
+            return recognizers[segmented](model)
+
+        def asr_key(model: str, segmented: bool) -> str:
+            return seg_model_key(model, *seg_vad) if segmented else model
 
     samples_out = args.samples_out or args.out.with_name(args.out.stem + "_samples.tsv")
     first = corpora[0]
@@ -557,9 +619,11 @@ def main(argv: list[str] | None = None) -> int:
     log(f"{args.src}->{args.tgt}: " + ", ".join(f"{c.name} {len(c.pairs)}" for c in corpora)
         + f"; backends {[b.name for b in backends]}; conditions {conditions}; ASR {asr_models}")
 
-    def asr_texts(model: str, pairs: list[Pair]) -> dict[str, str]:
-        log(f"ASR {model} on {len(pairs)} recordings")
-        return transcribe_pairs(pairs, model, make_recognizer, cache, src_lang.whisper, args.beam_size, log)
+    def asr_texts(model: str, pairs: list[Pair], segmented: bool) -> dict[str, str]:
+        key = asr_key(model, segmented)
+        log(f"ASR {key} on {len(pairs)} recordings")
+        return transcribe_pairs(pairs, key, lambda _: make_recognizer(model, segmented), cache,
+                                src_lang.whisper, args.beam_size, log)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     rows = 0
