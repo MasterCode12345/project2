@@ -189,3 +189,27 @@ def test_missing_wav_or_unconverted_model_stops_before_running(tmp_path, capsys,
     monkeypatch.setattr(asr, "LOCAL_MODELS_DIR", tmp_path / "models")
     assert mt.main(argv + ["--asr-models", "phowhisper-small"]) == 2
     assert "convert_phowhisper.py small" in capsys.readouterr().err
+
+
+def test_restore_rows_cover_asr_like_inputs_only(tmp_path, capsys):
+    out = tmp_path / "mt.csv"
+    assert mt.main(["--smoke", "--restore", "off,sent,vibert-capu", "--out", str(out)]) == 0
+    assert "restore vibert-capu: skipped in --smoke" in capsys.readouterr().out
+    rows = list(csv.DictReader(out.open(encoding="utf-8")))
+    sent = {(r["condition"], r["asr_model"]) for r in rows if r["backend"] == "toy" and r["restore"] == "sent"}
+    assert sent == {("text_norm", "-"), ("asr", "toy-asr-good"), ("asr", "toy-asr-bad"),
+                    ("asr_seg", "toy-asr-good"), ("asr_seg", "toy-asr-bad")}
+    assert all(r["restore_mean_ms"] != "" for r in rows if r["restore"] == "sent" and r["n_inputs"] != "0")
+    assert all(r["restore_mean_ms"] == "" for r in rows if r["restore"] == "off")
+    assert not any(r["restore"] == "vibert-capu" for r in rows)
+
+
+def test_restore_inputs_times_each_non_empty_segment():
+    ticks = iter(range(100))
+    out, secs = mt.restore_inputs(lambda t, lang: t.upper(), [["a", ""], ["b c"]], "vi", clock=lambda: next(ticks))
+    assert out == [["A", ""], ["B C"]] and secs == [1, 1]
+
+
+def test_unknown_restorer_is_rejected(tmp_path, capsys):
+    assert mt.main(["--smoke", "--restore", "magic", "--out", str(tmp_path / "x.csv")]) == 2
+    assert "unknown restorer" in capsys.readouterr().err

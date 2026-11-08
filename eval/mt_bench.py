@@ -16,6 +16,13 @@ Two questions:
   the unit the app translates; ``n_inputs``/``mean_words`` say how many
   translator inputs a row had and how long they were.
 
+``--restore`` adds rows where each translator input of ``text_norm``/``asr``/
+``asr_seg`` first goes through a casing/punctuation restorer
+(``audio_translator.restore``: ``sent`` = capital first letter + final
+period, ``vibert-capu`` = the converted Vietnamese tagger); its own time per
+input is ``restore_mean_ms``/``restore_p95_ms``. ``restore=off`` is the input
+as it is.
+
 Data (never downloaded by this script):
 
 * FLEURS (``google/fleurs``, CC-BY-4.0): ``--fleurs-src-dir`` holds the source
@@ -66,10 +73,10 @@ import denoise_bench as db  # noqa: E402
 from audio_translator.languages import LANGUAGES, get_language, mt_code, normalize  # noqa: E402
 from audio_translator.translate import PivotTranslator, plan_route  # noqa: E402
 
-COLUMNS = ["corpus", "src_lang", "tgt_lang", "backend", "condition", "asr_model", "n_sents", "src_wer",
-           "bleu", "chrf", "bleu_lc", "chrf_lc", "n_inputs", "mean_words", "mean_latency_ms", "p95_latency_ms",
-           "n_failed"]
-SAMPLE_COLUMNS = ["corpus", "id", "backend", "condition", "asr_model", "source", "input", "hypothesis",
+COLUMNS = ["corpus", "src_lang", "tgt_lang", "backend", "condition", "asr_model", "restore", "n_sents",
+           "src_wer", "bleu", "chrf", "bleu_lc", "chrf_lc", "n_inputs", "mean_words", "mean_latency_ms",
+           "p95_latency_ms", "restore_mean_ms", "restore_p95_ms", "n_failed"]
+SAMPLE_COLUMNS = ["corpus", "id", "backend", "condition", "asr_model", "restore", "source", "input", "hypothesis",
                   "reference"]
 CONDITIONS = ("text", "text_norm", "asr", "asr_seg")
 FAILED = "<FAILED>"
@@ -293,11 +300,35 @@ def _latency(secs: list[float]) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------- bench
+def restore_inputs(restorer: Callable[[str, str], str], segments: list[list[str]], lang: str,
+                   clock: Callable[[], float] = time.perf_counter) -> tuple[list[list[str]], list[float]]:
+    """Every non-empty segment restored (one call each, timed); empty ones stay empty."""
+    out, secs = [], []
+    for segs in segments:
+        row = []
+        for x in segs:
+            if not x.strip():
+                row.append(x)
+                continue
+            t0 = clock()
+            row.append(restorer(x, lang))
+            secs.append(clock() - t0)
+        out.append(row)
+    return out, secs
+
+
 def run(corpora: list[Corpus], src: str, tgt: str, backends: list[Backend], conditions: list[str],
-        asr_models: list[str], asr_texts: Callable[[str, list[Pair]], dict[str, str]],
+        asr_models: list[str], asr_texts: Callable[[str, list[Pair], bool], dict[str, str]],
         emit: Callable[[dict], None], emit_sample: Callable[[dict], None], sample_ids: dict[str, set],
-        log: Callable[[str], None] = print) -> int:
-    """Emit one row per backend x corpus x condition (x ASR model). Returns the number of backends run."""
+        log: Callable[[str], None] = print,
+        restorers: dict[str, Callable[[str, str], str] | None] | None = None) -> int:
+    """Emit one row per backend x corpus x condition (x ASR model) x restorer. Returns the number of backends run.
+
+    A restorer (``restore.py``) rewrites casing/punctuation of each translator input before it is
+    translated; it runs once per input, shared by every backend, and only on inputs that look like
+    ASR output (``text_norm``, ``asr``, ``asr_seg``). ``off`` is the input as it is.
+    """
+    restorers = restorers or {"off": None}
     scorer = Scorer(tgt)
     asr = {}  # (condition, corpus, model) -> id -> text; one model loaded at a time
     for cond in ("asr", "asr_seg"):
@@ -307,6 +338,26 @@ def run(corpora: list[Corpus], src: str, tgt: str, backends: list[Backend], cond
                     if c.with_audio:
                         asr[cond, c.name, model] = asr_texts(model, c.pairs, cond == "asr_seg")
                 gc.collect()
+
+    runs = {}  # corpus -> [(condition, ASR model, restorer, segments per sentence, restore seconds)]
+    for c in corpora:
+        base = []
+        for cond in conditions:
+            if cond == "text":
+                base.append((cond, "-", [[p.src] for p in c.pairs]))
+            elif cond == "text_norm":
+                base.append((cond, "-", [[normalize(p.src, src)] for p in c.pairs]))
+            elif c.with_audio:
+                split = split_segments if cond == "asr_seg" else lambda t: [t]
+                base.extend((cond, m, [split(asr[cond, c.name, m][p.id]) for p in c.pairs]) for m in asr_models)
+        runs[c.name] = []
+        for cond, model, segments in base:
+            for rname, restorer in restorers.items():
+                if restorer is None:
+                    runs[c.name].append((cond, model, rname, segments, []))
+                elif cond != "text":
+                    log(f"restore {rname}: {c.name} {cond} {model}")
+                    runs[c.name].append((cond, model, rname, *restore_inputs(restorer, segments, src)))
 
     done = 0
     for backend in backends:
@@ -328,32 +379,26 @@ def run(corpora: list[Corpus], src: str, tgt: str, backends: list[Backend], cond
         for c in corpora:
             refs = [p.ref for p in c.pairs]
             norm_src = [normalize(p.src, src) for p in c.pairs]
-            runs = []  # (condition, ASR model, segments per sentence)
-            for cond in conditions:
-                if cond == "text":
-                    runs.append((cond, "-", [[p.src] for p in c.pairs]))
-                elif cond == "text_norm":
-                    runs.append((cond, "-", [[x] for x in norm_src]))
-                elif c.with_audio:
-                    split = split_segments if cond == "asr_seg" else lambda t: [t]
-                    runs.extend((cond, m, [split(asr[cond, c.name, m][p.id]) for p in c.pairs])
-                                for m in asr_models)
-            for cond, model, segments in runs:
+            for cond, model, rname, segments, rsecs in runs[c.name]:
                 hyps, secs, failed = translate_segmented(translator, segments)
                 inputs = [x for segs in segments for x in segs if x.strip()]
                 wer = db.error_rates(norm_src, [normalize(" ".join(segs), src) for segs in segments])[0]
                 scores = scorer.score(hyps, refs)
                 mean_ms, p95_ms = _latency(secs)
+                r_mean, r_p95 = _latency(rsecs)
                 words = np.mean([len(x.split()) for x in inputs]) if inputs else 0.0
                 emit({"corpus": c.name, "src_lang": src, "tgt_lang": tgt, "backend": label, "condition": cond,
-                      "asr_model": model, "n_sents": scores["n"] if scores else 0, "src_wer": f"{wer:.4f}",
+                      "asr_model": model, "restore": rname, "n_sents": scores["n"] if scores else 0,
+                      "src_wer": f"{wer:.4f}",
                       **{k: f"{scores[k]:.2f}" if scores else "" for k in ("bleu", "chrf", "bleu_lc", "chrf_lc")},
                       "n_inputs": len(inputs), "mean_words": f"{words:.1f}",
-                      "mean_latency_ms": mean_ms, "p95_latency_ms": p95_ms, "n_failed": failed})
+                      "mean_latency_ms": mean_ms, "p95_latency_ms": p95_ms,
+                      "restore_mean_ms": r_mean, "restore_p95_ms": r_p95, "n_failed": failed})
                 for p, segs, h in zip(c.pairs, segments, hyps):
                     if p.id in sample_ids.get(c.name, ()):
                         emit_sample({"corpus": c.name, "id": p.id, "backend": label, "condition": cond,
-                                     "asr_model": model, "source": p.src, "input": f" {SEG_SEP} ".join(segs),
+                                     "asr_model": model, "restore": rname, "source": p.src,
+                                     "input": f" {SEG_SEP} ".join(segs),
                                      "hypothesis": FAILED if h is None else h, "reference": p.ref})
     if scorer.scored:
         log(scorer.signatures())
@@ -508,6 +553,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="comma list of argos, google, nllb-600m, m2m100-418m (converted models only)")
     p.add_argument("--conditions", default=",".join(CONDITIONS))
     p.add_argument("--asr-models", default="small,phowhisper-small")
+    p.add_argument("--restore", default="off",
+                   help="comma list of off, sent, vibert-capu (converted models only): casing/punctuation "
+                        "restoration of ASR-like inputs before translation")
     p.add_argument("--asr-cache", type=Path, help="TSV of transcripts reused across runs")
     p.add_argument("--beam-size", type=int, default=5, help="ASR beam (default 5, as in asr_bench)")
     p.add_argument("--argos-package", type=Path, action="append",
@@ -536,6 +584,28 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     log = lambda s: print(s, flush=True)  # noqa: E731
     src_lang = get_language(args.src)
+    from audio_translator.restore import RESTORE_MODELS, RESTORERS, CapuRestorer, make_restorer, restore_model_dir
+
+    wanted_restore = _csv_list(args.restore) or ["off"]
+    bad = [r for r in wanted_restore if r not in RESTORERS]
+    if bad:
+        print(f"error: unknown restorer(s) {bad} (use {', '.join(RESTORERS)})", file=sys.stderr)
+        return 2
+    restorers = {}
+    for r in wanted_restore:
+        if r in RESTORE_MODELS:
+            if not CapuRestorer(r).supports(args.src):
+                log(f"restore {r}: skipped, no {args.src} support")
+                continue
+            if not args.smoke and not (restore_model_dir(r) / "model.bin").is_file():
+                from audio_translator.restore import restore_convert_command
+
+                log(f"restore {r}: skipped, not converted (run: {restore_convert_command(r)})")
+                continue
+            if args.smoke:
+                log(f"restore {r}: skipped in --smoke (needs the converted model)")
+                continue
+        restorers[r] = make_restorer(r)
 
     if args.smoke:
         fleurs, custom, backends, asr_models, toy_recognizer = smoke_parts()
@@ -617,7 +687,8 @@ def main(argv: list[str] | None = None) -> int:
     sample_ids = {c.name: {p.id for p in c.pairs} for c in corpora[1:]}  # hand-written sets: every sentence
     sample_ids[first.name] = {p.id for p in subset(first.pairs, args.n_samples, args.seed)}
     log(f"{args.src}->{args.tgt}: " + ", ".join(f"{c.name} {len(c.pairs)}" for c in corpora)
-        + f"; backends {[b.name for b in backends]}; conditions {conditions}; ASR {asr_models}")
+        + f"; backends {[b.name for b in backends]}; conditions {conditions}; ASR {asr_models}"
+        + f"; restore {list(restorers)}")
 
     def asr_texts(model: str, pairs: list[Pair], segmented: bool) -> dict[str, str]:
         key = asr_key(model, segmented)
@@ -645,7 +716,7 @@ def main(argv: list[str] | None = None) -> int:
             sw.writerow(row)
 
         done = run(corpora, args.src, args.tgt, backends, conditions, asr_models, asr_texts, emit,
-                   emit_sample, sample_ids, log)
+                   emit_sample, sample_ids, log, restorers)
     if done == 0:
         print("error: no backend could be run", file=sys.stderr)
         return 1
