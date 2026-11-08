@@ -95,6 +95,24 @@ context: ['{project-root}/_bmad-output/initiative-audio-translator/plan-mt-eval.
   - NLLB beam 4: 1108/1560 ms.
   - NLLB beam 1: 779/1145 ms at -0.8 BLEU. 8 threads is slower than 4.
   - The ≤500 ms target is not met. The default is unchanged pending the human's decision.
+- 2026-11-09: Direction 3, as the human chose: measure like the app and try restoration before changing the default.
+  - `mt_bench` gains `asr_seg`, the app's webrtcvad + Segmenter with per-segment ASR and MT, and a `--restore` dimension.
+  - Oracle ablation (`eval/mt_oracle_ablation.py`): in-sentence punctuation is worth the most, about +5 BLEU; name casing +2.5 to +3.4; capital first letter + final period about +0.5.
+  - The human allowed the restorer path. The 47-language punctuation models (1-800-BAD-CODE) have no `vi`.
+  - Picked dragonSwing/vibert-capu (CC-BY-SA-4.0, 462 MB).
+    - The auto-mode classifier denied running its repo code. Inference was re-implemented in `restore.py`: CT2 encoder + numpy head.
+    - `scripts/convert_capu_model.py` uses `weights_only` load and pins `transformers<5`: 5.x `BertTokenizerFast(vocab_file=)` loads no vocab.
+    - Parity vs PyTorch fp32: 109/109 labels agree.
+  - Idle-machine results (`results/mt_vi_en_restore.csv`), asr_seg, PhoWhisper-small, 761 segments:
+
+    | | off | +capu | MT mean/P95 (ms) |
+    |---|---|---|---|
+    | Argos | 13.0 | 15.8 | 97/214 |
+    | NLLB | 16.6 | 18.2 | 552/1160 |
+
+    Restore costs 22/44 ms per segment and ~150 MB RAM.
+  - App wiring: `--restore` / `Settings.restore`, default off. Not converted gives a warning and no restoration; a per-segment failure translates the text as recognised.
+  - Defaults unchanged pending the human's decision.
 
 ## Plan Change Log
 

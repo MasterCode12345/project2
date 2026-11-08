@@ -168,7 +168,13 @@ uv run --group eval python eval/mt_bench.py --src vi --tgt en \
 uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # offline, dữ liệu và bộ dịch giả
 ```
 
-- **CSV:** `corpus, src_lang, tgt_lang, backend, condition, asr_model, n_sents, src_wer, bleu, chrf, bleu_lc, chrf_lc, mean_latency_ms, p95_latency_ms, n_failed`. `bleu_lc`/`chrf_lc` là cùng điểm đó nhưng không phân biệt hoa thường, vì đầu ra của app là giọng nói, người nghe không thấy chữ hoa. `bleu`/`chrf` (có phân biệt) vẫn là chỉ số chính.
+- **Điều kiện đầu vào (`--conditions`):**
+  - `text`: câu chuẩn.
+  - `text_norm`: câu chuẩn viết thường, bỏ dấu câu.
+  - `asr`: chữ ASR của cả bản ghi.
+  - `asr_seg`: **đúng như app chạy thật**. Bản ghi đi qua webrtcvad và Segmenter của app (độ nhạy và ngưỡng im lặng lấy từ `Settings`), rồi mỗi đoạn được nhận dạng và dịch riêng. Độ trễ được tính theo từng đoạn.
+- **Khôi phục chữ hoa và dấu câu (`--restore off,sent,vibert-capu`):** có thêm các dòng mà mỗi đầu vào kiểu ASR được khôi phục trước khi dịch. Thời gian khôi phục nằm ở `restore_mean_ms`/`restore_p95_ms`. Xem mục "Khôi phục chữ hoa và dấu câu" bên dưới.
+- **CSV:** `corpus, src_lang, tgt_lang, backend, condition, asr_model, restore, n_sents, src_wer, bleu, chrf, bleu_lc, chrf_lc, n_inputs, mean_words, mean_latency_ms, p95_latency_ms, restore_mean_ms, restore_p95_ms, n_failed`. `n_inputs`/`mean_words` cho biết số lần gọi dịch và độ dài trung bình của mỗi đầu vào. `bleu_lc`/`chrf_lc` là cùng điểm đó nhưng không phân biệt hoa thường, vì đầu ra của app là giọng nói, người nghe không thấy chữ hoa. `bleu`/`chrf` (có phân biệt) vẫn là chỉ số chính.
 - **File mẫu `<out>_samples.tsv`:** 20 câu FLEURS cố định, kèm toàn bộ tập tự viết. Mỗi dòng có câu nguồn, chữ đưa vào dịch, bản dịch và tham chiếu.
 
 **Dữ liệu:**
@@ -191,6 +197,24 @@ uv run --group eval python eval/mt_bench.py ... --backends argos,nllb-600m,m2m10
 
 Nếu model chưa convert, app cảnh báo kèm lệnh convert rồi dùng Google. Câu nào dịch lỗi thì câu đó dùng Google, giống Argos. Mặc định vẫn là Argos (`--translator offline`).
 
+**Khôi phục chữ hoa và dấu câu (thử nghiệm, mặc định tắt):** PhoWhisper trả về chữ thường không dấu câu, và cả hai model dịch đều dịch kém hẳn với kiểu đầu vào này. `--restore` khôi phục lại chữ hoa và dấu câu trước khi dịch:
+- `off`: mặc định.
+- `sent`: viết hoa chữ đầu và thêm dấu chấm cuối.
+- `vibert-capu`: dùng model [dragonSwing/vibert-capu](https://huggingface.co/dragonSwing/vibert-capu), là viBERT gắn nhãn kiểu GECToR, chuyên khôi phục `. , ? :` và chữ hoa cho tiếng Việt. Giấy phép CC-BY-SA-4.0.
+
+Về model `vibert-capu`:
+- Model được convert **một lần**: encoder sang CTranslate2 int8 (117 MB), lớp gán nhãn sang numpy. Lệnh convert chỉ tải `pytorch_model.bin` (462 MB). Torch chỉ được cài tạm, và không chạy code nào của repo gốc.
+- Lúc chạy, app tự cài lại phần suy luận của model card (WordPiece phân biệt hoa thường, token `$START`, 3 vòng lặp). Lệnh convert tự kiểm tra lại với PyTorch fp32: tách từ trùng khớp, nhãn khớp 109/109 vị trí.
+- Model tốn khoảng 150 MB RAM và nạp trong 0,12 s.
+- Nếu model chưa convert, app cảnh báo rồi dịch nguyên chữ ASR. Đoạn nào khôi phục lỗi thì đoạn đó được dịch nguyên văn, không bao giờ bị bỏ.
+
+```sh
+uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
+uv run audio-translator --cli --model phowhisper-small --restore vibert-capu
+uv run --group eval python eval/mt_bench.py ... --conditions text,text_norm,asr,asr_seg --restore off,sent,vibert-capu
+uv run --group eval python eval/mt_oracle_ablation.py --fleurs-src-dir ~/data/fleurs_vi --fleurs-tgt-tsv ~/data/fleurs_en/test.tsv
+```
+
 **Bảng ngôn ngữ** (`src/audio_translator/languages.py`): mỗi ngôn ngữ một dòng, gồm:
 - mã của từng backend dịch;
 - ngôn ngữ Whisper và model ASR ưu tiên;
@@ -203,7 +227,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 206 passed
+uv run --group eval pytest -q     # 231 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -260,6 +284,43 @@ Máy dùng để đo: MacBook Pro (Apple Silicon), Whisper chạy bằng CPU (in
 - Ở bảng này, điểm chất lượng đo trên 347 câu. Độ trễ đo lại riêng khi máy rảnh: hàng số trễ dùng 50 câu, các số beam 1 cũng là 50 câu.
 - Giấy phép NLLB là CC-BY-NC-4.0, chỉ dùng phi thương mại. Mặc định của app vẫn là Argos.
 
+**Mất điểm ở đâu (`results/mt_vi_en_oracle.csv`, `eval/mt_oracle_ablation.py`, 347 câu, BLEU):** câu nguồn chuẩn được bớt dần thông tin cho tới khi giống chữ ASR.
+
+| Câu đưa vào dịch | Argos | NLLB-600M |
+|---|---|---|
+| Viết thường, không dấu câu (`norm`) | 18,1 | 25,0 |
+| + chữ hoa đầu câu, dấu chấm cuối (`sent`) | 18,9 | 25,5 |
+| + chữ hoa thật, ví dụ tên riêng (`case+sent`) | 21,4 | 28,9 |
+| + dấu câu thật (`punct+sent`) | 24,1 | 31,0 |
+| Câu chuẩn (`full`) | 27,8 | 34,6 |
+
+Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so với `sent`), sau đó là chữ hoa tên riêng (+2,5 và +3,4). Chỉ viết hoa chữ đầu và thêm dấu chấm cuối thì gần như không giúp được gì.
+
+**Khôi phục chữ hoa và dấu câu (`results/mt_vi_en_restore.csv`, máy rảnh, PhoWhisper-small, 347 câu, BLEU / chrF):**
+
+| Đầu vào | Bộ dịch | `off` | `sent` | `vibert-capu` |
+|---|---|---|---|---|
+| Viết thường, bỏ dấu (`text_norm`) | Argos | 18,1 / 49,7 | 18,9 / 50,1 | **24,9 / 53,8** |
+| | NLLB | 25,0 / 54,2 | 25,5 / 55,5 | **30,4 / 58,3** |
+| Chữ ASR cả bản ghi (`asr`) | Argos | 15,8 / 45,4 | 16,3 / 45,9 | **18,8 / 47,8** |
+| | NLLB | 21,3 / 49,4 | 21,4 / 49,5 | **23,1 / 51,1** |
+| **Như app: cắt đoạn rồi ASR (`asr_seg`)** | Argos | 13,0 / 43,7 | 13,5 / 44,3 | **15,8 / 46,1** |
+| | NLLB | 16,6 / 46,5 | 16,7 / 46,6 | **18,2 / 48,0** |
+
+Độ trễ mỗi đoạn trong điều kiện `asr_seg` (761 đoạn, trung bình 14,8 từ), trung bình / P95:
+
+| | Argos | NLLB |
+|---|---|---|
+| Dịch | 110 / 239 ms (97 / 214 ms khi có `vibert-capu`) | 586 / 1233 ms (552 / 1160 ms khi có `vibert-capu`) |
+| Khôi phục `vibert-capu` | 22 / 44 ms | 22 / 44 ms |
+
+- **`vibert-capu` giúp cả hai bộ dịch ở mọi điều kiện.** Trong điều kiện giống app nhất (`asr_seg`), Argos tăng +2,8 BLEU / +2,4 chrF, NLLB tăng +1,6 / +1,5. Chi phí chỉ khoảng 22 ms mỗi đoạn.
+- Trên câu chuẩn bỏ dấu, `vibert-capu` cho Argos 24,9 BLEU, cao hơn cả mức "chỉ thêm dấu câu thật" (24,1), vì nó khôi phục được cả chữ hoa tên riêng. Riêng dấu câu thì đo trên chữ FLEURS bỏ dấu: F1 0,81 (dấu chấm 0,88, dấu phẩy 0,70), chữ hoa F1 0,88. Phép đo này chỉ chạy một lần để khám phá.
+- **Cắt đoạn như app làm mất điểm:** WER tăng từ 13,0% lên 15,9%, và câu bị cắt giữa chừng nên khó dịch. Argos giảm từ 15,8 xuống 13,0 BLEU, NLLB từ 21,3 xuống 16,6. Đây là khoảng mất mà các số `asr` trước đây không thấy.
+- **Đạt mục tiêu ≤500 ms/đoạn:** Argos có hoặc không có `vibert-capu`. NLLB **không đạt**: trung bình khoảng 0,57 s, P95 khoảng 1,2 s.
+- **Bất thường:** trên bộ 25 câu tự viết (chưa duyệt), `sent` làm *giảm* điểm (Argos từ 31,5 xuống 28,2). Xem mẫu thì thấy câu có chữ hoa đầu và dấu chấm cuối khiến Argos chuyển sang thì quá khứ ("I was", "began"), có lẽ vì giống văn tin tức. Vì vậy `sent` không phải lựa chọn an toàn. Trên bộ này, `vibert-capu` đưa Argos từ 31,5 lên 40,9 và NLLB từ 35,6 lên 48,6, nhưng bộ này chưa được dùng để kết luận.
+- `src_wer` của `text_norm` + `vibert-capu` là 0,0002 thay vì 0, vì nhãn `$MERGE_SPACE` có lúc ghép hai từ làm một.
+
 ## 7. Đã giải quyết được
 
 - ✅ Đi trọn vẹn từ micro đến bên nghe qua micro ảo, theo đúng kiến trúc 8 module. Đã chạy được với Google Meet.
@@ -293,7 +354,9 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [ ] Lọc câu theo `no_speech_prob` / `avg_logprob`, thay webrtcvad bằng **Silero VAD**.
 - [x] Đo **WER** trên VIVOS/FLEURS (`eval/asr_bench.py`) và **chất lượng dịch** BLEU/chrF + độ trễ dịch trung bình/P95 (`eval/mt_bench.py`), ghi CSV.
 - [ ] Đo độ trễ trung bình và P95 của từng khâu trong app thật.
-- [ ] Thử model dịch tốt hơn cho tiếng Việt.
+- [x] Thử model dịch tốt hơn cho tiếng Việt: NLLB-600M hơn Argos 3–6 BLEU nhưng chậm gấp khoảng 5 lần (mục 6). Có trong app qua `--translator nllb-600m`.
+- [x] Khôi phục chữ hoa và dấu câu trước khi dịch (`--restore vibert-capu`, mục 6): +1,6 đến +2,8 BLEU trong điều kiện giống app.
+- [ ] Giảm mất điểm do cắt đoạn: dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
 - [ ] Giảm độ trễ: phát TTS dần theo từng phần, chỉnh thời gian chờ im lặng, giảm beam size; thêm TTS offline (Piper).
 - [ ] Edge–Cloud: cho chọn chạy tại máy hay trên cloud/GPU cho từng khâu và đo so sánh.
@@ -318,15 +381,17 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── gui.py, cli.py      tầng giao diện
 │   ├── orchestrator.py     tầng điều phối (M1)
 │   ├── model_manager.py    quản lý model Whisper
-│   ├── capture.py → denoise.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
+│   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  206 test (pytest)
+├── tests/                  231 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
-├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch
+├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
+├── eval/mt_oracle_ablation.py   mất điểm dịch do chữ hoa hay do dấu câu (biến thể oracle của câu nguồn)
 ├── eval/data/              tập câu tự viết cho bench dịch (tham chiếu cần duyệt)
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
 ├── scripts/convert_mt_model.py     convert NLLB-200 / M2M100 sang CTranslate2 (chạy một lần)
+├── scripts/convert_capu_model.py   convert bộ khôi phục chữ hoa/dấu câu vibert-capu sang CTranslate2 (chạy một lần)
 ├── results/                CSV kết quả các bench
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
