@@ -12,6 +12,7 @@ from .config import Settings
 from .denoise import NS_MODES
 from .model_manager import CATALOG, NOT_DOWNLOADED
 from .models import ERROR, RESULT, STATUS, STOPPED, Event
+from .restore import RESTORERS
 from .translate import MT_MODELS
 
 
@@ -30,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
                    help="translation backend: offline = Argos (default), google, or a converted multilingual "
                         "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")
+    p.add_argument("--restore", default="off", choices=list(RESTORERS),
+                   help="restore casing/punctuation of the transcript before translation: off (default), sent "
+                        "(capital + final period), or vibert-capu (Vietnamese; scripts/convert_capu_model.py)")
     d = Settings()
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="noise suppression before VAD/ASR (experimental; default: off)")
@@ -117,7 +121,7 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     from .orchestrator import Orchestrator
 
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
-                        asr_initial_prompt=args.asr_prompt, translator=args.translator,
+                        asr_initial_prompt=args.asr_prompt, translator=args.translator, restore=args.restore,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()
     failed = []

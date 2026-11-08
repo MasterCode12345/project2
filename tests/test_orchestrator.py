@@ -650,6 +650,85 @@ def test_default_translator_is_still_argos():
     assert Settings().translator == "offline"
 
 
+# ------------------------------------------------- M4b casing/punctuation restoration
+class _Restorers:
+    def __init__(self, load_errors=(), langs=("vi",), fail=False):
+        self.made, self.calls, self.load_errors, self.langs, self.fail = [], [], list(load_errors), langs, fail
+
+    def factory(self, name):
+        self.made.append(name)
+        outer = self
+
+        class R:
+            def supports(self, lang):
+                return lang in outer.langs
+
+            def load(self):
+                if outer.load_errors:
+                    raise outer.load_errors.pop(0)
+
+            def restore(self, text, lang):
+                outer.calls.append((text, lang))
+                if outer.fail:
+                    raise RuntimeError("encoder blew up")
+                return f"R<{text}>"
+
+        return R()
+
+
+def test_restorer_runs_before_translation_and_is_reused_across_sessions(harness):
+    b, r = Backends(), _Restorers()
+    h = harness(settings=Settings(restore="vibert-capu"), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    ev = h.log.wait_for(lambda e: e.kind == RESULT)
+    assert ev.data["text"] == "EN<R<Xin chào, bạn khỏe không?>>"
+    assert r.calls == [("Xin chào, bạn khỏe không?", "vi")]
+    h.orch.stop()
+    h.log.wait_state(STOPPED)
+    n = len(h.log.events)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state(RUNNING, after=n)
+    assert r.made == ["vibert-capu"]  # loaded once
+
+
+def test_unconverted_restorer_translates_as_recognised_and_retries(harness):
+    b = Backends()
+    r = _Restorers(load_errors=[RuntimeError("not converted yet. Run: uv run … convert_capu_model.py vibert-capu")])
+    h = harness(settings=Settings(restore="vibert-capu"), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    warn = h.log.wait_for(lambda e: e.kind == WARNING)
+    assert "convert_capu_model.py vibert-capu" in warn.message and "as recognised" in warn.message
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "EN<Xin chào, bạn khỏe không?>"
+    h.orch.stop()
+    h.log.wait_state(STOPPED)
+    n = len(h.log.events)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state(RUNNING, after=n)
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT and h.log.events.index(e) > n).data["text"].startswith("EN<R<")
+
+
+@pytest.mark.parametrize("kind", ["segment_error", "unsupported_language"])
+def test_restorer_problems_never_lose_the_segment(harness, kind):
+    b = Backends()
+    r = _Restorers(fail=kind == "segment_error", langs=("vi",) if kind == "segment_error" else ("fr",))
+    h = harness(settings=Settings(restore="vibert-capu"), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "EN<Xin chào, bạn khỏe không?>"
+    msg = "restoration failed" if kind == "segment_error" else "does not support 'vi'"
+    assert any(msg in e.message for e in h.log.of(WARNING))
+
+
+def test_restoration_is_off_by_default_and_unknown_names_are_rejected(harness):
+    assert Settings().restore == "off"
+    h = harness(settings=Settings(restore="magic"), mt=Backends().kwargs())
+    with pytest.raises(ValueError, match="Unknown restorer"):
+        h.orch._prepare_restorer()
+
+
 # ------------------------------------------------------- M3a noise suppression
 class _DelayEnhancer:
     """Pass-through enhancer delayed by exactly one frame (makes shifts exact)."""

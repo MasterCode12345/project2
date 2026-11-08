@@ -66,6 +66,7 @@ class Orchestrator:
         offline_translator_factory: Callable[[Any], Any] | None = None,
         google_translator_factory: Callable[[str, str], Any] | None = None,
         mt_model_factory: Callable[[str, str, str], Any] | None = None,
+        restorer_factory: Callable[[str], Any] | None = None,
     ) -> None:
         self.settings = settings or Settings()
         self._asr = asr
@@ -79,6 +80,9 @@ class Orchestrator:
         self._google_factory = google_translator_factory
         self._mt_model_factory = mt_model_factory  # (name, source, target) -> translator; None: CT2 model
         self._mt_model = None  # ((name, source, target), loaded multilingual model), reused across sessions
+        self._restorer_factory = restorer_factory  # name -> object with restore(text, lang); None: restore.py
+        self._restorer_model = None  # (name, loaded restore model), reused across sessions
+        self._restore = None  # (text) -> text for the current session, None = off
         self._synth = synthesizer
         self._vad_factory = vad_factory or webrtc_vad
         self._in_factory = input_stream_factory
@@ -281,6 +285,7 @@ class Orchestrator:
             # no enhancer/gate/delay-line state leaks from a previous session.
             ns = noise_suppressor_from_settings(s)
             self._prepare_translator()
+            self._prepare_restorer()
             with self._lock:
                 if self._abort_start:  # Stop during the translation-model download
                     self._set_state(STOPPED, "Stopped")
@@ -456,6 +461,49 @@ class Orchestrator:
                 return
 
         self._translator = FallbackTranslator(self._offline_tr, google, on_fallback)
+
+    def _prepare_restorer(self) -> None:
+        """Casing/punctuation restoration for this session (``Settings.restore``), never downloaded.
+
+        A model that is not converted, or does not support the source language,
+        leaves the session without restoration (with a warning); it is retried
+        next session.
+        """
+        s = self.settings
+        from .restore import RESTORE_MODELS, RESTORERS, make_restorer
+
+        if s.restore not in RESTORERS:
+            raise ValueError(f"Unknown restorer '{s.restore}' (use one of {', '.join(RESTORERS)})")
+        self._restore = None
+        lang = s.source_lang
+        if s.restore == "off":
+            return
+        if s.restore not in RESTORE_MODELS:
+            fn = make_restorer(s.restore)
+            self._restore = lambda text: fn(text, lang)
+            return
+        if self._restorer_model is None or self._restorer_model[0] != s.restore:
+            try:
+                if self._restorer_factory is not None:
+                    model = self._restorer_factory(s.restore)
+                else:
+                    from .restore import CapuRestorer
+
+                    model = CapuRestorer(s.restore)
+                if not model.supports(lang):
+                    self._emit(Event(WARNING, f"Restorer {s.restore} does not support '{lang}'; "
+                                              "translating the transcript as recognised"))
+                    return
+                load = getattr(model, "load", None)
+                if load is not None:
+                    load()
+                self._restorer_model = (s.restore, model)
+            except Exception as exc:
+                self._emit(Event(WARNING, f"Restorer {s.restore} unavailable ({exc}); "
+                                          "translating the transcript as recognised"))
+                return
+        model = self._restorer_model[1]
+        self._restore = lambda text: model.restore(text, lang)
 
     def _fail_start(self, msg: str) -> None:
         with self._lock:
@@ -671,8 +719,17 @@ class Orchestrator:
                 continue
             ts = dict(tr.timestamps)
             ts["mt_start"] = self.clock()
+            text = tr.text
+            restore = self._restore
+            if restore is not None:
+                try:
+                    text = restore(text) or text
+                except Exception as exc:  # never lose a segment to restoration
+                    self._emit(Event(WARNING, f"Segment {tr.segment_id}: restoration failed ({exc}); "
+                                              "translating as recognised"))
+                ts["restored"] = self.clock()
             try:
-                en = (self._translator.translate(tr.text) or "").strip()
+                en = (self._translator.translate(text) or "").strip()
             except Exception as exc:
                 self._skip_report(tr, WARNING, f"Segment {tr.segment_id}: translation failed: {exc}",
                                   {"source_text": tr.text})
