@@ -39,6 +39,7 @@ RESTORE_MODELS = {
                     "FPTAI/vibert-base-cased", "728a91287e4517d9312066a6aa048fadf4e41e91", ("vi",)),
 }
 RESTORERS = ("off", "sent", *RESTORE_MODELS)
+APP_RESTORERS = ("auto", *RESTORERS)  # auto: a converted model for the source language, else off
 HEADS_FILE = "heads.npz"
 LABELS_FILE = "labels.txt"
 VOCAB_FILE = "wordpiece_vocab.txt"
@@ -49,6 +50,14 @@ _REPEATED_PUNCT = re.compile(r"([\.\,\?\:]\s+)+")
 
 def restore_model_dir(name: str, root: Path | None = None) -> Path:
     return (root or MT_MODELS_DIR).expanduser() / f"{name}-ct2"
+
+
+def auto_restorer_name(lang: str, root: Path | None = None) -> str | None:
+    """The first ``RESTORE_MODELS`` entry that supports ``lang`` and is converted, or None."""
+    for name, entry in RESTORE_MODELS.items():
+        if lang in entry[4] and (restore_model_dir(name, root) / "model.bin").is_file():
+            return name
+    return None
 
 
 def restore_convert_command(name: str) -> str:

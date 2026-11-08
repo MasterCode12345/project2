@@ -210,9 +210,9 @@ def test_cli_translator_option_defaults_to_offline():
         cli.build_parser().parse_args(["--translator", "claude"])
 
 
-def test_cli_restore_option_defaults_to_off():
-    assert cli.build_parser().parse_args([]).restore == "off"
-    for name in ("sent", "vibert-capu"):
+def test_cli_restore_option_defaults_to_auto():
+    assert cli.build_parser().parse_args([]).restore == "auto"
+    for name in ("off", "sent", "vibert-capu"):
         assert cli.build_parser().parse_args(["--restore", name]).restore == name
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["--restore", "magic"])

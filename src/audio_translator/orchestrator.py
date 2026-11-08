@@ -465,41 +465,43 @@ class Orchestrator:
     def _prepare_restorer(self) -> None:
         """Casing/punctuation restoration for this session (``Settings.restore``), never downloaded.
 
-        A model that is not converted, or does not support the source language,
-        leaves the session without restoration (with a warning); it is retried
-        next session.
+        ``auto`` (the default) uses a converted model for the source language and
+        silently does nothing when there is none. A model named explicitly that
+        is not converted, or does not support the source language, leaves the
+        session without restoration with a warning; it is retried next session.
         """
         s = self.settings
-        from .restore import RESTORE_MODELS, RESTORERS, make_restorer
+        from .restore import APP_RESTORERS, RESTORE_MODELS, auto_restorer_name, make_restorer
 
-        if s.restore not in RESTORERS:
-            raise ValueError(f"Unknown restorer '{s.restore}' (use one of {', '.join(RESTORERS)})")
+        if s.restore not in APP_RESTORERS:
+            raise ValueError(f"Unknown restorer '{s.restore}' (use one of {', '.join(APP_RESTORERS)})")
         self._restore = None
         lang = s.source_lang
-        if s.restore == "off":
+        name = auto_restorer_name(lang) if s.restore == "auto" else s.restore
+        if name is None or name == "off":
             return
-        if s.restore not in RESTORE_MODELS:
-            fn = make_restorer(s.restore)
+        if name not in RESTORE_MODELS:
+            fn = make_restorer(name)
             self._restore = lambda text: fn(text, lang)
             return
-        if self._restorer_model is None or self._restorer_model[0] != s.restore:
+        if self._restorer_model is None or self._restorer_model[0] != name:
             try:
                 if self._restorer_factory is not None:
-                    model = self._restorer_factory(s.restore)
+                    model = self._restorer_factory(name)
                 else:
                     from .restore import CapuRestorer
 
-                    model = CapuRestorer(s.restore)
+                    model = CapuRestorer(name)
                 if not model.supports(lang):
-                    self._emit(Event(WARNING, f"Restorer {s.restore} does not support '{lang}'; "
+                    self._emit(Event(WARNING, f"Restorer {name} does not support '{lang}'; "
                                               "translating the transcript as recognised"))
                     return
                 load = getattr(model, "load", None)
                 if load is not None:
                     load()
-                self._restorer_model = (s.restore, model)
+                self._restorer_model = (name, model)
             except Exception as exc:
-                self._emit(Event(WARNING, f"Restorer {s.restore} unavailable ({exc}); "
+                self._emit(Event(WARNING, f"Restorer {name} unavailable ({exc}); "
                                           "translating the transcript as recognised"))
                 return
         model = self._restorer_model[1]

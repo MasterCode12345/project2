@@ -111,6 +111,15 @@ def test_unconverted_model_names_the_convert_command(tmp_path):
         rs.CapuRestorer("nope")
 
 
+def test_auto_picks_a_converted_model_for_the_language(tmp_path):
+    assert rs.auto_restorer_name("vi", tmp_path) is None
+    (tmp_path / "vibert-capu-ct2").mkdir()
+    (tmp_path / "vibert-capu-ct2" / "model.bin").write_text("x")
+    assert rs.auto_restorer_name("vi", tmp_path) == "vibert-capu"
+    assert rs.auto_restorer_name("en", tmp_path) is None
+    assert rs.APP_RESTORERS[0] == "auto" and "auto" not in rs.RESTORERS  # the bench names restorers explicitly
+
+
 def test_make_restorer():
     assert rs.make_restorer("off") is None
     assert rs.make_restorer("sent")("xin chào", "vi") == "Xin chào."

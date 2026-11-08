@@ -722,11 +722,35 @@ def test_restorer_problems_never_lose_the_segment(harness, kind):
     assert any(msg in e.message for e in h.log.of(WARNING))
 
 
-def test_restoration_is_off_by_default_and_unknown_names_are_rejected(harness):
-    assert Settings().restore == "off"
+def test_unknown_restorer_names_are_rejected(harness):
     h = harness(settings=Settings(restore="magic"), mt=Backends().kwargs())
     with pytest.raises(ValueError, match="Unknown restorer"):
         h.orch._prepare_restorer()
+
+
+def test_auto_restore_is_the_default_and_uses_a_converted_model(harness, tmp_path, monkeypatch):
+    import audio_translator.restore as restore
+
+    assert Settings().restore == "auto" and Settings().translator == "offline"
+    monkeypatch.setattr(restore, "MT_MODELS_DIR", tmp_path / "models")
+    (tmp_path / "models" / "vibert-capu-ct2").mkdir(parents=True)
+    (tmp_path / "models" / "vibert-capu-ct2" / "model.bin").write_text("x")
+    b, r = Backends(), _Restorers()
+    h = harness(mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "EN<R<Xin chào, bạn khỏe không?>>"
+    assert r.made == ["vibert-capu"]
+
+
+@pytest.mark.parametrize("source_lang", ["vi", "en"])
+def test_auto_restore_without_a_model_is_silent(harness, source_lang):
+    b, r = Backends(), _Restorers()
+    h = harness(settings=Settings(source_lang=source_lang), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    h.log.wait_for(lambda e: e.kind == RESULT)
+    assert r.made == [] and not any("Restorer" in e.message for e in h.log.of(WARNING))
 
 
 # ------------------------------------------------------- M3a noise suppression

@@ -80,6 +80,11 @@ uv run audio-translator --cli --list-models    # xem các model Whisper đã t�
 uv run audio-translator --cli --model small [--input "Tên micro"] [--translator google]
 ```
 
+**Nên làm thêm (một lần): bộ khôi phục chữ hoa và dấu câu.** Bộ này giúp bản dịch tốt hơn rõ rệt (mục 6). Lệnh dưới đây tải 462 MB rồi convert còn 117 MB. Sau đó app tự dùng nó, vì mặc định là `--restore auto`. Không convert thì app vẫn chạy như trước.
+```sh
+uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
+```
+
 **Dùng trong ứng dụng chat:** vào phần cài đặt âm thanh của Zoom / Meet / Discord và chọn **BlackHole 2ch** làm micro. Âm thanh đã dịch chỉ đi vào BlackHole, không bao giờ phát ra loa.
 
 ### Lọc nhiễu (thử nghiệm)
@@ -197,8 +202,9 @@ uv run --group eval python eval/mt_bench.py ... --backends argos,nllb-600m,m2m10
 
 Nếu model chưa convert, app cảnh báo kèm lệnh convert rồi dùng Google. Câu nào dịch lỗi thì câu đó dùng Google, giống Argos. Mặc định vẫn là Argos (`--translator offline`).
 
-**Khôi phục chữ hoa và dấu câu (thử nghiệm, mặc định tắt):** PhoWhisper trả về chữ thường không dấu câu, và cả hai model dịch đều dịch kém hẳn với kiểu đầu vào này. `--restore` khôi phục lại chữ hoa và dấu câu trước khi dịch:
-- `off`: mặc định.
+**Khôi phục chữ hoa và dấu câu (M4b):** PhoWhisper trả về chữ thường không dấu câu, và cả hai model dịch đều dịch kém hẳn với kiểu đầu vào này. `--restore` khôi phục lại chữ hoa và dấu câu trước khi dịch:
+- `auto` (**mặc định**): nếu đã convert model cho ngôn ngữ nguồn thì dùng model đó; nếu chưa thì bỏ qua, không báo gì, và dịch nguyên văn như trước. Ngôn ngữ nguồn hiện chỉ có tiếng Việt.
+- `off`: không khôi phục.
 - `sent`: viết hoa chữ đầu và thêm dấu chấm cuối.
 - `vibert-capu`: dùng model [dragonSwing/vibert-capu](https://huggingface.co/dragonSwing/vibert-capu), là viBERT gắn nhãn kiểu GECToR, chuyên khôi phục `. , ? :` và chữ hoa cho tiếng Việt. Giấy phép CC-BY-SA-4.0.
 
@@ -206,11 +212,11 @@ Về model `vibert-capu`:
 - Model được convert **một lần**: encoder sang CTranslate2 int8 (117 MB), lớp gán nhãn sang numpy. Lệnh convert chỉ tải `pytorch_model.bin` (462 MB). Torch chỉ được cài tạm, và không chạy code nào của repo gốc.
 - Lúc chạy, app tự cài lại phần suy luận của model card (WordPiece phân biệt hoa thường, token `$START`, 3 vòng lặp). Lệnh convert tự kiểm tra lại với PyTorch fp32: tách từ trùng khớp, nhãn khớp 109/109 vị trí.
 - Model tốn khoảng 150 MB RAM và nạp trong 0,12 s.
-- Nếu model chưa convert, app cảnh báo rồi dịch nguyên chữ ASR. Đoạn nào khôi phục lỗi thì đoạn đó được dịch nguyên văn, không bao giờ bị bỏ.
+- Chọn hẳn `--restore vibert-capu` mà model chưa convert thì app cảnh báo rồi dịch nguyên chữ ASR. Với `auto` thì app không cảnh báo. Đoạn nào khôi phục lỗi thì đoạn đó được dịch nguyên văn, không bao giờ bị bỏ.
 
 ```sh
 uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
-uv run audio-translator --cli --model phowhisper-small --restore vibert-capu
+uv run audio-translator --cli --model phowhisper-small      # --restore auto (mặc định) tự dùng model đã convert
 uv run --group eval python eval/mt_bench.py ... --conditions text,text_norm,asr,asr_seg --restore off,sent,vibert-capu
 uv run --group eval python eval/mt_oracle_ablation.py --fleurs-src-dir ~/data/fleurs_vi --fleurs-tgt-tsv ~/data/fleurs_en/test.tsv
 ```
@@ -227,7 +233,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 231 passed
+uv run --group eval pytest -q     # 235 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -282,7 +288,7 @@ Máy dùng để đo: MacBook Pro (Apple Silicon), Whisper chạy bằng CPU (in
 - NLLB chậm gấp khoảng 5 lần Argos và vượt mục tiêu 500 ms/câu. Dùng beam 1 thì nhanh hơn (TB 779 ms, P95 1145 ms, 4 luồng) mà BLEU chỉ giảm 0,8 (20,1 so với 20,8, trên 50 câu). Dùng 8 luồng lại chậm hơn 4 luồng. Câu FLEURS dài, còn đoạn nói thật trong app thường ngắn hơn, nên độ trễ thực tế có thể thấp hơn, nhưng chưa đo.
 - M2M100 không hơn Argos. Một điểm bất thường chưa giải thích: BLEU của M2M100 với chữ PhoWhisper thấp hơn với chữ `small`, dù chrF lại cao hơn.
 - Ở bảng này, điểm chất lượng đo trên 347 câu. Độ trễ đo lại riêng khi máy rảnh: hàng số trễ dùng 50 câu, các số beam 1 cũng là 50 câu.
-- Giấy phép NLLB là CC-BY-NC-4.0, chỉ dùng phi thương mại. Mặc định của app vẫn là Argos.
+- Giấy phép NLLB là CC-BY-NC-4.0, chỉ dùng phi thương mại. Mặc định của app vẫn là Argos, sau khi bench khôi phục bên dưới cho thấy Argos kèm khôi phục vừa nhanh vừa gần bằng NLLB.
 
 **Mất điểm ở đâu (`results/mt_vi_en_oracle.csv`, `eval/mt_oracle_ablation.py`, 347 câu, BLEU):** câu nguồn chuẩn được bớt dần thông tin cho tới khi giống chữ ASR.
 
@@ -355,7 +361,7 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [x] Đo **WER** trên VIVOS/FLEURS (`eval/asr_bench.py`) và **chất lượng dịch** BLEU/chrF + độ trễ dịch trung bình/P95 (`eval/mt_bench.py`), ghi CSV.
 - [ ] Đo độ trễ trung bình và P95 của từng khâu trong app thật.
 - [x] Thử model dịch tốt hơn cho tiếng Việt: NLLB-600M hơn Argos 3–6 BLEU nhưng chậm gấp khoảng 5 lần (mục 6). Có trong app qua `--translator nllb-600m`.
-- [x] Khôi phục chữ hoa và dấu câu trước khi dịch (`--restore vibert-capu`, mục 6): +1,6 đến +2,8 BLEU trong điều kiện giống app.
+- [x] Khôi phục chữ hoa và dấu câu trước khi dịch (mặc định `--restore auto`, mục 6): +1,6 đến +2,8 BLEU trong điều kiện giống app.
 - [ ] Giảm mất điểm do cắt đoạn: dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
 - [ ] Giảm độ trễ: phát TTS dần theo từng phần, chỉnh thời gian chờ im lặng, giảm beam size; thêm TTS offline (Piper).
@@ -383,7 +389,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  231 test (pytest)
+├── tests/                  235 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
