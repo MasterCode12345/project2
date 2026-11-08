@@ -87,7 +87,7 @@ def test_capu_restorer_runs_until_stable(tmp_path):
     root = _model_dir(tmp_path, ["hôm", "Hôm", "nay", "trời", "đẹp", ",", "."])
     enc = FakeEncoder(_rule)
     r = rs.CapuRestorer(root=root, encoder_factory=lambda d: enc)
-    assert r.restore("HÔM NAY, trời đẹp") == "Hôm nay, trời đẹp."  # input normalised first
+    assert r.restore("HÔM NAY, trời đẹp", "vi") == "Hôm nay, trời đẹp."  # input normalised first
     assert enc.calls[0][0] == ["$START", "hôm", "nay", "trời", "đẹp"]
     assert 2 <= len(enc.calls) <= 3  # iterations stop when nothing changes
     assert r.supports("vi") and not r.supports("en")
@@ -97,16 +97,16 @@ def test_capu_restorer_short_input_empty_input_and_windows(tmp_path):
     root = _model_dir(tmp_path, ["a", "A", "b", "."])
     enc = FakeEncoder(lambda t, i, toks: "$KEEP")
     r = rs.CapuRestorer(root=root, encoder_factory=lambda d: enc, chunk_words=4)
-    assert r.restore("a b") == "a b" and enc.calls == []  # fewer than min_len words: unchanged
-    assert r.restore(" ... ") == ""
-    r.restore(" ".join(["a"] * 10))
+    assert r.restore("a b", "vi") == "a b" and enc.calls == []  # fewer than min_len words: unchanged
+    assert r.restore(" ... ", "vi") == ""
+    r.restore(" ".join(["a"] * 10), "vi")
     assert sorted(len(c[0]) - 1 for c in enc.calls) == [3, 3, 4]  # 10 words in 3 near-equal windows
 
 
 def test_unconverted_model_names_the_convert_command(tmp_path):
     r = rs.CapuRestorer(root=tmp_path)
     with pytest.raises(RuntimeError, match=r"convert_capu_model.py vibert-capu"):
-        r.restore("tôi đi học hôm nay")
+        r.restore("tôi đi học hôm nay", "vi")
     with pytest.raises(ValueError):
         rs.CapuRestorer("nope")
 

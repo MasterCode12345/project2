@@ -68,7 +68,7 @@ def _torch_labels(model, tokenizer, w, b, labels, words_batch):
 
 def convert(name: str, out_root: Path, *, force: bool = False, quantization: str = "int8",
             min_agreement: float = 0.95, log=print) -> Path:
-    repo, revision, base_repo, base_revision, _langs = RESTORE_MODELS[name]
+    repo, revision, base_repo, base_revision, langs = RESTORE_MODELS[name]
     out = restore_model_dir(name, out_root)
     if (out / "model.bin").is_file() and not force:
         log(f"{out} already exists (use --force to convert again)")
@@ -136,7 +136,7 @@ def convert(name: str, out_root: Path, *, force: bool = False, quantization: str
         total = sum(len(f) for f in ref_labels)
         log(f"labels: {same}/{total} positions agree with PyTorch fp32")
         for s in CHECK_SENTENCES[:4]:
-            log(f"  {s!r} -> {r.restore(s)!r}")
+            log(f"  {s!r} -> {r.restore(s, langs[0])!r}")
         if same < min_agreement * total:
             raise RuntimeError(f"label agreement {same / total:.3f} below {min_agreement}")
         if out.exists():

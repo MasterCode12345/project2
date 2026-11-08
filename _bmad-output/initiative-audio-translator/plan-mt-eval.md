@@ -3,7 +3,7 @@ title: 'M5 — đo chất lượng dịch (mt_bench), bảng ngôn ngữ trung t
 type: 'feature'
 ticket: ''
 created: '2026-10-31'
-status: 'in-review'
+status: 'done'
 baseline_revision: '8ce7e3aae35b1bee207f009ca2d5525e65435839'
 route: 'full'
 route_source: 'auto'

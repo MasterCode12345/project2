@@ -3,7 +3,7 @@ title: 'M5 — multilingual offline MT backends (NLLB-200-600M, M2M100-418M) via
 type: 'feature'
 ticket: ''
 created: '2026-11-01'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '6597742'
 route: 'full'
 route_source: 'auto'
@@ -67,11 +67,11 @@ context: ['{project-root}/_bmad-output/initiative-audio-translator/plan-mt-eval.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `translate.py` + `tests/test_translate.py` -- backend, định dạng token cho từng họ model, chưa convert, câu rỗng, supports
-- [ ] `scripts/convert_mt_model.py` + `tests/test_convert_mt_model.py` -- revision ghim, allow_patterns, thư mục tạm, SOURCE.json, `--force`
-- [ ] `orchestrator.py`, `cli.py` + tests -- chọn backend, dự phòng khi chưa convert, giữ mặc định
-- [ ] `eval/mt_bench.py` + tests -- backend mới; model chưa convert thì bỏ qua kèm log
-- [ ] Sau khi người dùng cho tải: convert, chạy `mt_bench` đủ 347 câu, cập nhật README
+- [x] `translate.py` + `tests/test_translate.py` -- backend, định dạng token cho từng họ model, chưa convert, câu rỗng, supports
+- [x] `scripts/convert_mt_model.py` + `tests/test_convert_mt_model.py` -- revision ghim, allow_patterns, thư mục tạm, SOURCE.json, `--force`
+- [x] `orchestrator.py`, `cli.py` + tests -- chọn backend, dự phòng khi chưa convert, giữ mặc định
+- [x] `eval/mt_bench.py` + tests -- backend mới; model chưa convert thì bỏ qua kèm log
+- [x] Sau khi người dùng cho tải: convert, chạy `mt_bench` đủ 347 câu, cập nhật README
 
 **Acceptance Criteria:**
 - Given chưa đổi gì trong cấu hình, when chạy app, then dịch vẫn dùng Argos như trước.
@@ -115,6 +115,10 @@ context: ['{project-root}/_bmad-output/initiative-audio-translator/plan-mt-eval.
   - Defaults unchanged pending the human's decision.
 
 ## Plan Change Log
+
+- 2026-11-09 (human): direction 3 approved, then both proposals accepted.
+  - `Settings.restore` defaults to `auto`: use a converted restorer for the source language, else none, silently.
+  - The translator default stays Argos: Argos + restoration meets the 500 ms/segment target. NLLB stays opt-in (above the target, CC-BY-NC).
 
 ## Review Triage Log
 

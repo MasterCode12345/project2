@@ -255,7 +255,7 @@ class CapuRestorer:
             seen.append(new)
         return cur
 
-    def restore(self, text: str, lang: str = "vi") -> str:
+    def restore(self, text: str, lang: str) -> str:
         """Lowercase/unpunctuated form of ``text`` with casing and punctuation predicted again."""
         words = normalize(text, lang).split()
         if not words:
