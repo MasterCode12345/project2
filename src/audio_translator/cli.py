@@ -12,6 +12,7 @@ from .config import Settings
 from .denoise import NS_MODES
 from .model_manager import CATALOG, NOT_DOWNLOADED
 from .models import ERROR, RESULT, STATUS, STOPPED, Event
+from .segmenter import VAD_BACKENDS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,9 +27,15 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Whisper model (default: medium; see --list-models)")
     p.add_argument("--asr-prompt", default=None, metavar="TEXT",
                    help="Whisper initial prompt, e.g. a Vietnamese sentence with diacritics (default: none)")
+    p.add_argument("--asr-filter", action="store_true",
+                   help="drop Whisper segments with low confidence or a known Vietnamese hallucination")
     p.add_argument("--translator", default="offline", choices=["offline", "google"],
                    help="translation backend (default: offline, falls back to google)")
     d = Settings()
+    p.add_argument("--vad", default=d.vad_backend, choices=list(VAD_BACKENDS),
+                   help=f"voice activity detector (default: {d.vad_backend})")
+    p.add_argument("--silero-threshold", type=_unit_float, default=d.silero_threshold,
+                   help=f"Silero speech probability to start speech, 0..1 (default: {d.silero_threshold})")
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="noise suppression before VAD/ASR (experimental; default: off)")
     p.add_argument("--ns-mix", type=_unit_float, default=d.ns_mix,
@@ -115,7 +122,8 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     from .orchestrator import Orchestrator
 
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
-                        asr_initial_prompt=args.asr_prompt, translator=args.translator,
+                        asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
+                        vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()
     failed = []

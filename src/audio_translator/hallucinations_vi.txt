@@ -1,0 +1,5 @@
+# Vietnamese Whisper hallucinations dropped by the ASR filter (--asr-filter).
+# One phrase per line, compared on normalised text (lowercase, no punctuation,
+# tone marks kept) as whole words; at least 4 words each. After a TAB, note the
+# source. Built with scripts/collect_hallucinations.py from noise that is NOT
+# used by the benches (MUSAN noise files outside the seed-0 sample + MUSAN music).

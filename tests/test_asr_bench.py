@@ -51,7 +51,7 @@ def test_prompt_is_set_on_the_recognizer_per_mode():
             return ""
 
     utts, noises = db.smoke_data(0)
-    ab.run(utts[:1], noises, ["m"], lambda n: Rec(), lambda: db.energy_vad, corpus="c", noise_name="n",
+    ab.run(utts[:1], noises, ["m"], lambda n: Rec(), lambda v: db.energy_vad, corpus="c", noise_name="n",
            prompts=[None, "Xin chào."], snrs=[None], seed=0, emit=lambda r: None)
     assert seen and set(seen) == {None, "Xin chào."} and seen[0] is None and seen[-1] == "Xin chào."
 
@@ -65,7 +65,7 @@ def test_unloadable_model_is_skipped_with_a_message():
         return ab._PromptToy()
 
     utts, noises = db.smoke_data(0)
-    done = ab.run(utts[:1], noises, ["phowhisper-medium", "toy"], make, lambda: db.energy_vad,
+    done = ab.run(utts[:1], noises, ["phowhisper-medium", "toy"], make, lambda v: db.energy_vad,
                   corpus="c", noise_name="n", prompts=[None], snrs=[None], seed=0, emit=rows.append,
                   log=logs.append)
     assert done == 1 and [r["model"] for r in rows] == ["toy"]
@@ -170,8 +170,51 @@ def test_only_scored_segments_count_for_latency(monkeypatch):
     monkeypatch.setattr(db, "build_clip", build)
     rows = []
     utts, noises = db.smoke_data(0)
-    ab.run([(utts[0][0], "Xin chào")], noises, ["m"], lambda n: Rec(), lambda: None, corpus="c",
+    ab.run([(utts[0][0], "Xin chào")], noises, ["m"], lambda n: Rec(), lambda v: None, corpus="c",
            noise_name="n", prompts=[None], snrs=[None], seed=0, emit=rows.append)
     (r,) = rows
-    assert r["wer"] == "0.0000" and r["extra_segs"] == 1
+    assert r["wer"] == "0.0000" and r["vad_extra_segs"] == 1
     assert r["asr_rtf"] == "1.000" and r["asr_ms_mean"] == "1000" and r["asr_ms_p95"] == "1000"
+
+
+def test_smoke_vad_x_filter_matrix_has_hallucination_columns(tmp_path):
+    out = tmp_path / "g.csv"
+    assert ab.main(["--smoke", "--vads", "webrtc,silero", "--filters", "off,on", "--prompt-modes", "off",
+                    "--out", str(out)]) == 0
+    rows = list(csv.DictReader(out.open(encoding="utf-8")))
+    assert {"vad_false_triggers", "vad_extra_segs", "ghost_texts"} <= set(rows[0])
+    got = {(r["model"], r["vad"], r["filter"], r["snr_db"]) for r in rows}
+    assert len(rows) == len(got) == 2 * 2 * 2 * len(db.SNRS)
+    for r in rows:
+        assert 0 <= int(r["ghost_texts"]) <= int(r["vad_false_triggers"])
+        if r["snr_db"] == "clean":
+            assert r["vad_false_triggers"] == "0"
+    for bad in (["--vads", "energy"], ["--filters", "maybe"]):
+        assert ab.main(["--smoke", *bad, "--out", str(out)]) == 2
+
+
+def test_ghost_texts_count_noise_segments_that_still_produce_text():
+    """Noise-only clip: every VAD segment in the scored window is a false trigger; ghosts = those with text."""
+    rows = []
+
+    class Rec(ab._PromptToy):
+        def transcribe(self, audio, sr):
+            ghost = "Hãy subscribe cho kênh Ghiền Mì Gõ"
+            if self.segment_filter is not None:
+                return ""  # the filter drops it
+            return ghost
+
+    rng = np.random.default_rng(1)
+    speech = np.sin(np.arange(16000) * 0.2) * 8000.0
+    bursts = np.zeros(16000 * 20)
+    for k in range(0, bursts.size, 16000):
+        bursts[k:k + 4000] = rng.normal(0, 4000, 4000)  # loud noise bursts: the energy VAD fires on them
+    from audio_translator.asr import SegmentFilter
+    ab.run([(speech, "x")], [bursts], ["m"], lambda n: Rec(), lambda v: db.energy_vad, corpus="c",
+           noise_name="n", prompts=[None], snrs=[0.0], seed=0, emit=rows.append,
+           filters=(None, SegmentFilter(blacklist=())))
+    off, on = rows
+    assert (off["filter"], on["filter"]) == ("off", "on")
+    assert int(off["vad_false_triggers"]) > 0
+    assert off["ghost_texts"] == off["vad_false_triggers"]  # every false trigger speaks without the filter
+    assert on["vad_false_triggers"] == off["vad_false_triggers"] and on["ghost_texts"] == 0

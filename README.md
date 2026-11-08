@@ -143,10 +143,33 @@ uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv   
 
 FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
 
+### Chống câu "ma" (thử nghiệm)
+
+Khi có nhiễu, webrtcvad bật nhầm gần như ở mọi clip chỉ có nhiễu (96–141 lần trên 100 clip), và Whisper "bịa" câu cho các đoạn đó, ví dụ *"Hãy subscribe cho kênh Ghiền Mì Gõ…"*. Có hai lớp chặn, cả hai **mặc định tắt** cho đến khi có số đo:
+
+```sh
+uv run audio-translator --cli --model phowhisper-small --vad silero [--silero-threshold 0.5] --asr-filter
+```
+
+| Flag | Ý nghĩa | Mặc định |
+|---|---|---|
+| `--vad {webrtc,silero}` | bộ phát hiện tiếng nói. Silero dùng model `silero_vad_v6.onnx` có sẵn trong faster-whisper (không thêm dependency), chạy streaming theo cửa sổ 32 ms | `webrtc` |
+| `--silero-threshold p` | xác suất tiếng nói để bắt đầu một đoạn; đoạn kết thúc khi xác suất < p − 0,15 | `0.5` |
+| `--asr-filter` | bỏ từng segment Whisper có `no_speech_prob` > 0,6, **hoặc** `avg_logprob` < −1,0, **hoặc** `compression_ratio` > 2,4, hoặc chứa một câu trong danh sách đen | tắt |
+
+faster-whisper tự nó chỉ bỏ segment khi *cả* `no_speech_prob` > 0,6 *và* `avg_logprob` < −1,0, nên câu ma vẫn lọt qua. Danh sách đen nằm ở `src/audio_translator/hallucinations_vi.txt`. Mỗi câu có ít nhất 4 từ, được so khớp nguyên cụm trên văn bản đã chuẩn hóa, và có ghi nguồn. Danh sách này được xây bằng `scripts/collect_hallucinations.py` từ nhiễu **không trùng** với nhiễu dùng để đo (các file MUSAN `noise` không nằm trong mẫu của bench, cùng MUSAN `music`), để không "học tủ" trên tập đo.
+
+Bench ASR có thêm `--vads webrtc,silero --filters off,on` và ba cột: `vad_false_triggers` (đoạn VAD cắt ra trên clip chỉ có nhiễu), `vad_extra_segs` (đoạn thừa nằm ngoài câu nói) và `ghost_texts` (đoạn của clip chỉ có nhiễu vẫn còn ra chữ sau khi lọc, tức là câu sẽ bị dịch và phát ra):
+
+```sh
+uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/vivos --noise-dir ~/data/musan/noise \
+    --models small,phowhisper-small --prompt-modes off --vads webrtc,silero --filters off,on --out results/guard_vivos_musan.csv
+```
+
 ## 5. Kiểm thử
 
 ```sh
-uv run pytest -q     # 165 passed
+uv run pytest -q     # 195 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -200,7 +223,7 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 
 - [x] Thử **PhoWhisper** (VinAI) và **Whisper large-v3-turbo**, convert sang CTranslate2 để dùng với faster-whisper (mục 4, "Model tiếng Việt").
 - [x] Truyền **câu mồi tiếng Việt** cho Whisper (`--asr-prompt`).
-- [ ] Lọc câu theo `no_speech_prob` / `avg_logprob`, thay webrtcvad bằng **Silero VAD**.
+- [x] Lọc câu theo `no_speech_prob` / `avg_logprob` / danh sách đen, thêm **Silero VAD** (mục 4, "Chống câu ma").
 - [ ] Đo **WER** trên bộ 30–50 câu tự thu âm hoặc bộ dữ liệu VIVOS; đo chất lượng dịch; ghi CSV; tính trung bình và P95 độ trễ của từng khâu.
 - [ ] Thử model dịch tốt hơn cho tiếng Việt.
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
@@ -229,10 +252,11 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py   dùng chung
-├── tests/                  165 test (pytest)
+├── tests/                  195 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
+├── scripts/collect_hallucinations.py   thu thập câu ma từ nhiễu không trùng với bench
 ├── results/                CSV kết quả các bench
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version

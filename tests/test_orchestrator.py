@@ -669,3 +669,37 @@ def test_ns_unknown_mode_fails_start(harness):
     err = h.log.wait_for(lambda e: e.kind == ERROR)
     assert "noise suppression" in err.message
     h.log.wait_state(STOPPED)
+
+
+def test_vad_backend_from_settings_is_fresh_per_session(harness, monkeypatch):
+    import audio_translator.orchestrator as orch_mod
+    from conftest import energy_vad
+
+    made = []
+
+    def fake_vad_from_settings(s):
+        made.append(s.vad_backend)
+        return lambda frame, rate: energy_vad(frame, rate)  # a distinct VAD object per call
+
+    monkeypatch.setattr(orch_mod, "vad_from_settings", fake_vad_from_settings)
+    h = harness(settings=Settings(vad_backend="silero"))
+    h.orch._vad_factory = None  # no injected VAD: the settings-driven path
+    h.start()
+    first_vad = h.orch._segmenter.vad
+    h.orch.stop()
+    n = len(h.log.events)
+    h.log.wait_state(STOPPED)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state("running", after=n)
+    assert made == ["silero", "silero"] and h.orch._segmenter.vad is not first_vad
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).session_id == h.orch.current_session
+
+
+def test_unknown_vad_backend_fails_the_start(harness):
+    h = harness(settings=Settings(vad_backend="energy"))
+    h.orch._vad_factory = None
+    assert h.orch.start(None, "BlackHole")
+    ev = h.log.wait_for(lambda e: e.kind == ERROR)
+    assert "Unknown VAD backend 'energy'" in ev.message
+    h.log.wait_state(STOPPED)

@@ -40,7 +40,7 @@ from .models import (
     Translation,
 )
 from .playout import Playout
-from .segmenter import Segmenter, VadFn, webrtc_vad
+from .segmenter import Segmenter, VadFn, vad_from_settings
 from .virtual_out import VirtualOutput
 
 EventFn = Callable[[Event], None]
@@ -77,7 +77,7 @@ class Orchestrator:
         self._offline_factory = offline_translator_factory
         self._google_factory = google_translator_factory
         self._synth = synthesizer
-        self._vad_factory = vad_factory or webrtc_vad
+        self._vad_factory = vad_factory  # None: backend from settings (webrtc | silero), fresh per session
         self._in_factory = input_stream_factory
         self._out_factory = output_stream_factory
         self._resolve = device_resolver
@@ -188,12 +188,12 @@ class Orchestrator:
             "model": name, "status": status, "detail": detail, "selected": name == self._selected}))
 
     def _make_recognizer(self, name: str):
-        from .asr import WhisperASR
+        from .asr import WhisperASR, filter_from_settings
 
         s = self.settings
         return WhisperASR(name, language=s.source_lang, device=s.asr_device,
                           compute_type=s.compute_type, beam_size=s.beam_size,
-                          initial_prompt=s.asr_initial_prompt)
+                          initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s))
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None
@@ -277,6 +277,7 @@ class Orchestrator:
             # Fresh M3a stage per session (validates the ns_* settings early):
             # no enhancer/gate/delay-line state leaks from a previous session.
             ns = noise_suppressor_from_settings(s)
+            vad = self._vad_factory(s.vad_aggressiveness) if self._vad_factory else vad_from_settings(s)
             self._prepare_translator()
             with self._lock:
                 if self._abort_start:  # Stop during the translation-model download
@@ -325,7 +326,7 @@ class Orchestrator:
             self._fatal = None
             self._in_dev, self._out_dev = in_dev, out_dev
             self._segmenter = Segmenter(
-                self._vad_factory(s.vad_aggressiveness),
+                vad,
                 sample_rate=s.capture_rate,
                 frame_ms=s.frame_ms,
                 pre_roll_ms=s.pre_roll_ms,

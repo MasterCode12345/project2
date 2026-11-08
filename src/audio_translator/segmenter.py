@@ -20,6 +20,74 @@ def webrtc_vad(aggressiveness: int) -> VadFn:
     return vad.is_speech
 
 
+class SileroVad:
+    """Streaming Silero VAD (v6 ONNX shipped with faster-whisper) behind the ``VadFn`` signature.
+
+    Silero scores 512-sample windows (32 ms at 16 kHz) with 64 samples of
+    context and a recurrent state; the segmenter feeds 480-sample frames. Each
+    frame is buffered, every complete window is scored exactly once, and the
+    frame gets the hysteresis state after the last complete window: speech
+    starts at ``p >= threshold`` and ends at ``p < neg_threshold`` (default
+    ``threshold - 0.15``, as in faster-whisper). One instance per session.
+    """
+
+    WINDOW = 512
+    CONTEXT = 64
+
+    def __init__(self, threshold: float = 0.5, neg_threshold: float | None = None, *, session=None) -> None:
+        if not 0.0 < threshold < 1.0:
+            raise ValueError(f"silero threshold must be in (0, 1), got {threshold}")
+        if session is None:
+            from faster_whisper.vad import get_vad_model
+
+            session = get_vad_model().session
+        self.session = session
+        self.threshold = threshold
+        self.neg_threshold = max(threshold - 0.15, 0.01) if neg_threshold is None else neg_threshold
+        self.reset()
+
+    def reset(self) -> None:
+        self._h = np.zeros((1, 1, 128), np.float32)
+        self._c = np.zeros((1, 1, 128), np.float32)
+        self._context = np.zeros(self.CONTEXT, np.float32)
+        self._buf = np.zeros(0, np.float32)
+        self.speech = False
+        self.last_prob = 0.0
+
+    def __call__(self, frame: bytes, sample_rate: int) -> bool:
+        if sample_rate != 16000:
+            raise ValueError("Silero VAD expects 16 kHz audio")
+        x = np.frombuffer(frame, dtype=np.int16).astype(np.float32) / 32768.0
+        self._buf = np.concatenate([self._buf, x])
+        while self._buf.size >= self.WINDOW:
+            window, self._buf = self._buf[:self.WINDOW], self._buf[self.WINDOW:]
+            inp = np.concatenate([self._context, window])[None, :]
+            prob, self._h, self._c = self.session.run(None, {"input": inp, "h": self._h, "c": self._c})
+            self._context = window[-self.CONTEXT:]
+            self.last_prob = p = float(np.ravel(prob)[0])
+            if p >= self.threshold:
+                self.speech = True
+            elif p < self.neg_threshold:
+                self.speech = False
+        return self.speech
+
+
+def silero_vad(threshold: float = 0.5) -> VadFn:
+    return SileroVad(threshold)
+
+
+VAD_BACKENDS = ("webrtc", "silero")
+
+
+def vad_from_settings(settings) -> VadFn:
+    """A fresh VAD for one session, by ``settings.vad_backend``."""
+    if settings.vad_backend == "webrtc":
+        return webrtc_vad(settings.vad_aggressiveness)
+    if settings.vad_backend == "silero":
+        return silero_vad(settings.silero_threshold)
+    raise ValueError(f"Unknown VAD backend {settings.vad_backend!r} (use one of {', '.join(VAD_BACKENDS)})")
+
+
 @dataclass
 class Utterance:
     audio: np.ndarray  # int16 mono

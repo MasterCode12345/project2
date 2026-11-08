@@ -18,7 +18,13 @@ Corpora (never downloaded by this script):
 
 Latency columns time ``transcribe`` on the scored segments: mean and P95 per
 segment, and RTF = total ASR time / total segment audio. ``load_s`` is the
-one-off model load. One CSV row is appended as soon as it is measured, so a
+one-off model load.
+
+Hallucination columns (``--vads`` webrtc/silero, ``--filters`` off/on = the
+app's ``--asr-filter``): ``vad_false_triggers`` = segments in the scored noise
+window of the matching noise-only clip, ``ghost_texts`` = how many of those
+still produce text after the filter (what would be translated and spoken),
+``vad_extra_segs`` = segments of the speech clip outside the utterance. One CSV row is appended as soon as it is measured, so a
 long run that stops keeps what it finished.
 
     uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/vivos \\
@@ -47,8 +53,11 @@ import denoise_bench as db  # noqa: E402
 DEFAULT_MODELS = ["small", "phowhisper-small", "phowhisper-medium", "large-v3-turbo"]
 DEFAULT_PROMPT = "Xin chào, sau đây là đoạn hội thoại bằng tiếng Việt."
 PROMPT_MODES = ("off", "on")
-COLUMNS = ["corpus", "noise", "model", "prompt", "snr_db", "n_utts", "wer", "cer",
-           "asr_ms_mean", "asr_ms_p95", "asr_rtf", "load_s", "extra_segs"]
+VAD_NAMES = ("webrtc", "silero")
+FILTER_MODES = ("off", "on")
+COLUMNS = ["corpus", "noise", "model", "prompt", "vad", "filter", "snr_db", "n_utts", "wer", "cer",
+           "asr_ms_mean", "asr_ms_p95", "asr_rtf", "load_s", "vad_extra_segs", "vad_false_triggers",
+           "ghost_texts"]
 
 
 # ------------------------------------------------------------------ corpora
@@ -102,12 +111,14 @@ def latency_stats(calls: list[tuple[float, float]]) -> tuple[float, float, float
 
 # ---------------------------------------------------------------------- bench
 def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_name: str, model: str,
-                prompt: str | None, snrs, seed: int, load_s: float, emit: Callable[[dict], None]) -> None:
+                prompt: str | None, snrs, seed: int, load_s: float, emit: Callable[[dict], None],
+                vad_name: str = "webrtc", segment_filter=None) -> None:
     asr.initial_prompt = prompt
+    asr.segment_filter = segment_filter
     for snr in snrs:
         rng = np.random.default_rng(seed)  # identical clips for every model and prompt
         refs, hyps, scored = [], [], []
-        extra = 0
+        extra = false_triggers = ghosts = 0
         for k, (speech, ref) in enumerate(utts):
             clip = db.build_clip(speech, noises[k % len(noises)], snr, rng)
             timed = TimedASR(asr)
@@ -119,18 +130,26 @@ def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_nam
                     scored.append(call)
                 else:
                     extra += 1
+            noise_run = db.run_pipeline(clip.noise_only, None, make_vad(), asr)
+            for a, b, text in noise_run.segments:
+                if db.overlaps((a, b), clip.noise_window_s):
+                    false_triggers += 1
+                    ghosts += bool(text.strip())
         wer, cer = db.error_rates(refs, hyps)
         mean_ms, p95_ms, rtf = latency_stats(scored)
         emit({"corpus": corpus, "noise": noise_name if snr is not None else "-", "model": model,
-              "prompt": "on" if prompt else "off", "snr_db": "clean" if snr is None else f"{snr:g}",
+              "prompt": "on" if prompt else "off", "vad": vad_name,
+              "filter": "on" if segment_filter is not None else "off", "snr_db": "clean" if snr is None else f"{snr:g}",
               "n_utts": len(utts), "wer": f"{wer:.4f}", "cer": f"{cer:.4f}", "asr_ms_mean": f"{mean_ms:.0f}",
               "asr_ms_p95": f"{p95_ms:.0f}", "asr_rtf": f"{rtf:.3f}", "load_s": f"{load_s:.1f}",
-              "extra_segs": extra})
+              "vad_extra_segs": extra, "vad_false_triggers": false_triggers, "ghost_texts": ghosts})
 
 
 def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make_vad: Callable, *,
         corpus: str, noise_name: str, prompts: list[str | None], snrs, seed: int,
-        emit: Callable[[dict], None], log=print) -> int:
+        emit: Callable[[dict], None], log=print, vads: tuple[str, ...] = ("webrtc",),
+        filters: tuple = (None,)) -> int:
+    """``make_vad(name)`` builds a fresh VAD; ``filters`` holds SegmentFilter or None (= off)."""
     """Benchmark each model in turn (one resident at a time); returns the number of models measured."""
     done = 0
     for model in models:
@@ -143,8 +162,11 @@ def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make
             continue
         load_s = time.perf_counter() - t0
         for prompt in prompts:
-            bench_model(utts, noises, asr, make_vad, corpus=corpus, noise_name=noise_name, model=model,
-                        prompt=prompt, snrs=snrs, seed=seed, load_s=load_s, emit=emit)
+            for vad_name in vads:
+                for seg_filter in filters:
+                    bench_model(utts, noises, asr, lambda v=vad_name: make_vad(v), corpus=corpus,
+                                noise_name=noise_name, model=model, prompt=prompt, snrs=snrs, seed=seed,
+                                load_s=load_s, emit=emit, vad_name=vad_name, segment_filter=seg_filter)
         done += 1
         del asr
         gc.collect()  # free the model before loading the next one (8 GB machine)
@@ -154,6 +176,7 @@ def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make
 # ----------------------------------------------------------------------- main
 class _PromptToy(db.ToyASR):
     initial_prompt: str | None = None
+    segment_filter = None
 
     def load(self) -> None:
         pass
@@ -178,6 +201,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"comma-separated model names (default: {','.join(DEFAULT_MODELS)})")
     p.add_argument("--prompt", default=DEFAULT_PROMPT, help="initial prompt used for prompt=on")
     p.add_argument("--prompt-modes", default="off,on", help="comma-separated subset of off,on")
+    p.add_argument("--vads", default="webrtc", help="comma-separated subset of webrtc,silero")
+    p.add_argument("--silero-threshold", type=float, default=0.5)
+    p.add_argument("--filters", default="off", help="comma-separated subset of off,on (ASR filter)")
     p.add_argument("--snrs", type=_snrs, default=list(db.SNRS),
                    help="comma-separated SNRs in dB and/or 'clean' (default: clean,20,10,5,0)")
     p.add_argument("--limit", type=int, default=100, help="max utterances (0 = all; default 100)")
@@ -199,6 +225,18 @@ def main(argv: list[str] | None = None) -> int:
         print("error: --prompt is empty (prompt=on would run without a prompt)", file=sys.stderr)
         return 2
     prompts = [args.prompt if m == "on" else None for m in modes]
+    vads = tuple(v.strip() for v in args.vads.split(",") if v.strip())
+    filter_modes = [f.strip() for f in args.filters.split(",") if f.strip()]
+    if not vads or any(v not in VAD_NAMES for v in vads):
+        print(f"error: --vads must be a subset of {','.join(VAD_NAMES)}", file=sys.stderr)
+        return 2
+    if not filter_modes or any(f not in FILTER_MODES for f in filter_modes):
+        print(f"error: --filters must be a subset of {','.join(FILTER_MODES)}", file=sys.stderr)
+        return 2
+    from audio_translator.asr import SegmentFilter
+    from audio_translator.segmenter import silero_vad, webrtc_vad
+
+    filters = tuple(SegmentFilter() if f == "on" else None for f in filter_modes)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     if args.smoke:
         utts, noises = db.smoke_data(args.seed)
@@ -208,8 +246,8 @@ def main(argv: list[str] | None = None) -> int:
         def make_asr(name):
             return _PromptToy()
 
-        def make_vad():
-            return db.energy_vad
+        def make_vad(name):
+            return db.energy_vad if name == "webrtc" else silero_vad(args.silero_threshold)
     else:
         corpus_dir = args.vivos_dir if args.corpus == "vivos" else args.fleurs_dir
         corpus_flag = "--vivos-dir" if args.corpus == "vivos" else "--fleurs-dir"
@@ -229,16 +267,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         corpus, noise_name = args.corpus, args.noise_dir.expanduser().name
         from audio_translator.asr import WhisperASR
-        from audio_translator.segmenter import webrtc_vad
 
         def make_asr(name):
             return WhisperASR(name, language="vi", beam_size=args.beam_size)
 
-        def make_vad():
-            return webrtc_vad(args.vad_aggressiveness)
+        def make_vad(name):
+            return webrtc_vad(args.vad_aggressiveness) if name == "webrtc" else silero_vad(args.silero_threshold)
 
     print(f"{corpus}: {len(utts)} utterance(s), {len(noises)} noise source(s), models {models}, "
-          f"prompts {modes}, SNRs {['clean' if s is None else s for s in args.snrs]}", flush=True)
+          f"prompts {modes}, VADs {list(vads)}, filters {filter_modes}, SNRs {['clean' if s is None else s for s in args.snrs]}", flush=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     rows = 0
     with open(args.out, "w", newline="", encoding="utf-8") as f:
@@ -255,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
 
         done = run(utts, noises, models, make_asr, make_vad, corpus=corpus, noise_name=noise_name,
                    prompts=prompts, snrs=args.snrs, seed=args.seed, emit=emit,
-                   log=lambda s: print(s, flush=True))
+                   log=lambda s: print(s, flush=True), vads=vads, filters=filters)
     if done == 0:
         print("error: no model could be loaded", file=sys.stderr)
         return 1
