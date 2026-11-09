@@ -148,6 +148,54 @@ uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv   
 
 FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
 
+### Chống câu "ma" (thử nghiệm)
+
+Khi có nhiễu, webrtcvad bật nhầm gần như ở mọi clip chỉ có nhiễu (96–141 lần trên 100 clip), và Whisper "bịa" câu cho các đoạn đó, ví dụ *"Hãy subscribe cho kênh Ghiền Mì Gõ…"*. Có hai lớp chặn, cả hai **mặc định tắt** (kết quả đo ở cuối mục này):
+
+```sh
+uv run audio-translator --cli --model phowhisper-small --vad silero [--silero-threshold 0.5] --asr-filter
+```
+
+| Flag | Ý nghĩa | Mặc định |
+|---|---|---|
+| `--vad {webrtc,silero}` | bộ phát hiện tiếng nói. Silero dùng model `silero_vad_v6.onnx` có sẵn trong faster-whisper (không thêm dependency), chạy streaming theo cửa sổ 32 ms | `webrtc` |
+| `--silero-threshold p` | xác suất tiếng nói để bắt đầu một đoạn; đoạn kết thúc khi xác suất < p − 0,15 | `0.5` |
+| `--asr-filter` | bỏ từng segment Whisper có `no_speech_prob` > 0,6, **hoặc** `avg_logprob` < −1,0, **hoặc** `compression_ratio` > 2,4, hoặc chứa một câu trong danh sách đen | tắt |
+
+faster-whisper tự nó chỉ bỏ segment khi *cả* `no_speech_prob` > 0,6 *và* `avg_logprob` < −1,0, nên câu ma vẫn lọt qua. Danh sách đen nằm ở `src/audio_translator/hallucinations_vi.txt`. Mỗi câu có ít nhất 4 từ, được so khớp nguyên cụm trên văn bản đã chuẩn hóa, và có ghi nguồn. Danh sách này được xây bằng `scripts/collect_hallucinations.py` từ nhiễu **không trùng** với nhiễu dùng để đo (các file MUSAN `noise` không nằm trong mẫu của bench, cùng MUSAN `music`), để không "học tủ" trên tập đo.
+
+Bench ASR có thêm `--vads webrtc,silero --filters off,on` và ba cột: `vad_false_triggers` (đoạn VAD cắt ra trên clip chỉ có nhiễu), `vad_extra_segs` (đoạn thừa nằm ngoài câu nói) và `ghost_texts` (đoạn của clip chỉ có nhiễu vẫn còn ra chữ sau khi lọc, tức là câu sẽ bị dịch và phát ra):
+
+```sh
+uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/vivos --noise-dir ~/data/musan/noise \
+    --models small,phowhisper-small --prompt-modes off --vads webrtc,silero --filters off,on --out results/guard_vivos_musan.csv
+```
+
+**Kết quả** (`results/guard_vivos_demand.csv`, `results/guard_vivos_musan.csv`: 100 câu VIVOS test, DEMAND 17 cảnh / MUSAN 20 file nhiễu, seed 0, SNR 20/10/5/0 dB). Mỗi ô là số đoạn trên 100 clip chỉ có nhiễu:
+
+| Nhiễu | Model | webrtc, không lọc | webrtc + lọc | Silero, không lọc | Silero + lọc |
+|---|---|---|---|---|---|
+| DEMAND | `small` | 96/104/108/97 | 6/6/7/5 | 24/24/25/27 | **4/4/5/4** |
+| DEMAND | `phowhisper-small` | 96/105/109/101 | 96/104/108/100 | 24/24/26/27 | **24/22/26/26** |
+| MUSAN | `small` | 124/102/108/112 | 0/2/4/1 | 0/2/2/8 | **0/0/0/1** |
+| MUSAN | `phowhisper-small` | 141/117/115/115 | 140/117/115/115 | 0/3/4/10 | **0/3/4/9** |
+
+(`ghost_texts`, lần lượt 20/10/5/0 dB. Số lần VAD bật nhầm `vad_false_triggers` của webrtc là 96–109 trên DEMAND và 115–141 trên MUSAN; của Silero là 24–27 và 0–10.)
+
+- **Silero giảm số lần bật nhầm khoảng 75% trên DEMAND và 93–100% trên MUSAN.** Khi đo riêng từng file nhiễu, Silero chỉ bật trên 3/17 cảnh DEMAND có tiếng người thật (OMEETING 74%, PCAFETER 96%, PRESTO 88% số frame) và không bật lần nào trên 14 cảnh còn lại. Vậy 24–27 lần còn lại là **tiếng người nói ở nền**, không phải lỗi VAD. Chặn được chúng là một bài toán khác (chỉ nghe người dùng), không thuộc phạm vi chống câu ma.
+- **Bộ lọc chỉ có tác dụng với `small`.** Câu ma của `small` là câu kiểu outro YouTube, có `no_speech_prob` khoảng 0,6–0,7 hoặc nằm trong danh sách đen, nên bị bỏ gần hết. PhoWhisper luôn cho `no_speech_prob` = 0,00 trên nhiễu (token `<|nocaptions|>` vẫn có trong vocab; nhiều khả năng do fine-tune chỉ trên dữ liệu có tiếng nói). Nó bịa ra những câu kiểu tin tức, mỗi lần một khác, nên bộ lọc gần như không bỏ được gì. **Với PhoWhisper, Silero là lớp chặn duy nhất có tác dụng.**
+- **WER trên câu thật** (%, sạch/20/10/5/0 dB):
+
+| Nhiễu | Model | webrtc, không lọc | Silero + lọc |
+|---|---|---|---|
+| DEMAND | `small` | 21,9/21,1/24,0/24,3/30,6 | 20,8/21,3/22,4/23,0/27,8 |
+| DEMAND | `phowhisper-small` | 6,9/6,0/6,2/7,3/11,3 | 5,6/6,8/7,1/9,4/11,7 |
+| MUSAN | `small` | –/23,5/22,6/26,2/36,9 | –/22,1/22,7/24,6/32,4 |
+| MUSAN | `phowhisper-small` | –/9,4/7,0/13,7/13,2 | –/5,9/6,7/7,9/17,3 |
+
+  Với `small`, Silero + lọc không làm WER tệ hơn quá 0,2 điểm ở bất kỳ mức SNR nào, và tốt hơn tới 4,5 điểm ở 0 dB vì bộ lọc bỏ được câu ma xen vào câu thật. Với PhoWhisper, có hai ô tệ hơn quá 1 điểm: DEMAND 5 dB (+2,2) và MUSAN 0 dB (+4,1). Đã chẩn đoán từng câu: ở mỗi ô, phần lớn mức tăng đến từ **một câu** mà PhoWhisper rơi vào vòng lặp ("…không cạo a a a a…", thừa 28 từ; một câu lặp ba lần, thừa 17 từ). Bỏ câu đó ra thì Silero ít lỗi hơn webrtc ở cả hai ô. Thêm vào đó, WER của webrtc ở các ô này **không lặp lại được giữa hai lần chạy** (13,2 → 16,0 và 7,3 → 9,0), trong khi Silero ra đúng từng số. Lý do có thể là các đoạn dài, nhiều nhiễu do webrtc cắt ra làm faster-whisper chuyển sang giải mã có lấy mẫu ngẫu nhiên. Vì vậy chênh lệch 1–3 điểm ở SNR thấp chưa đủ để kết luận theo hướng nào.
+- **Hạn chế:** mới đo 100 câu với một seed; nhiễu chỉ có hai bộ. Danh sách đen (9 cụm) được xây từ 200 file MUSAN (noise và music) không trùng với nhiễu đo, nhưng cùng nguồn MUSAN, nên con số trên MUSAN có thể lạc quan hơn so với nhiễu thật. Ngưỡng lọc giữ mặc định của Whisper, chưa tinh chỉnh.
+
 ### Đo chất lượng dịch (M5)
 
 **Bench dịch** (`eval/mt_bench.py`) trả lời hai câu hỏi:
@@ -233,7 +281,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 235 passed
+uv run --group eval pytest -q     # 265 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -343,7 +391,7 @@ Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so vớ
 ## 8. Vấn đề đang gặp (cần góp ý)
 
 1. **Nhận dạng tiếng Việt sai, chủ yếu sai dấu thanh** (nắng→nặng, ngày→ngay, tối→tội, Bách→Bạch). Lỗi này **kéo theo dịch sai** ("Bàn ăn tối chưa" thành "Is the table bad?"). Model `medium` chậm hơn khoảng 70% mà không chính xác hơn `small` trên mẫu thử. **Đây là ưu tiên số 1.**
-2. **Whisper "ảo giác" sinh ra câu "ma":** khi có tạp âm, Whisper tạo ra câu người dùng không nói, thường là câu kiểu phụ đề YouTube ("…subscribe kênh… để không bỏ lỡ video"). Nguyên nhân là webrtcvad để lọt tạp âm và code chưa lọc theo độ tin cậy của Whisper.
+2. **Whisper "ảo giác" sinh ra câu "ma":** khi có tạp âm, Whisper tạo ra câu người dùng không nói, thường là câu kiểu phụ đề YouTube ("…subscribe kênh… để không bỏ lỡ video"). Nguyên nhân là webrtcvad để lọt tạp âm và code chưa lọc theo độ tin cậy của Whisper. **Đã có thử nghiệm** `--vad silero --asr-filter`: số câu ma giảm từ 96–141 xuống còn 0–27 trên 100 clip nhiễu, phần còn lại chủ yếu là tiếng người nói ở nền (mục 4, "Chống câu ma"). Hai lựa chọn này chưa bật mặc định. PhoWhisper đôi khi rơi vào vòng lặp lặp từ, chưa có cơ chế chặn.
 3. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần.
 4. **Độ trễ tăng mạnh khi gọi Meet** (7–10 s): câu "ma" chiếm chỗ trong hàng đợi, và Chrome dùng chung CPU với Whisper.
 5. **Model dịch nhỏ yếu với tên riêng:** "Đại học Bách Khoa Hà Nội" bị dịch thành "University of Hanoi".
@@ -357,7 +405,7 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 
 - [x] Thử **PhoWhisper** (VinAI) và **Whisper large-v3-turbo**, convert sang CTranslate2 để dùng với faster-whisper (mục 4, "Model tiếng Việt").
 - [x] Truyền **câu mồi tiếng Việt** cho Whisper (`--asr-prompt`).
-- [ ] Lọc câu theo `no_speech_prob` / `avg_logprob`, thay webrtcvad bằng **Silero VAD**.
+- [x] Lọc câu theo `no_speech_prob` / `avg_logprob` / danh sách đen, thêm **Silero VAD** (mục 4, "Chống câu ma").
 - [x] Đo **WER** trên VIVOS/FLEURS (`eval/asr_bench.py`) và **chất lượng dịch** BLEU/chrF + độ trễ dịch trung bình/P95 (`eval/mt_bench.py`), ghi CSV.
 - [ ] Đo độ trễ trung bình và P95 của từng khâu trong app thật.
 - [x] Thử model dịch tốt hơn cho tiếng Việt: NLLB-600M hơn Argos 3–6 BLEU nhưng chậm gấp khoảng 5 lần (mục 6). Có trong app qua `--translator nllb-600m`.
@@ -389,7 +437,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  235 test (pytest)
+├── tests/                  265 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
@@ -398,6 +446,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
 ├── scripts/convert_mt_model.py     convert NLLB-200 / M2M100 sang CTranslate2 (chạy một lần)
 ├── scripts/convert_capu_model.py   convert bộ khôi phục chữ hoa/dấu câu vibert-capu sang CTranslate2 (chạy một lần)
+├── scripts/collect_hallucinations.py   thu thập câu ma từ nhiễu không trùng với bench
 ├── results/                CSV kết quả các bench
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version

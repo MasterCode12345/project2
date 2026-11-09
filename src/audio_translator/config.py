@@ -33,7 +33,9 @@ class Settings:
     frame_ms: int = 30
 
     # M3 segmentation
-    vad_aggressiveness: int = 2  # 0..3
+    vad_backend: str = "webrtc"  # "webrtc" | "silero" (Silero v6 ONNX shipped with faster-whisper)
+    vad_aggressiveness: int = 2  # 0..3, webrtc only
+    silero_threshold: float = 0.5  # speech probability to start; ends below threshold - 0.15
     pre_roll_ms: int = 300
     silence_ms: int = 600
     max_segment_s: float = 15.0
@@ -52,6 +54,15 @@ class Settings:
     # Whisper initial_prompt (decoder priming text), e.g. a Vietnamese sentence
     # with full diacritics. None = no prompt; measure with eval/asr_bench.py.
     asr_initial_prompt: str | None = None
+    # Hallucination filter per Whisper segment (off by default until measured):
+    # drop it when no_speech_prob > max, OR avg_logprob < min, OR
+    # compression_ratio > max (Whisper's own defaults; faster-whisper itself
+    # only drops when no_speech AND logprob both fail), or when it matches the
+    # Vietnamese blacklist (hallucinations_vi.txt).
+    asr_filter: bool = False
+    asr_max_no_speech_prob: float = 0.6
+    asr_min_avg_logprob: float = -1.0
+    asr_max_compression_ratio: float = 2.4
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 

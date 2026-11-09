@@ -1,0 +1,22 @@
+# Vietnamese Whisper hallucinations dropped by the ASR filter (--asr-filter).
+# One phrase per line, compared on normalised text (lowercase, no punctuation,
+# tone marks kept) as whole words; at least 4 words each. After a TAB, note the
+# source. Built with scripts/collect_hallucinations.py from noise that is NOT
+# used by the benches (MUSAN noise files outside the seed-0 sample + MUSAN music).
+# Rule used (decided before choosing): a phrase seen in >= 2 noise files, >= 4 words,
+# a video-channel formula nobody says in a call. Generic phrases that also
+# hallucinate ("cảm ơn các bạn", "hẹn gặp lại mọi người") are NOT listed: people
+# say them; the confidence thresholds handle those. Every phrase was checked
+# against 13,277 real sentences (VIVOS train+test prompts, FLEURS vi): 0 matches.
+# Source: results/hallucination_candidates.tsv (200 files: MUSAN noise outside the
+# bench's seed-0 sample + MUSAN music; models small, phowhisper-small; 2026-11-09).
+# Counts: Whisper segments containing the phrase / noise files of its most frequent variant.
+hãy subscribe cho kênh	# small: 625 segments; "… kênh Ghiền Mì Gõ …" alone in 165 files
+để không bỏ lỡ những video	# small: 624 segments, same outro (165 files)
+for watching this video	# small: 61 segments; "cảm ơn các bạn for watching this video" in 37 files
+not miss the next videos	# small: 4 segments, 4 files
+hẹn gặp lại trong video	# small: 35 segments; "… trong video tiếp theo" in 11 files
+hẹn gặp lại video	# small: 8 segments; "… video này" in 3 files
+đã đón xem video này	# small: 21 segments; 5 files for the most frequent variant
+đã quay lại video này	# small: 17 segments; 4 files for the most frequent variant
+ảnh ảnh ảnh ảnh	# small: 5 segments, 4 files (a repetition below the compression threshold)
