@@ -12,7 +12,9 @@ from .config import Settings
 from .denoise import NS_MODES
 from .model_manager import CATALOG, NOT_DOWNLOADED
 from .models import ERROR, RESULT, STATUS, STOPPED, Event
+from .restore import APP_RESTORERS
 from .segmenter import VAD_BACKENDS
+from .translate import MT_MODELS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -29,8 +31,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Whisper initial prompt, e.g. a Vietnamese sentence with diacritics (default: none)")
     p.add_argument("--asr-filter", action="store_true",
                    help="drop Whisper segments with low confidence or a known Vietnamese hallucination")
-    p.add_argument("--translator", default="offline", choices=["offline", "google"],
-                   help="translation backend (default: offline, falls back to google)")
+    p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
+                   help="translation backend: offline = Argos (default), google, or a converted multilingual "
+                        "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")
+    p.add_argument("--restore", default="auto", choices=list(APP_RESTORERS),
+                   help="restore casing/punctuation of the transcript before translation: auto (default: a "
+                        "converted model for the source language, else none), off, sent (capital + final "
+                        "period), or vibert-capu (Vietnamese; scripts/convert_capu_model.py)")
     d = Settings()
     p.add_argument("--vad", default=d.vad_backend, choices=list(VAD_BACKENDS),
                    help=f"voice activity detector (default: {d.vad_backend})")
@@ -124,6 +131,7 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
                         asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
                         vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
+                        restore=args.restore,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()
     failed = []

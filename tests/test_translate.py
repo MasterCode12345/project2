@@ -191,3 +191,122 @@ def test_fallback_factory_is_lazy_and_errors_propagate():
     with pytest.raises(RuntimeError):
         t.translate("x")
     assert made == [1]
+
+
+# ------------------------------------------------------- supports / pivot route
+def _package(tmp_path, meta):
+    pkg = tmp_path / "pkg"
+    pkg.mkdir(exist_ok=True)
+    (pkg / "metadata.json").write_text(json.dumps(meta) if not isinstance(meta, str) else meta)
+    return pkg
+
+
+def test_offline_supports_exactly_its_package_pair(tmp_path):
+    tr = OfflineTranslator(_package(tmp_path, {"from_code": "vi", "to_code": "en"}))
+    assert tr.supports("vi", "en")
+    assert not tr.supports("en", "vi") and not tr.supports("vi", "xx")
+    assert not OfflineTranslator(_package(tmp_path, "not json")).supports("vi", "en")
+    assert not OfflineTranslator(tmp_path / "missing").supports("vi", "en")
+
+
+def test_google_supports_languages_in_the_table():
+    from audio_translator.translate import GoogleTranslator
+
+    assert GoogleTranslator.supports("vi", "en") and GoogleTranslator.supports("en", "vi")
+    assert not GoogleTranslator.supports("vi", "vi") and not GoogleTranslator.supports("vi", "xx")
+
+
+def test_route_is_direct_when_possible_and_pivots_through_english_otherwise():
+    from audio_translator.translate import plan_route
+
+    pairs = {("vi", "en"), ("en", "fr")}
+    sup = lambda a, b: (a, b) in pairs  # noqa: E731
+    assert plan_route(sup, "vi", "en") == "direct"
+    assert plan_route(sup, "vi", "fr") == "pivot:en"
+    assert plan_route(lambda a, b: (a, b) in pairs | {("vi", "fr")}, "vi", "fr") == "direct"  # direct wins
+    assert plan_route(sup, "fr", "vi") is None
+    assert plan_route(sup, "en", "vi") is None  # no pivot when English is an end of the pair
+    with pytest.raises(ValueError):
+        plan_route(sup, "vi", "vi")
+
+
+def test_pivot_translator_chains_both_legs():
+    from audio_translator.translate import PivotTranslator
+
+    first = SimpleNamespace(translate=lambda t: f"en({t})")
+    second = SimpleNamespace(translate=lambda t: f"fr({t})")
+    assert PivotTranslator(first, second).translate("xin chào") == "fr(en(xin chào))"
+    calls = []
+    empty = PivotTranslator(SimpleNamespace(translate=lambda t: "  "),
+                            SimpleNamespace(translate=lambda t: calls.append(t) or "x"))
+    assert empty.translate("ừm") == "" and calls == []
+
+
+# ------------------------------------------------- multilingual CT2 models
+class FakeMtSP:
+    def __init__(self, path):
+        self.path = path
+
+    def encode(self, s, out_type=str):
+        return ["▁" + w for w in s.split()]
+
+
+class FakeMtCT2:
+    def __init__(self, path):
+        self.path, self.calls = path, []
+
+    def translate_batch(self, batch, target_prefix, beam_size):
+        self.calls.append((batch, target_prefix, beam_size))
+        return [SimpleNamespace(hypotheses=[[p[0], "▁out", f"▁{len(b)}"]]) for b, p in zip(batch, target_prefix)]
+
+
+def _mt_dir(tmp_path, name):
+    from audio_translator.translate import SPM_FILE, mt_model_dir
+
+    d = mt_model_dir(name, tmp_path)
+    d.mkdir(parents=True)
+    (d / "model.bin").write_text("x")
+    (d / SPM_FILE).write_text("x")
+    return d
+
+
+@pytest.mark.parametrize("name, src_tok, tgt_tok", [("nllb-600m", "vie_Latn", "eng_Latn"),
+                                                     ("m2m100-418m", "__vi__", "__en__")])
+def test_multilingual_model_token_format(tmp_path, name, src_tok, tgt_tok):
+    from audio_translator.translate import CT2MultilingualTranslator
+
+    d = _mt_dir(tmp_path, name)
+    models = []
+    tr = CT2MultilingualTranslator(name, "vi", "en", root=tmp_path, beam_size=3,
+                                   translator_factory=lambda p: models.append(FakeMtCT2(p)) or models[-1],
+                                   tokenizer_factory=FakeMtSP)
+    assert tr.translate("Xin chào. Bạn khỏe không?") == "out 4 out 5"
+    (batch, prefix, beam), = models[0].calls
+    assert batch == [[src_tok, "▁Xin", "▁chào.", "</s>"], [src_tok, "▁Bạn", "▁khỏe", "▁không?", "</s>"]]
+    assert prefix == [[tgt_tok], [tgt_tok]] and beam == 3  # the forced target token is removed from the output
+    assert models[0].path == str(d) and tr._sp.path == str(d / "sentencepiece.bpe.model")
+    assert tr.translate("   ") == "" and len(models[0].calls) == 1
+    tr.translate("Một.")
+    assert len(models) == 1  # loaded once
+
+
+def test_multilingual_model_not_converted_names_the_command(tmp_path):
+    from audio_translator.translate import CT2MultilingualTranslator
+
+    tr = CT2MultilingualTranslator("nllb-600m", root=tmp_path, translator_factory=FakeMtCT2,
+                                   tokenizer_factory=FakeMtSP)
+    with pytest.raises(RuntimeError, match="convert_mt_model.py nllb-600m"):
+        tr.translate("Xin chào.")
+
+
+def test_multilingual_model_language_checks():
+    from audio_translator.translate import CT2MultilingualTranslator
+
+    assert CT2MultilingualTranslator.supports_family("nllb", "vi", "en")
+    assert CT2MultilingualTranslator.supports_family("m2m100", "en", "vi")
+    assert not CT2MultilingualTranslator.supports_family("nllb", "vi", "xx")
+    assert not CT2MultilingualTranslator.supports_family("nllb", "vi", "vi")
+    with pytest.raises(ValueError, match="no language code"):
+        CT2MultilingualTranslator("nllb-600m", "vi", "xx")
+    with pytest.raises(ValueError, match="Unknown translation model"):
+        CT2MultilingualTranslator("gpt", "vi", "en")
