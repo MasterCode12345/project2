@@ -288,3 +288,11 @@ def harness():
     yield make
     for h in made:
         h.orch.shutdown()
+
+
+@pytest.fixture(autouse=True)
+def _no_real_restore_models(monkeypatch, tmp_path):
+    """Settings.restore defaults to "auto": tests never pick up a model converted on this machine."""
+    import audio_translator.restore as restore
+
+    monkeypatch.setattr(restore, "MT_MODELS_DIR", tmp_path / "no-models")

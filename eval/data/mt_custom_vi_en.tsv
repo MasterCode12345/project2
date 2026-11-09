@@ -1,0 +1,30 @@
+# Bộ câu tự viết cho eval/mt_bench.py (vi -> en): tên riêng, số, ngày giờ, đơn vị, từ mượn.
+# CẦN NGƯỜI DÙNG DUYỆT: cột ref là bản dịch nháp do Claude soạn. Khi đã kiểm tra một câu, đổi reviewed thành yes.
+# Bench gắn nhãn corpus=custom_unreviewed cho tới khi MỌI câu là yes; kết quả đó không dùng để kết luận.
+# Cột: id <TAB> category <TAB> reviewed <TAB> src <TAB> ref
+id	category	reviewed	src	ref
+c01	name	no	Tôi là sinh viên năm ba của Đại học Bách Khoa Hà Nội.	I am a third-year student at Hanoi University of Science and Technology.
+c02	name	no	Thầy Nguyễn Văn Nam dạy môn trí tuệ nhân tạo ở trường tôi.	Mr. Nguyen Van Nam teaches artificial intelligence at my school.
+c03	name	no	Chúng tôi sẽ bay từ Thành phố Hồ Chí Minh ra Đà Nẵng vào thứ Bảy.	We will fly from Ho Chi Minh City to Da Nang on Saturday.
+c04	name	no	Công ty Viettel vừa ra mắt mạng 5G ở Hải Phòng.	Viettel has just launched a 5G network in Hai Phong.
+c05	name	no	Nhà tôi ở gần hồ Hoàn Kiếm, cách phố cổ khoảng năm phút đi bộ.	My house is near Hoan Kiem Lake, about a five-minute walk from the Old Quarter.
+c06	name	no	Bạn đã từng đến Vịnh Hạ Long hay Sa Pa chưa?	Have you ever been to Ha Long Bay or Sa Pa?
+c07	time	no	Cuộc họp bắt đầu lúc 3 giờ chiều và kết thúc lúc 4 giờ rưỡi.	The meeting starts at 3 p.m. and ends at 4:30.
+c08	time	no	Hạn nộp báo cáo là ngày 15 tháng 11 năm 2026.	The deadline for submitting the report is November 15, 2026.
+c09	time	no	Mỗi sáng tôi dậy lúc 6 giờ kém 15.	Every morning I get up at a quarter to six.
+c10	time	no	Tuần sau chúng ta sẽ gặp nhau vào tối thứ Sáu nhé.	Let's meet next week on Friday evening.
+c11	number	no	Lớp của tôi có 42 sinh viên, trong đó có 9 bạn nữ.	My class has 42 students, 9 of whom are female.
+c12	number	no	Chiếc điện thoại này giá 12 triệu 500 nghìn đồng.	This phone costs 12.5 million dong.
+c13	number	no	Dân số Việt Nam đã vượt 100 triệu người.	Vietnam's population has passed 100 million people.
+c14	number	no	Điểm trung bình của em là 3,6 trên thang điểm 4.	My GPA is 3.6 on a 4-point scale.
+c15	unit	no	Từ Hà Nội đến Hải Phòng khoảng 120 cây số.	It is about 120 kilometers from Hanoi to Hai Phong.
+c16	unit	no	Hôm nay trời nóng quá, nhiệt độ lên tới 38 độ.	It's so hot today; the temperature has reached 38 degrees.
+c17	unit	no	Tôi uống hai lít nước mỗi ngày.	I drink two liters of water every day.
+c18	unit	no	Gói hàng này nặng khoảng 3 ký rưỡi.	This package weighs about three and a half kilos.
+c19	loanword	no	Tối nay tôi đi tập gym với bạn thân.	Tonight I'm going to the gym with my best friend.
+c20	loanword	no	Em gửi file slide cho thầy qua email rồi ạ.	I've already sent you the slide file by email, sir.
+c21	loanword	no	Mình đặt Grab về nhà vì trời mưa to quá.	I booked a Grab home because it was raining so hard.
+c22	loanword	no	Bạn có thể share link Google Meet vào nhóm Zalo không?	Can you share the Google Meet link in the Zalo group?
+c23	loanword	no	Dự án này dùng Python và chạy trên laptop MacBook.	This project uses Python and runs on a MacBook laptop.
+c24	mixed	no	Chủ nhật này đội bóng Hà Nội FC đá với Hoàng Anh Gia Lai lúc 7 giờ tối.	This Sunday, Hanoi FC plays against Hoang Anh Gia Lai at 7 p.m.
+c25	mixed	no	Bệnh viện Bạch Mai tiếp nhận khoảng 5.000 bệnh nhân mỗi ngày.	Bach Mai Hospital receives about 5,000 patients every day.

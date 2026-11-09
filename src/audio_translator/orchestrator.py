@@ -65,6 +65,8 @@ class Orchestrator:
         package_preparer: Callable[..., Any] | None = None,
         offline_translator_factory: Callable[[Any], Any] | None = None,
         google_translator_factory: Callable[[str, str], Any] | None = None,
+        mt_model_factory: Callable[[str, str, str], Any] | None = None,
+        restorer_factory: Callable[[str], Any] | None = None,
     ) -> None:
         self.settings = settings or Settings()
         self._asr = asr
@@ -76,6 +78,11 @@ class Orchestrator:
         self._package_preparer = package_preparer
         self._offline_factory = offline_translator_factory
         self._google_factory = google_translator_factory
+        self._mt_model_factory = mt_model_factory  # (name, source, target) -> translator; None: CT2 model
+        self._mt_model = None  # ((name, source, target), loaded multilingual model), reused across sessions
+        self._restorer_factory = restorer_factory  # name -> object with restore(text, lang); None: restore.py
+        self._restorer_model = None  # (name, loaded restore model), reused across sessions
+        self._restore = None  # (text) -> text for the current session, None = off
         self._synth = synthesizer
         self._vad_factory = vad_factory or webrtc_vad
         self._in_factory = input_stream_factory
@@ -278,6 +285,7 @@ class Orchestrator:
             # no enhancer/gate/delay-line state leaks from a previous session.
             ns = noise_suppressor_from_settings(s)
             self._prepare_translator()
+            self._prepare_restorer()
             with self._lock:
                 if self._abort_start:  # Stop during the translation-model download
                     self._set_state(STOPPED, "Stopped")
@@ -386,12 +394,17 @@ class Orchestrator:
         Offline mode downloads/loads the Argos package once and wraps it with a
         per-segment Google fallback; if the package cannot be obtained or loaded
         the session uses Google with a warning (and offline is retried next start).
+        A multilingual model (``translate.MT_MODELS``, converted once by
+        ``scripts/convert_mt_model.py``) is loaded the same way, never downloaded.
         """
         if self._translator_fixed:
             return
         s = self.settings
-        if s.translator not in ("offline", "google"):
-            raise ValueError(f"Unknown translator '{s.translator}' (use 'offline' or 'google')")
+        from .translate import MT_MODELS
+
+        choices = ("offline", "google", *MT_MODELS)
+        if s.translator not in choices:
+            raise ValueError(f"Unknown translator '{s.translator}' (use one of {', '.join(choices)})")
 
         def google():
             if self._google_factory is not None:
@@ -404,7 +417,28 @@ class Orchestrator:
             self._translator = google()
             return
 
-        from .translate import FallbackTranslator, OfflineTranslator, ensure_argos_package
+        from .translate import CT2MultilingualTranslator, FallbackTranslator, OfflineTranslator, ensure_argos_package
+
+        def on_fallback(exc: BaseException) -> None:
+            self._emit(Event(WARNING, f"Offline translation failed ({exc}); "
+                                      "using Google Translate for this segment"))
+
+        if s.translator in MT_MODELS:
+            key = (s.translator, s.source_lang, s.target_lang)
+            if self._mt_model is None or self._mt_model[0] != key:
+                try:
+                    model = (self._mt_model_factory or CT2MultilingualTranslator)(*key)
+                    load = getattr(model, "load", None)
+                    if load is not None:
+                        load()
+                    self._mt_model = (key, model)
+                except Exception as exc:
+                    self._emit(Event(WARNING, f"Offline translation model {s.translator} unavailable ({exc}); "
+                                              "using Google Translate"))
+                    self._translator = google()
+                    return
+            self._translator = FallbackTranslator(self._mt_model[1], google, on_fallback)
+            return
 
         if self._offline_tr is None:
             def on_download():
@@ -426,11 +460,52 @@ class Orchestrator:
                 self._translator = google()
                 return
 
-        def on_fallback(exc: BaseException) -> None:
-            self._emit(Event(WARNING, f"Offline translation failed ({exc}); "
-                                      "using Google Translate for this segment"))
-
         self._translator = FallbackTranslator(self._offline_tr, google, on_fallback)
+
+    def _prepare_restorer(self) -> None:
+        """Casing/punctuation restoration for this session (``Settings.restore``), never downloaded.
+
+        ``auto`` (the default) uses a converted model for the source language and
+        silently does nothing when there is none. A model named explicitly that
+        is not converted, or does not support the source language, leaves the
+        session without restoration with a warning; it is retried next session.
+        """
+        s = self.settings
+        from .restore import APP_RESTORERS, RESTORE_MODELS, auto_restorer_name, make_restorer
+
+        if s.restore not in APP_RESTORERS:
+            raise ValueError(f"Unknown restorer '{s.restore}' (use one of {', '.join(APP_RESTORERS)})")
+        self._restore = None
+        lang = s.source_lang
+        name = auto_restorer_name(lang) if s.restore == "auto" else s.restore
+        if name is None or name == "off":
+            return
+        if name not in RESTORE_MODELS:
+            fn = make_restorer(name)
+            self._restore = lambda text: fn(text, lang)
+            return
+        if self._restorer_model is None or self._restorer_model[0] != name:
+            try:
+                if self._restorer_factory is not None:
+                    model = self._restorer_factory(name)
+                else:
+                    from .restore import CapuRestorer
+
+                    model = CapuRestorer(name)
+                if not model.supports(lang):
+                    self._emit(Event(WARNING, f"Restorer {name} does not support '{lang}'; "
+                                              "translating the transcript as recognised"))
+                    return
+                load = getattr(model, "load", None)
+                if load is not None:
+                    load()
+                self._restorer_model = (name, model)
+            except Exception as exc:
+                self._emit(Event(WARNING, f"Restorer {name} unavailable ({exc}); "
+                                          "translating the transcript as recognised"))
+                return
+        model = self._restorer_model[1]
+        self._restore = lambda text: model.restore(text, lang)
 
     def _fail_start(self, msg: str) -> None:
         with self._lock:
@@ -646,8 +721,17 @@ class Orchestrator:
                 continue
             ts = dict(tr.timestamps)
             ts["mt_start"] = self.clock()
+            text = tr.text
+            restore = self._restore
+            if restore is not None:
+                try:
+                    text = restore(text) or text
+                except Exception as exc:  # never lose a segment to restoration
+                    self._emit(Event(WARNING, f"Segment {tr.segment_id}: restoration failed ({exc}); "
+                                              "translating as recognised"))
+                ts["restored"] = self.clock()
             try:
-                en = (self._translator.translate(tr.text) or "").strip()
+                en = (self._translator.translate(text) or "").strip()
             except Exception as exc:
                 self._skip_report(tr, WARNING, f"Segment {tr.segment_id}: translation failed: {exc}",
                                   {"source_text": tr.text})

@@ -204,8 +204,18 @@ def test_cli_rejects_model_outside_catalog():
 def test_cli_translator_option_defaults_to_offline():
     assert cli.build_parser().parse_args([]).translator == "offline"
     assert cli.build_parser().parse_args(["--translator", "google"]).translator == "google"
+    for name in ("nllb-600m", "m2m100-418m"):
+        assert cli.build_parser().parse_args(["--translator", name]).translator == name
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["--translator", "claude"])
+
+
+def test_cli_restore_option_defaults_to_auto():
+    assert cli.build_parser().parse_args([]).restore == "auto"
+    for name in ("off", "sent", "vibert-capu"):
+        assert cli.build_parser().parse_args(["--restore", name]).restore == name
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["--restore", "magic"])
 
 
 CATALOG_INDEX = {n: i for i, n in enumerate(CATALOG)}

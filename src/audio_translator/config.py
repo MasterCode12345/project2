@@ -20,7 +20,11 @@ class Settings:
 
     # M5 MT: "offline" (Argos vi->en model via CTranslate2, Google as fallback)
     # or "google" (Google Translate only, network).
-    translator: str = "offline"
+    translator: str = "offline"  # offline (Argos) | google | a translate.MT_MODELS name (nllb-600m, m2m100-418m)
+    # M4b casing/punctuation restoration of the transcript before MT (restore.APP_RESTORERS):
+    # auto (a converted model for the source language if there is one, else nothing) | off |
+    # sent (capital + final period) | vibert-capu (converted once, Vietnamese only).
+    restore: str = "auto"
     translation_cache_dir: str = "~/.cache/audio-translator/argos"
     argos_vi_en_url: str = "https://argos-net.com/v1/translate-vi_en-1_9.argosmodel"
 

@@ -579,6 +579,180 @@ def test_offline_load_failure_uses_google_and_retries_next_session(harness):
     assert h.log.wait_for(lambda e: e.kind == RESULT and h.log.events.index(e) > n).data["text"].startswith("EN<")
 
 
+# ------------------------------------------------- multilingual CT2 models
+class _MtModels:
+    def __init__(self, load_errors=()):
+        self.made, self.load_errors = [], list(load_errors)
+
+    def factory(self, name, source, target):
+        self.made.append((name, source, target))
+        tr = FakeTranslator()
+        tr.translate = lambda text, _t=tr: (_t.calls.append(text), f"NLLB<{text}>")[1]
+
+        def load():
+            if self.load_errors:
+                raise self.load_errors.pop(0)
+
+        tr.load = load
+        return tr
+
+
+def test_multilingual_model_translates_and_is_reused_across_sessions(harness):
+    b, m = Backends(), _MtModels()
+    h = harness(settings=Settings(translator="nllb-600m"), mt={**b.kwargs(), "mt_model_factory": m.factory})
+    h.start()
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "NLLB<Xin chào, bạn khỏe không?>"
+    assert m.made == [("nllb-600m", "vi", "en")] and b.prepare_calls == 0 and b.google_made == 0
+    h.orch.stop()
+    h.log.wait_state(STOPPED)
+    n = len(h.log.events)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state(RUNNING, after=n)
+    assert m.made == [("nllb-600m", "vi", "en")]  # loaded once
+
+
+def test_unconverted_multilingual_model_uses_google_and_retries_next_session(harness):
+    b = Backends()
+    m = _MtModels(load_errors=[RuntimeError("not converted yet. Run: uv run … convert_mt_model.py nllb-600m")])
+    h = harness(settings=Settings(translator="nllb-600m"), mt={**b.kwargs(), "mt_model_factory": m.factory})
+    h.start()
+    warn = h.log.wait_for(lambda e: e.kind == WARNING)
+    assert "convert_mt_model.py nllb-600m" in warn.message and "Google" in warn.message
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "G<Xin chào, bạn khỏe không?>"
+    h.orch.stop()
+    h.log.wait_state(STOPPED)
+    n = len(h.log.events)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state(RUNNING, after=n)
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT and h.log.events.index(e) > n).data["text"].startswith("NLLB<")
+
+
+def test_multilingual_model_segment_error_falls_back_to_google(harness):
+    b, m = Backends(), _MtModels()
+    real = m.factory
+
+    def failing(*key):
+        tr = real(*key)
+        tr.translate = lambda text: (_ for _ in ()).throw(RuntimeError("decode error"))
+        return tr
+
+    h = harness(settings=Settings(translator="m2m100-418m"), mt={**b.kwargs(), "mt_model_factory": failing})
+    h.start()
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "G<Xin chào, bạn khỏe không?>"
+    assert any("Offline translation failed" in e.message for e in h.log.of(WARNING))
+
+
+def test_default_translator_is_still_argos():
+    assert Settings().translator == "offline"
+
+
+# ------------------------------------------------- M4b casing/punctuation restoration
+class _Restorers:
+    def __init__(self, load_errors=(), langs=("vi",), fail=False):
+        self.made, self.calls, self.load_errors, self.langs, self.fail = [], [], list(load_errors), langs, fail
+
+    def factory(self, name):
+        self.made.append(name)
+        outer = self
+
+        class R:
+            def supports(self, lang):
+                return lang in outer.langs
+
+            def load(self):
+                if outer.load_errors:
+                    raise outer.load_errors.pop(0)
+
+            def restore(self, text, lang):
+                outer.calls.append((text, lang))
+                if outer.fail:
+                    raise RuntimeError("encoder blew up")
+                return f"R<{text}>"
+
+        return R()
+
+
+def test_restorer_runs_before_translation_and_is_reused_across_sessions(harness):
+    b, r = Backends(), _Restorers()
+    h = harness(settings=Settings(restore="vibert-capu"), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    ev = h.log.wait_for(lambda e: e.kind == RESULT)
+    assert ev.data["text"] == "EN<R<Xin chào, bạn khỏe không?>>"
+    assert r.calls == [("Xin chào, bạn khỏe không?", "vi")]
+    h.orch.stop()
+    h.log.wait_state(STOPPED)
+    n = len(h.log.events)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state(RUNNING, after=n)
+    assert r.made == ["vibert-capu"]  # loaded once
+
+
+def test_unconverted_restorer_translates_as_recognised_and_retries(harness):
+    b = Backends()
+    r = _Restorers(load_errors=[RuntimeError("not converted yet. Run: uv run … convert_capu_model.py vibert-capu")])
+    h = harness(settings=Settings(restore="vibert-capu"), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    warn = h.log.wait_for(lambda e: e.kind == WARNING)
+    assert "convert_capu_model.py vibert-capu" in warn.message and "as recognised" in warn.message
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "EN<Xin chào, bạn khỏe không?>"
+    h.orch.stop()
+    h.log.wait_state(STOPPED)
+    n = len(h.log.events)
+    assert h.orch.start(None, "BlackHole")
+    h.log.wait_state(RUNNING, after=n)
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT and h.log.events.index(e) > n).data["text"].startswith("EN<R<")
+
+
+@pytest.mark.parametrize("kind", ["segment_error", "unsupported_language"])
+def test_restorer_problems_never_lose_the_segment(harness, kind):
+    b = Backends()
+    r = _Restorers(fail=kind == "segment_error", langs=("vi",) if kind == "segment_error" else ("fr",))
+    h = harness(settings=Settings(restore="vibert-capu"), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "EN<Xin chào, bạn khỏe không?>"
+    msg = "restoration failed" if kind == "segment_error" else "does not support 'vi'"
+    assert any(msg in e.message for e in h.log.of(WARNING))
+
+
+def test_unknown_restorer_names_are_rejected(harness):
+    h = harness(settings=Settings(restore="magic"), mt=Backends().kwargs())
+    with pytest.raises(ValueError, match="Unknown restorer"):
+        h.orch._prepare_restorer()
+
+
+def test_auto_restore_is_the_default_and_uses_a_converted_model(harness, tmp_path, monkeypatch):
+    import audio_translator.restore as restore
+
+    assert Settings().restore == "auto" and Settings().translator == "offline"
+    monkeypatch.setattr(restore, "MT_MODELS_DIR", tmp_path / "models")
+    (tmp_path / "models" / "vibert-capu-ct2").mkdir(parents=True)
+    (tmp_path / "models" / "vibert-capu-ct2" / "model.bin").write_text("x")
+    b, r = Backends(), _Restorers()
+    h = harness(mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    assert h.log.wait_for(lambda e: e.kind == RESULT).data["text"] == "EN<R<Xin chào, bạn khỏe không?>>"
+    assert r.made == ["vibert-capu"]
+
+
+@pytest.mark.parametrize("source_lang", ["vi", "en"])
+def test_auto_restore_without_a_model_is_silent(harness, source_lang):
+    b, r = Backends(), _Restorers()
+    h = harness(settings=Settings(source_lang=source_lang), mt={**b.kwargs(), "restorer_factory": r.factory})
+    h.start()
+    h.say(utterance(15))
+    h.log.wait_for(lambda e: e.kind == RESULT)
+    assert r.made == [] and not any("Restorer" in e.message for e in h.log.of(WARNING))
+
+
 # ------------------------------------------------------- M3a noise suppression
 class _DelayEnhancer:
     """Pass-through enhancer delayed by exactly one frame (makes shifts exact)."""
