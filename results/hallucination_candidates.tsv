@@ -1,0 +1,914 @@
+model	count	n_files	words	normalised	example	no_speech_prob	avg_logprob	compression_ratio
+small	491	165	15	hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.64	-0.31	0.89
+small	75	55	15	hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.63	-0.44	0.95
+small	50	37	8	cảm ơn các bạn for watching this video	Cảm ơn các bạn for watching this video.	0.65	-0.81	0.98
+phowhisper-small	12	10	1	thôi	thôi.	0.00	-0.85	0.43
+small	12	10	4	cảm ơn các bạn	Cảm ơn các bạn.	0.75	-0.84	1.04
+small	12	11	16	cảm ơn các bạn đã chào tạm biệt và hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn đã chào tạm biệt và hẹn gặp lại trong video tiếp theo.	0.70	-0.90	0.94
+small	12	3	1	ơ	Ơ?	0.48	-1.04	0.31
+small	11	10	6	hẹn gặp lại với mọi người	Hẹn gặp lại với mọi người.	0.63	-0.96	0.90
+phowhisper-small	8	4	4	tập tục tò mò	tập tục tò mò.	0.00	-0.68	0.69
+phowhisper-small	7	5	13	tính toán xác định của xe buýt là xe buýt là xe buýt	tính toán xác định của xe buýt là xe buýt là xe buýt.	0.00	-0.47	1.20
+small	7	6	16	cảm ơn các bạn for watching this video and sharing it with your friends and family	Cảm ơn các bạn for watching this video and sharing it with your friends and family.	0.58	-1.00	0.98
+small	7	6	12	cảm ơn các bạn và hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn và hẹn gặp lại trong video tiếp theo.	0.67	-0.93	0.89
+small	7	7	7	hẹn gặp lại với mọi người nha	Hẹn gặp lại với mọi người nha.	0.62	-0.94	0.93
+phowhisper-small	6	6	12	nhiều doanh nghiệp đã không thể truyền thông trên các tàu ngầm	nhiều doanh nghiệp đã không thể truyền thông trên các tàu ngầm.	0.00	-0.53	1.00
+small	6	1	1	corto	corto	0.53	-2.91	2.06
+phowhisper-small	5	3	4	tập tục tập tục	tập tục tập tục.	0.00	-0.57	1.00
+small	5	3	10	cảm ơn các bạn và hẹn gặp lại video này	Cảm ơn các bạn và hẹn gặp lại video này.	0.78	-0.90	0.87
+small	5	5	25	cảm ơn mọi người đã đón xem video này và hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã đón xem video này và hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.50	-0.71	1.02
+phowhisper-small	4	4	12	nhiều doanh nghiệp bảo vệ tàu ngầm thanh niên doanh thành công	nhiều doanh nghiệp bảo vệ tàu ngầm thanh niên doanh thành công.	0.00	-0.52	1.05
+phowhisper-small	4	4	9	nhiều doanh nghiệp nguyễn minh châu không thành công	nhiều doanh nghiệp nguyễn minh châu không thành công.	0.00	-0.59	1.00
+phowhisper-small	4	3	2	tập tục	tập tục.	0.00	-0.74	0.60
+phowhisper-small	4	4	10	tổng thống mỹ lý thuyết phục tổng thống dân chủ	tổng thống mỹ lý thuyết phục tổng thống dân chủ.	0.00	-0.57	1.12
+small	4	2	11	chào tạm biệt và hẹn gặp lại trong video tiếp theo	Chào tạm biệt và hẹn gặp lại trong video tiếp theo!	0.36	-0.90	0.89
+small	4	3	25	cảm ơn mọi người đã quay lại video này và hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã quay lại video này và hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.64	-0.67	1.02
+small	4	4	25	cảm ơn mọi người đã quay lại video này và hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã quay lại video này và hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn.	0.62	-0.73	1.01
+small	4	4	13	hãy subscribe cho kênh ghiền mì gõ để not miss the next videos	Hãy subscribe cho kênh Ghiền Mì Gõ Để not miss the next videos.	0.64	-0.74	0.97
+small	4	3	3	hẹn gặp lại	Hẹn gặp lại!	0.75	-0.84	0.92
+small	4	1	1	uuuu	Uuuu	0.49	-0.94	0.47
+small	4	1	1	ườn	ƯỜN	0.38	-0.46	1.50
+small	4	4	5	ảnh ảnh ảnh ảnh ảnh	Ảnh Ảnh Ảnh Ảnh Ảnh	0.68	-0.63	1.71
+phowhisper-small	3	3	21	nhiều doanh nghiệp đã xác định phạm luật đã xác định phạm luật đã xác định phạm luật đã xác minh	nhiều doanh nghiệp đã xác định phạm luật đã xác định phạm luật đã xác định phạm luật đã xác minh.	0.00	-0.38	2.03
+phowhisper-small	3	3	1	thiên	thiên.	0.00	-0.77	0.47
+phowhisper-small	3	2	3	thôi thôi thôi	thôi thôi thôi.	0.00	-0.86	1.00
+phowhisper-small	3	1	10	tính điện thoại truyền hình tăng trưởng mỹ nhân viên	tính điện thoại truyền hình tăng trưởng mỹ nhân viên.	0.00	-0.52	0.91
+phowhisper-small	3	1	1	tập	tập.	0.00	-0.83	0.43
+phowhisper-small	3	2	14	tổng thống nga putin tâm sự là quân đội trong phong trào quốc tế	tổng thống nga putin tâm sự là quân đội trong phong trào quốc tế.	0.00	-0.49	0.95
+phowhisper-small	3	2	11	đó là câu hỏi mà bạn cần truyền thống tốt nhất	đó là câu hỏi mà bạn cần truyền thống tốt nhất.	0.00	-0.58	0.93
+phowhisper-small	3	2	12	đó là câu hỏi mà bạn cần truyền tải đối với tôi	đó là câu hỏi mà bạn cần truyền tải đối với tôi.	0.00	-0.52	0.88
+small	3	3	24	cảm ơn các bạn đã đón xem video này hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã đón xem video này, hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.61	-0.63	1.01
+small	3	3	25	cảm ơn các bạn đã đón xem video này và hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã đón xem video này và hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.56	-0.63	1.02
+small	3	3	25	cảm ơn các bạn đã đón xem video này và hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã đón xem video này và hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.64	-0.71	1.03
+small	3	3	24	cảm ơn mọi người đã quay lại video này hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã quay lại video này, hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.58	-0.75	0.99
+small	3	1	1	hẳn	HẳN	0.39	-0.93	0.38
+small	3	2	6	thank you for watching this video	Thank you for watching this video.	0.60	-0.85	1.59
+phowhisper-small	2	1	1	n	n.	0.00	-0.95	0.20
+phowhisper-small	2	2	12	nhiều doanh nghiệp bảo vệ tàu không hỗ trợ tiền tự nhiên	nhiều doanh nghiệp bảo vệ tàu không hỗ trợ tiền tự nhiên.	0.00	-0.62	0.94
+phowhisper-small	2	2	12	nhiều doanh nghiệp nguyễn minh châu không thành công trong phong trào	nhiều doanh nghiệp nguyễn minh châu không thành công trong phong trào.	0.00	-0.51	1.08
+phowhisper-small	2	2	14	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển nguyên liệu	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển nguyên liệu.	0.00	-0.54	1.04
+phowhisper-small	2	2	15	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển nguồn nhân lực	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển nguồn nhân lực.	0.00	-0.51	1.01
+phowhisper-small	2	2	9	nhiều doanh nghiệp đã không thể thiếu trong phim	nhiều doanh nghiệp đã không thể thiếu trong phim.	0.00	-0.60	0.92
+phowhisper-small	2	2	11	phó thủ tướng tiếp tục điều tra vụ việc giao thông	phó thủ tướng tiếp tục điều tra vụ việc giao thông.	0.00	-0.45	0.91
+phowhisper-small	2	1	4	thiết kế tiếp theo	thiết kế tiếp theo.	0.00	-0.64	0.86
+phowhisper-small	2	2	8	tháp táng tác giả tác giả tác phẩm	tháp táng tác giả tác giả tác phẩm.	0.00	-0.56	1.24
+phowhisper-small	2	1	2	thế lạ	thế lạ.	0.00	-0.92	0.58
+phowhisper-small	2	1	1	thịt	thịt.	0.00	-0.85	0.47
+phowhisper-small	2	2	9	truyền thông trên thông trọng truyền hình trồng cây	truyền thông trên thông trọng truyền hình trồng cây.	0.00	-0.52	1.23
+phowhisper-small	2	2	7	truyền thông trên thông trọng tài liệu	truyền thông trên thông trọng tài liệu.	0.00	-0.50	1.04
+phowhisper-small	2	2	8	tình tiết lộn xộn tình tiết lộn xe	tình tiết lộn xộn tình tiết lộn xe.	0.00	-0.47	1.34
+phowhisper-small	2	2	16	tính toán cơ thể của nền kinh tế hoa hậu hoàn vũ quốc gia châu âu	tính toán cơ thể của nền kinh tế hoa hậu hoàn vũ quốc gia châu âu.	0.00	-0.41	0.93
+phowhisper-small	2	1	12	tính điện thoại truyền hình trong và trong công ty giáo viên	tính điện thoại truyền hình trong và trong công ty giáo viên.	0.00	-0.53	0.96
+phowhisper-small	2	2	11	tổng thống mỹ lý giải đấu đảng cộng sản việt nam	tổng thống mỹ lý giải đấu đảng cộng sản việt nam.	0.00	-0.47	0.99
+phowhisper-small	2	2	13	tổng thống mỹ lý giải đấu đối với đảng cộng sản việt nam	tổng thống mỹ lý giải đấu đối với đảng cộng sản việt nam.	0.00	-0.47	1.01
+phowhisper-small	2	2	14	tổng thống mỹ lý thuyết phục mỹ đặc sản đảng cộng sản việt nam	tổng thống mỹ lý thuyết phục mỹ đặc sản đảng cộng sản việt nam.	0.00	-0.56	1.07
+phowhisper-small	2	2	18	tổng thống mỹ lý thuyết phục tổng thống dân chủ nghĩa xã hội quốc tế đông nam á	tổng thống mỹ lý thuyết phục tổng thống dân chủ nghĩa xã hội quốc tế đông nam á.	0.00	-0.50	1.10
+phowhisper-small	2	2	16	tổng thống mỹ lý thuyết phục tổng thống dân chủ nghĩa xã hội đông nam á	tổng thống mỹ lý thuyết phục tổng thống dân chủ nghĩa xã hội đông nam á.	0.00	-0.50	1.09
+phowhisper-small	2	2	11	tổng thống mỹ lý thuyết phục tổng thống mỹ kiểm phiên	tổng thống mỹ lý thuyết phục tổng thống mỹ kiểm phiên.	0.00	-0.53	1.17
+phowhisper-small	2	2	13	tổng thống nga putin tâm sự không ổn định trong tổng thống putin	tổng thống nga putin tâm sự không ổn định trong tổng thống putin.	0.00	-0.46	1.17
+phowhisper-small	2	2	16	tổng thống nga putin tâm sự là quân đội quân chủ nghĩa xã hội độc lập	tổng thống nga putin tâm sự là quân đội quân chủ nghĩa xã hội độc lập.	0.00	-0.52	1.04
+phowhisper-small	2	2	9	đến năm một nghìn chín trăm hai mươi tám	đến năm một nghìn chín trăm hai mươi tám.	0.00	-0.52	0.87
+small	2	2	17	bây giờ hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Bây giờ, hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.52	-0.55	0.90
+small	2	2	17	bây giờ hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Bây giờ, hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.31	-0.59	0.93
+small	2	2	11	chào mừng các bạn và hẹn gặp lại video tiếp theo	Chào mừng các bạn và hẹn gặp lại video tiếp theo!	0.25	-0.96	0.88
+small	2	2	11	cảm ơn các bạn và hẹn gặp lại trong video này	Cảm ơn các bạn và hẹn gặp lại trong video này.	0.55	-0.94	0.88
+small	2	2	15	cảm ơn các bạn đã chào mừng và hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn đã chào mừng và hẹn gặp lại trong video tiếp theo.	0.61	-0.97	0.92
+small	2	2	25	cảm ơn các bạn đã quay lại video này và hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã quay lại video này và hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.52	-0.64	1.02
+small	2	2	25	cảm ơn mọi người đã đón xem video này và hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã đón xem video này và hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.34	-0.64	1.01
+small	2	2	6	hẹn gặp lại trong lúc nha	Hẹn gặp lại trong lúc nha.	0.60	-0.99	0.92
+small	2	2	18	hẹn gặp lại và subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Hẹn gặp lại và subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn.	0.59	-0.69	1.03
+small	2	2	17	tuy nhiên hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Tuy nhiên, hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.41	-0.57	0.93
+small	2	1	6	xin chào và hẹn gặp lại	Xin chào và hẹn gặp lại.	0.85	-0.70	0.78
+small	2	1	1	ơm	Ơm...	0.43	-1.09	0.43
+small	2	2	3	ảnh ảnh ảnh	Ảnh Ảnh Ảnh	0.78	-0.94	1.00
+phowhisper-small	1	1	12	a a a a a a a a a a a n	a. a. a. a. a. a a a a a a n.	0.00	-0.55	1.71
+phowhisper-small	1	1	12	a me nga vẹn nguồn ngợi nhưng không thể phục hồi tại	a me nga vẹn nguồn ngợi nhưng không thể phục hồi tại.	0.00	-0.96	0.97
+phowhisper-small	1	1	1	bác	bác.	0.00	-0.95	0.38
+phowhisper-small	1	1	1	ch	ch.	0.00	-0.98	0.27
+phowhisper-small	1	1	19	ch chào mừng và hẹn gặp lại ban tổ chức ban tổ chức tổng hợp quốc tế nhà nước	ch chào mừng và hẹn gặp lại ban tổ chức ban tổ chức tổng hợp quốc tế nhà nước.	0.00	-0.47	1.12
+phowhisper-small	1	1	15	ch cũng từng tâm sự là một trong những thực phẩm lớn nhất thế giới	ch cũng từng tâm sự là một trong những thực phẩm lớn nhất thế giới.	0.00	-0.60	1.01
+phowhisper-small	1	1	17	ch nguyễn thị trung hữu có thể thực hiện điều này theo hướng vô sản khác nhau	ch nguyễn thị trung hữu có thể thực hiện điều này theo hướng vô sản khác nhau.	0.00	-0.68	1.00
+phowhisper-small	1	1	20	ch và youtube của vtv bóng đá hoa hậu hoa hậu hoa hậu hoa quý vị trí thông minh tính	ch và youtube của vtv bóng đá hoa hậu hoa hậu hoa hậu hoa quý vị trí thông minh tính.	0.00	-0.76	1.14
+phowhisper-small	1	1	12	chim có tiên liên tục tăng thuế số phiếu trong việc làm	chim có tiên liên tục tăng thuế số phiếu trong việc làm.	0.00	-0.96	0.95
+phowhisper-small	1	1	1	chk	chk.	0.00	-0.76	0.33
+phowhisper-small	1	1	12	chkinh tay vợ chồng anh đi theo dõi chàng tị nạn đói	chkinh tay vợ chồng anh đi theo dõi chàng tị nạn đói.	0.00	-0.74	0.92
+phowhisper-small	1	1	17	chkỳ niệm hữu ích kỷ lục tết thứ ba trong các đêm thi của đêm nhạc tuổi	chkỳ niệm hữu ích kỷ lục tết thứ ba trong các đêm thi của đêm nhạc tuổi.	0.00	-0.70	0.98
+phowhisper-small	1	1	7	cho sẵn sàng tập trung vào bài	cho sẵn sàng tập trung vào bài.	0.00	-0.72	0.83
+phowhisper-small	1	1	16	cho tổng đốc đặc biệt giải pháp quản lý các thông tin đặc biệt quốc tế	cho tổng đốc đặc biệt giải pháp quản lý các thông tin đặc biệt quốc tế.	0.00	-0.63	1.10
+phowhisper-small	1	1	9	chung kết thúc mỗi người tâm sự tốt nhất	chung kết thúc mỗi người tâm sự tốt nhất.	0.00	-0.66	0.84
+phowhisper-small	1	1	13	chào bài tập tốt nhất đối với vị trí giám đốc việt nam	chào bài tập tốt nhất đối với vị trí giám đốc việt nam.	0.00	-0.66	1.01
+phowhisper-small	1	1	7	chào và hẹn gặp lại anh chị	chào và hẹn gặp lại anh chị.	0.00	-0.58	0.78
+phowhisper-small	1	1	12	cháu thích kinh doanh tự do trong phòng văn học đa phần	cháu thích kinh doanh tự do trong phòng văn học đa phần.	0.00	-0.84	0.93
+phowhisper-small	1	1	3	chín chín chín	chín chín chín.	0.00	-0.78	1.00
+phowhisper-small	1	1	12	chính quyền bảo mật dân tộc dân tộc dân chủ nhân dân	chính quyền bảo mật dân tộc dân tộc dân chủ nhân dân.	0.00	-0.57	1.16
+phowhisper-small	1	1	11	chính quyền bảo mật quản lý và phát triển triều tiên	chính quyền bảo mật quản lý và phát triển triều tiên.	0.00	-0.51	0.96
+phowhisper-small	1	1	22	chính quyền kỳ thi xét tại đảng xã hội chủ nghĩa xã hội đảng xã hội đảng xã hội đảng xã thảo	chính quyền kỳ thi xét tại đảng xã hội chủ nghĩa xã hội đảng xã hội đảng xã hội đảng xã thảo.	0.00	-0.54	1.54
+phowhisper-small	1	1	16	chính vì thế lực mà chúng ta không thể không sử dụng đặc sản việt nam	chính vì thế lực mà chúng ta không thể không sử dụng đặc sản việt nam.	0.00	-0.47	0.99
+phowhisper-small	1	1	12	chính vì vậy nhà nước không kịp thời phát hiện tình tiết	chính vì vậy nhà nước không kịp thời phát hiện tình tiết.	0.00	-0.64	0.87
+phowhisper-small	1	1	14	chính vì vậy nhà nước đã không kết hôn tôi như tổng thống trump	chính vì vậy nhà nước đã không kết hôn tôi như tổng thống trump.	0.00	-0.66	0.94
+phowhisper-small	1	1	16	chính vì vậy nhà nước đã không thay đổi hệ thống quốc gia ở nước ngoài	chính vì vậy nhà nước đã không thay đổi hệ thống quốc gia ở nước ngoài.	0.00	-0.63	1.00
+phowhisper-small	1	1	16	chính vì vậy tai nạn không tập trung vào việc tìm hiểu về vụ tai nạn	chính vì vậy tai nạn không tập trung vào việc tìm hiểu về vụ tai nạn.	0.00	-0.67	1.06
+phowhisper-small	1	1	1	chúng	chúng.	0.00	-0.84	0.47
+phowhisper-small	1	1	18	chúng chắn có thể tập luyện hoàn toàn truyền tải hoàn vốn rất tiềm tĩnh và tiềm tĩnh	chúng chắn có thể tập luyện hoàn toàn truyền tải hoàn vốn rất tiềm tĩnh và tiềm tĩnh.	0.00	-0.53	1.15
+phowhisper-small	1	1	14	chúng chắn không muốn mọi chuyện nằm trong tình trạng lạc hậu phương tiên	chúng chắn không muốn mọi chuyện nằm trong tình trạng lạc hậu phương tiên.	0.00	-0.59	0.99
+phowhisper-small	1	1	12	chúng chắn không thể ngăn được tình trạng tình cảm của mình	chúng chắn không thể ngăn được tình trạng tình cảm của mình.	0.00	-0.59	0.99
+phowhisper-small	1	1	13	chúng chắn không thể ngăn được tội phạm gia tăng tội phạm nhân	chúng chắn không thể ngăn được tội phạm gia tăng tội phạm nhân.	0.00	-0.57	1.06
+phowhisper-small	1	1	12	chúng chắn không tập trung vào tổ chức tổ chức thi công	chúng chắn không tập trung vào tổ chức tổ chức thi công.	0.00	-0.60	1.16
+phowhisper-small	1	1	14	chúng chắn sẽ không ngăn chặn sự phát triển tiếp theo các truyền thông	chúng chắn sẽ không ngăn chặn sự phát triển tiếp theo các truyền thông.	0.00	-0.50	1.02
+phowhisper-small	1	1	16	chúng chắn sẽ không ngăn chặn sự phát triển về tình tiếp theo luật quản lý	chúng chắn sẽ không ngăn chặn sự phát triển về tình tiếp theo luật quản lý.	0.00	-0.54	0.99
+phowhisper-small	1	1	18	chúng chắn sẽ không ngăn cản phép thông tin an toàn xâm lược quốc tế và tính toán	chúng chắn sẽ không ngăn cản phép thông tin an toàn xâm lược quốc tế và tính toán.	0.00	-0.67	0.97
+phowhisper-small	1	1	18	chúng chắn sẽ tạm biệt lập và tạp thời gian cho thông tin quốc tế và tài xế	chúng chắn sẽ tạm biệt lập và tạp thời gian cho thông tin quốc tế và tài xế.	0.00	-0.64	1.02
+phowhisper-small	1	1	19	chúng chắn sẽ tập trung vào danh mục đầu tư và tập tục theo quy định của hoa hậu	chúng chắn sẽ tập trung vào danh mục đầu tư và tập tục theo quy định của hoa hậu.	0.00	-0.52	1.07
+phowhisper-small	1	1	16	chúng chắn sẽ tập trung vào mùa đông vào mùa đông vào mùa đông đầu tiên	chúng chắn sẽ tập trung vào mùa đông vào mùa đông vào mùa đông đầu tiên.	0.00	-0.48	1.36
+phowhisper-small	1	1	14	chúng chắn sẽ tập trung vào mục tiêu sau khi thi đấu kết luận	chúng chắn sẽ tập trung vào mục tiêu sau khi thi đấu kết luận.	0.00	-0.61	0.93
+phowhisper-small	1	1	21	chúng chắn sẽ tập trung vào tập trung tâm lý của ngành công nghiệp và tiếp theo của các công ty	chúng chắn sẽ tập trung vào tập trung tâm lý của ngành công nghiệp và tiếp theo của các công ty.	0.00	-0.52	1.14
+phowhisper-small	1	1	4	chúng có có có	chúng.có.có.có.	0.00	-0.88	0.95
+phowhisper-small	1	1	17	chúng có mặt tại các chủ nhà tư duy thông tư tại các chủ nhà tư duy	chúng có mặt tại các chủ nhà tư duy thông tư tại các chủ nhà tư duy.	0.00	-0.73	1.31
+phowhisper-small	1	1	14	chúng có thể bày tỏ tính tính tâm trí và tâm tình thân mật	chúng có thể bày tỏ tính tính tâm trí và tâm tình thân mật.	0.00	-0.56	1.06
+phowhisper-small	1	1	19	chúng có thể chọn tốc độ cao hơn và đồng tháp không có thể chọn tốc độ cao hơn	chúng có thể chọn tốc độ cao hơn và đồng tháp không có thể chọn tốc độ cao hơn.	0.00	-0.56	1.44
+phowhisper-small	1	1	22	chúng có thể sinh ra và có thể sinh sống và thay thế thai trước khắp xã hội có thể sinh ra	chúng có thể sinh ra và có thể sinh sống và thay thế thai trước khắp xã hội có thể sinh ra.	0.00	-0.43	1.34
+phowhisper-small	1	1	14	chúng sau truyền hình thực hiện công nghệ nghệ thuật bảo vệ tổ quốc	chúng.sau.truyền hình thực hiện công nghệ nghệ thuật bảo vệ tổ quốc.	0.00	-0.59	1.00
+phowhisper-small	1	1	8	chúng sau từng truyền thông đăng tải trên	chúng.sau.từng.truyền thông đăng tải trên.	0.00	-0.62	0.88
+phowhisper-small	1	1	13	chúng tôi thích thú đừng ngại vì tôi không thích thú đừng ngại	chúng tôi thích thú đừng ngại vì tôi không thích thú đừng ngại.	0.00	-0.61	1.37
+phowhisper-small	1	1	15	chúng tôi đang thiệt mạng và thiệt mạng trong việc kết hôn các doanh nghiệp	chúng tôi đang thiệt mạng và thiệt mạng trong việc kết hôn các doanh nghiệp.	0.00	-0.47	1.19
+phowhisper-small	1	1	16	chúng tôi đang thăm các công trình phát triển quản lý và phát triển tốt nhất	chúng tôi đang thăm các công trình phát triển quản lý và phát triển tốt nhất.	0.00	-0.54	1.10
+phowhisper-small	1	1	16	chưa bao giờ em phải tham gia vào những hoạt động thế giới thứ tư thế	chưa bao giờ em phải tham gia vào những hoạt động thế giới thứ tư thế.	0.00	-0.53	1.01
+phowhisper-small	1	1	11	chạm tay tôi trên xe tự chế chạm tay tắm toán	chạm tay tôi trên xe tự chế chạm tay tắm toán.	0.00	-0.61	1.04
+phowhisper-small	1	1	14	chỉ là một mệnh lệnh doanh nghiệp không thể thiếu sót trong một lần	chỉ là một mệnh lệnh doanh nghiệp không thể thiếu sót trong một lần.	0.00	-0.60	1.09
+phowhisper-small	1	1	14	chị có thể cho thấy có thể không cho nên không cho nên không	chị có thể cho thấy có thể không cho nên không cho nên không.	0.00	-0.83	1.58
+phowhisper-small	1	1	9	chị gọi điện a phủ mọi người mở cửa	chị gọi điện. a phủ mọi người mở cửa.	0.00	-0.70	0.95
+phowhisper-small	1	1	7	chị gọi điện thoại tôi điện thoại	chị gọi điện thoại tôi điện thoại.	0.00	-0.70	1.14
+phowhisper-small	1	1	7	chị ngã tăng tình thế tiếp theo	chị ngã tăng tình thế tiếp theo.	0.00	-0.65	0.87
+phowhisper-small	1	1	9	chị ngã tươi ngã tươi mạnh tươi mạnh tươi	chị ngã tươi ngã tươi mạnh tươi mạnh tươi.	0.00	-0.65	1.57
+phowhisper-small	1	1	6	chị nằm trong phòng tập trung	chị nằm trong phòng tập trung.	0.00	-0.74	0.86
+phowhisper-small	1	1	16	chị sẵn sàng cho biết điều đó có thể xảy ra từ phía tây ban nha	chị sẵn sàng cho biết điều đó có thể xảy ra từ phía tây ban nha.	0.00	-0.56	0.93
+phowhisper-small	1	1	9	chị trò nhiều người mạnh truyền nhiệm vụ việc	chị trò.nhiều người mạnh truyền nhiệm vụ việc.	0.00	-0.54	0.97
+phowhisper-small	1	1	9	chị tuyền thệ tuyệt mật tổng thống miền nam	chị tuyền thệ tuyệt mật tổng thống miền nam.	0.00	-0.63	1.07
+phowhisper-small	1	1	10	chị tuyền thức tổng thống trump tuyên niên truyền tả	chị tuyền thức tổng thống trump tuyên niên truyền tả.	0.00	-0.59	1.13
+phowhisper-small	1	1	10	chị tuyệt vời truyền thông tên lửa tên bắt đầu	chị tuyệt vời truyền thông tên lửa tên bắt đầu.	0.00	-0.59	0.94
+phowhisper-small	1	1	7	chị tuyệt vời truyền thức truyền hình	chị tuyệt vời truyền thức truyền hình.	0.00	-0.50	1.06
+phowhisper-small	1	1	9	chọi tên có thể tạm biệt hay đềm chế	chọi tên có thể tạm biệt hay đềm chế.	0.00	-0.63	0.85
+phowhisper-small	1	1	24	chủ chủ chủ chủ chủ chủ chủ chủ chủ trúc trúc thông a phủ chạy tới tận tới trước khi bỏng nhà hàng mới	chủ chủ chủ chủ chủ chủ chủ chủ chủ trúc trúc thông. a phủ chạy tới tận tới trước khi bỏng nhà hàng mới.	0.00	-0.61	1.73
+phowhisper-small	1	1	33	consumer ha ok ok mua rất nhiều thời gian ở đây là một dân tộc nhưng nếu không mua rất nhiều thời gian ở đây là gì không thì hãy hỏi câu hỏi	consumer ha ok ok mua rất nhiều thời gian ở đây là một dân tộc nhưng nếu không mua rất nhiều thời gian ở đây là gì không thì hãy hỏi câu hỏi.	0.00	-0.38	1.36
+phowhisper-small	1	1	18	các bạn học sinh khá giỏi và khẳng định chúng ta không thể theo học tập thể thao	các bạn học sinh khá giỏi và khẳng định chúng ta không thể theo học tập thể thao.	0.00	-0.63	1.12
+phowhisper-small	1	1	16	các bạn học sinh sống khá nhiều và tôi khó học nhiều hơn trong học sinh	các bạn học sinh sống khá nhiều và tôi khó học nhiều hơn trong học sinh.	0.00	-0.85	1.16
+phowhisper-small	1	1	18	các bạn đã tham gia đoạn trị nhân phẩm không tác động và không thể tiếp cận được	các bạn đã tham gia đoạn trị nhân phẩm không tác động và không thể tiếp cận được.	0.00	-0.57	1.04
+phowhisper-small	1	1	21	các cán bộ xã hội đã truy tìm hiểu rõ nguồn nguồn nhân lực truy tìm hiểu rõ nguồn nhân lực	các cán bộ xã hội đã truy tìm hiểu rõ nguồn nguồn nhân lực truy tìm hiểu rõ nguồn nhân lực.	0.00	-0.46	1.45
+phowhisper-small	1	1	23	các cục tổng thống mỹ đức đều tập trung tâm tư thế và tiếp tục điều tra các cục tổng thống mỹ đức	các cục tổng thống mỹ đức đều tập trung tâm tư thế và tiếp tục điều tra các cục tổng thống mỹ đức.	0.00	-0.40	1.42
+phowhisper-small	1	1	12	các em thân mật không thiệt mạng vì không thi đấu tranh	các em thân mật không thiệt mạng vì không thi đấu tranh.	0.00	-0.54	1.04
+phowhisper-small	1	1	16	các quốc hội đã tập trung tổ chức tổ chức tổ chức tổ chức tổ chức	các quốc hội đã tập trung tổ chức tổ chức tổ chức tổ chức tổ chức.	0.00	-0.40	1.67
+phowhisper-small	1	1	14	có ai cũng thích thú bắt tay nên cố gắng thay thế tốt hơn	có ai cũng thích thú bắt tay nên cố gắng thay thế tốt hơn.	0.00	-0.69	0.99
+phowhisper-small	1	1	12	cảnh sát tài chính truyền thông đang truy sát hội việt nam	cảnh sát tài chính truyền thông đang truy sát hội việt nam.	0.00	-0.64	0.97
+phowhisper-small	1	1	14	cảnh sát tổng công an đã truy tìm các công trình để điều tra	cảnh sát tổng công an đã truy tìm các công trình để điều tra.	0.00	-0.60	1.00
+phowhisper-small	1	1	15	cảnh sát tổng công an đã truy tìm đối tượng để điều tra vụ việc	cảnh sát tổng công an đã truy tìm đối tượng để điều tra vụ việc.	0.00	-0.52	0.98
+phowhisper-small	1	1	14	cảnh sát tổng thống mỹ pháp luật tổng tác pháp luật tổng tác luận	cảnh sát tổng thống mỹ pháp luật tổng tác pháp luật tổng tác luận.	0.00	-0.52	1.41
+phowhisper-small	1	1	2	cảnh tay	cảnh tay.	0.00	-0.90	0.58
+phowhisper-small	1	1	8	cảnh tượng tuyệt vời trước khi thời điểm	cảnh tượng tuyệt vời trước khi thời điểm.	0.00	-0.60	0.95
+phowhisper-small	1	1	26	day evra êm đề trép tuyệt đối bảo đơn em từng dismay suýt trên sơn tao bảo to bí trên trâm nguồn người sắp bị đòn	day evra êm đề trép tuyệt đối bảo đơn em từng dismay suýt trên sơn tao bảo to bí trên trâm nguồn người sắp bị đòn.	0.00	-0.51	1.10
+phowhisper-small	1	1	14	donetsk nguyễn minh châu chúc các em trong buổi tập thể dục thành công	donetsk nguyễn minh châu chúc các em trong buổi tập thể dục thành công.	0.00	-0.61	0.95
+phowhisper-small	1	1	16	dân tộc dân tộc thiện còn điền thực hiện công ty thuộc nghị quyết định đói	dân tộc dân tộc thiện còn điền thực hiện công ty thuộc nghị quyết định đói.	0.00	-0.88	1.18
+phowhisper-small	1	1	15	dịch vụ tai nạn giao thông nam bộ đội tài liệu xã hội đông nam	dịch vụ tai nạn giao thông nam bộ đội tài liệu xã hội đông nam.	0.00	-0.51	1.00
+phowhisper-small	1	1	2	dừng tay	dừng tay.	0.00	-0.90	0.58
+phowhisper-small	1	1	5	dừng tình tiết tồn tại	dừng tình tiết tồn tại.	0.00	-0.58	0.80
+phowhisper-small	1	1	29	ha a a a a a a a a a a a a a a a a a a a a a dải nhìn mẹ thoát thân mấy thoát	ha. a. a. a. a a a a a a a a a a a a a a a a a a dải nhìn mẹ thoát thân mấy thoát.	0.00	-0.85	1.84
+phowhisper-small	1	1	10	hoa hoa xa hoa đọc tiếp tục mở rộng đồng	hoa hoa xa hoa đọc tiếp tục mở rộng đồng.	0.00	-0.64	0.98
+phowhisper-small	1	1	19	hãy đời soạn mẫu trong tập trung tâm lý của bạn đọc tiếp theo của bạn đọc tiếp tục	hãy đời soạn mẫu trong tập trung tâm lý của bạn đọc tiếp theo của bạn đọc tiếp tục.	0.00	-0.54	1.26
+phowhisper-small	1	1	4	học thân truyền thổ	học thân truyền thổ.	0.00	-0.59	0.77
+phowhisper-small	1	1	18	in cũng là một dạng đề nghị cho đề bài học và làm sạch các lớp tài khoản	in cũng là một dạng đề nghị cho đề bài học và làm sạch các lớp tài khoản.	0.00	-0.71	1.01
+phowhisper-small	1	1	1	k	k.	0.00	-1.05	0.20
+phowhisper-small	1	1	11	k chào đón nhận các thí sinh xâm lược triều tiên	k� chào đón nhận các thí sinh xâm lược triều tiên.	0.00	-0.64	0.86
+phowhisper-small	1	1	12	k chúc mừng bạn khá tốt chào và hạnh phúc của mình	k� chúc mừng bạn khá tốt chào và hạnh phúc của mình.	0.00	-0.69	0.96
+phowhisper-small	1	1	16	k chúc mừng bạn quen với kênh thư ký của kênh tiếp theo của các em	k� chúc mừng bạn quen với kênh thư ký của kênh tiếp theo của các em.	0.00	-0.56	1.05
+phowhisper-small	1	1	19	k nam khàn quân kháng chiến chống mỹ phái và đánh dấu hiến xây dựng khắp mỹ cứu nước	k nam khàn quân kháng chiến chống mỹ phái và đánh dấu hiến xây dựng khắp mỹ cứu nước.	0.00	-1.08	1.06
+phowhisper-small	1	1	31	k tú kêu ca hai mẹ đừng để mẹ hỏi tôi nếu thế nào tôi ngủ được thế nào tôi ngủ được nữa thế nào cũng buồn bội như vậy thôi	k tú kêu ca hai mẹ đừng để mẹ hỏi tôi nếu thế nào tôi ngủ được thế nào tôi ngủ được nữa thế nào cũng buồn bội như vậy thôi.	0.00	-0.83	1.36
+phowhisper-small	1	1	10	kchi chúc mừng chiến tranh của đội bóng đất nước	kchi chúc mừng chiến tranh của đội bóng đất nước.	0.00	-0.60	0.90
+phowhisper-small	1	1	13	khi điện thoại mẹ con mê mỹ thì lại đi mấy mẹ chồng	khi điện thoại mẹ con mê mỹ thì lại đi mấy mẹ chồng.	0.00	-0.58	1.04
+phowhisper-small	1	1	15	khi điện thoại mẹ mẹ không thấy thì mẹ lại mong hai anh em khác	khi điện thoại mẹ mẹ không thấy thì mẹ lại mong hai anh em khác.	0.00	-0.75	1.11
+phowhisper-small	1	1	26	khoảng một ngày tớ nguồn nguồn nguồn nguồn tà phải vỗng hạp đến tớ lái xà phài nằm xong chắc chắn chắc chắn chắc chắn không	khoảng một ngày tớ nguồn nguồn nguồn nguồn tà phải vỗng hạp đến tớ lái xà phài nằm xong chắc chắn chắc chắn chắc chắn không.	0.00	-0.48	1.50
+phowhisper-small	1	1	15	kka vận động thi công công tố cáo buộc phải xử lý theo phương tiện	kka vận động thi công công tố cáo buộc phải xử lý theo phương tiện.	0.00	-0.73	1.01
+phowhisper-small	1	1	13	kka vận động truy nguồn tài liệu tài liệu truy nguồn tai nạn	kka vận động truy nguồn tài liệu tài liệu truy nguồn tai nạn.	0.00	-0.56	1.20
+phowhisper-small	1	1	16	kka vận động truy tìm cách làm đơn thuế cho công an trong việc bình luận	kka vận động truy tìm cách làm đơn thuế cho công an trong việc bình luận.	0.00	-0.70	0.98
+phowhisper-small	1	1	17	kka vận động tên lửa tên lửa kiểm tra vận động đối với chủ nhà máy bay	kka vận động tên lửa tên lửa kiểm tra vận động đối với chủ nhà máy bay.	0.00	-0.62	1.21
+phowhisper-small	1	1	19	kka vận động từ đối tượng sang đối tượng vận động từ đối tượng sang đối tượng tại nhà	kka vận động từ đối tượng sang đối tượng vận động từ đối tượng sang đối tượng tại nhà.	0.00	-0.62	1.98
+phowhisper-small	1	1	23	kki nhan sắc trong mỗi buổi sáng tôi đã từng gặp nhau nhiều hơn nữa trong các buổi diễn đoạn quốc tế khác	kki nhan sắc trong mỗi buổi sáng tôi đã từng gặp nhau nhiều hơn nữa trong các buổi diễn đoạn quốc tế khác.	0.00	-0.77	1.08
+phowhisper-small	1	1	11	kosho văn nghị luận văn học tiếp theo của các em	kosho văn nghị luận văn học tiếp theo của các em.	0.00	-0.70	0.94
+phowhisper-small	1	1	10	kta mất tài liệu theo quốc hội trong nước ngoài	kta mất tài liệu theo quốc hội trong nước ngoài.	0.00	-0.80	0.87
+phowhisper-small	1	1	13	kta nói chuyện tình tiếp theo công ty công bố kiểm tra đó	kta nói chuyện tình tiếp theo công ty công bố kiểm tra đó.	0.00	-0.81	0.94
+phowhisper-small	1	1	11	kta và các thí sinh trong tài liệu tâm tư thế	kta và các thí sinh trong tài liệu tâm tư thế.	0.00	-0.67	0.89
+phowhisper-small	1	1	14	kèn có tính tình tiếp tục tăng tốc tiếp tục tương tự tài chính	kèn có tính tình tiếp tục tăng tốc tiếp tục tương tự tài chính.	0.00	-0.48	1.24
+phowhisper-small	1	1	19	let us run a long way a long street we bom mìn in tom cruise dãy chúng đi nắm	let us run. a long way. a long street. we bom mìn in tom cruise dãy chúng đi nắm.	0.00	-1.43	1.00
+phowhisper-small	1	1	4	lòi tình thân mật	lòi tình thân mật.	0.00	-0.89	0.72
+phowhisper-small	1	1	18	minh tên bảo vệ tàu ngầm năm thứ hai bán lại minh tên bảo vệ tàu ngầm năm	minh tên bảo vệ tàu ngầm năm thứ hai bán lại minh tên bảo vệ tàu ngầm năm.	0.00	-0.40	1.35
+phowhisper-small	1	1	14	my bạn lưu truyền cho câu hỏi vì hảo bạn thì liên tiếp theo	my bạn lưu truyền cho câu hỏi vì hảo bạn thì liên tiếp theo.	0.00	-0.69	1.00
+phowhisper-small	1	1	20	mọi mệt nứa tác động thường xuyên trong và ngoài tác động thường xuyên di chuyển sang tận tình tiên	mọi mệt nứa tác động thường xuyên trong và ngoài tác động thường xuyên di chuyển sang tận tình tiên.	0.00	-0.58	1.21
+phowhisper-small	1	1	22	mọi thứ có thể xuyên tốt hay xuyên tốt là một tài liệu quân chủ nhân dân tình dục ở châu á	mọi thứ có thể xuyên tốt hay xuyên tốt là một tài liệu quân chủ nhân dân tình dục ở châu á.	0.00	-0.56	1.11
+phowhisper-small	1	1	14	mỹ phẩm mỹ phát triển công nhân từ đầu tư đến phần đầu tư	mỹ phẩm mỹ phát triển công nhân từ đầu tư đến phần đầu tư.	0.00	-0.68	1.12
+phowhisper-small	1	1	8	n có thói quen thoát khách thường thấy	n có thói quen thoát khách thường thấy.	0.00	-0.70	0.89
+phowhisper-small	1	1	9	n n n n n n n n n	n.n.n.n.n.n.n.n.n.	0.00	-0.64	1.50
+phowhisper-small	1	1	18	n tuy nhiên không thể ngăn chặn sự thông tin bất cập triển vọng từ các đơn vị	n tuy nhiên không thể ngăn chặn sự thông tin bất cập triển vọng từ các đơn vị.	0.00	-0.67	1.00
+phowhisper-small	1	1	13	ngay cả với bộ phim trong phim trường hợp quốc gia châu âu	ngay cả với bộ phim trong phim trường hợp quốc gia châu âu.	0.00	-0.73	0.99
+phowhisper-small	1	1	11	nguyên nhân hậu phương thế giới thiệu bất cập tác giả	nguyên nhân hậu phương thế giới thiệu bất cập tác giả.	0.00	-0.64	0.96
+phowhisper-small	1	1	7	nguyên tâm là doanh nghiệp thể thao	nguyên tâm là doanh nghiệp thể thao.	0.00	-0.64	0.84
+phowhisper-small	1	1	16	nguyên vẹn do tội nghiệp quốc tế quảng bá vàng quốc tế quảng bá đầu năm	nguyên vẹn do tội nghiệp quốc tế quảng bá vàng quốc tế quảng bá đầu năm.	0.00	-0.58	1.18
+phowhisper-small	1	1	3	nguyễn minh châu	nguyễn minh châu.	0.00	-0.78	0.71
+phowhisper-small	1	1	13	nguyễn thành quốc tế đã thắng thế tổng thương báo chí thông tin	nguyễn thành quốc tế đã thắng thế tổng thương báo chí thông tin.	0.00	-0.53	1.04
+phowhisper-small	1	1	6	nguyễn thị ngọc minh trong phim	nguyễn thị ngọc minh trong phim.	0.00	-0.70	0.83
+phowhisper-small	1	1	10	nguyệt độc thân có thể bị truyền tải tải hơn	nguyệt độc thân có thể bị truyền tải tải hơn.	0.00	-0.64	0.97
+phowhisper-small	1	1	3	nguồn nguồn nguồn	nguồn nguồn nguồn.	0.00	-0.42	1.20
+phowhisper-small	1	1	5	nguồn nguồn nguồn nguồn hư	nguồn nguồn nguồn nguồn hư.	0.00	-0.57	1.57
+phowhisper-small	1	1	11	ngữ thị nguyện âm nhạc tài liệu tài liệu quốc tế	ngữ thị nguyện âm nhạc tài liệu tài liệu quốc tế.	0.00	-0.74	1.05
+phowhisper-small	1	1	13	nhiều doanh nghiệp bảo chạy tới chỗ nên xử lý nghiêm minh chỗ	nhiều doanh nghiệp bảo chạy tới chỗ nên xử lý nghiêm minh chỗ.	0.00	-0.62	1.01
+phowhisper-small	1	1	13	nhiều doanh nghiệp bảo chạy tới chỗ thời gian tới chỗ thời gian	nhiều doanh nghiệp bảo chạy tới chỗ thời gian tới chỗ thời gian.	0.00	-0.48	1.27
+phowhisper-small	1	1	14	nhiều doanh nghiệp bảo vệ tai nạn giao thông đánh bóng đá tai nạn	nhiều doanh nghiệp bảo vệ tai nạn giao thông đánh bóng đá tai nạn.	0.00	-0.53	1.11
+phowhisper-small	1	1	11	nhiều doanh nghiệp bảo vệ tai nạn giao thông đơn vị	nhiều doanh nghiệp bảo vệ tai nạn giao thông đơn vị.	0.00	-0.57	0.94
+phowhisper-small	1	1	16	nhiều doanh nghiệp bảo vệ tàu hộ nguyên liệu trong và ngoài tàu hộp quốc tế	nhiều doanh nghiệp bảo vệ tàu hộ nguyên liệu trong và ngoài tàu hộp quốc tế.	0.00	-0.60	1.05
+phowhisper-small	1	1	10	nhiều doanh nghiệp bảo vệ tàu ngầm doanh thành công	nhiều doanh nghiệp bảo vệ tàu ngầm doanh thành công.	0.00	-0.51	1.03
+phowhisper-small	1	1	17	nhiều doanh nghiệp bảo vệ tàu ngầm thanh niên doanh thành công trên khắp xã triều tiên	nhiều doanh nghiệp bảo vệ tàu ngầm thanh niên doanh thành công trên khắp xã triều tiên.	0.00	-0.64	1.14
+phowhisper-small	1	1	12	nhiều doanh nghiệp bắt đầu theo dõi công tác truyền thống máy	nhiều doanh nghiệp bắt đầu theo dõi công tác truyền thống máy.	0.00	-0.54	0.94
+phowhisper-small	1	1	14	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược chiến tranh với chiến tranh	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược chiến tranh với chiến tranh.	0.00	-0.49	1.18
+phowhisper-small	1	1	21	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược công ty quân chủ tư dự và phân chủ tư dự án	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược công ty quân chủ tư dự và phân chủ tư dự án.	0.00	-0.53	1.10
+phowhisper-small	1	1	18	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược công tác xây dựng và xây dựng công tác	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược công tác xây dựng và xây dựng công tác.	0.00	-0.51	1.13
+phowhisper-small	1	1	20	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược công tác xây dựng và xây dựng quốc phòng châu âu	nhiều doanh nghiệp bắt đầu tiếp theo chiến lược công tác xây dựng và xây dựng quốc phòng châu âu.	0.00	-0.58	1.07
+phowhisper-small	1	1	24	nhiều doanh nghiệp bắt đầu tiếp theo các công ty xây dựng và xây dựng các công ty xây dựng và xây dựng khác	nhiều doanh nghiệp bắt đầu tiếp theo các công ty xây dựng và xây dựng các công ty xây dựng và xây dựng khác.	0.00	-0.50	1.50
+phowhisper-small	1	1	22	nhiều doanh nghiệp bắt đầu tiếp theo các công ty xã hội đang tập đoàn xe ô nhiễm môi trường tây bắc	nhiều doanh nghiệp bắt đầu tiếp theo các công ty xã hội đang tập đoàn xe ô nhiễm môi trường tây bắc.	0.00	-0.60	1.02
+phowhisper-small	1	1	14	nhiều doanh nghiệp bắt đầu tiếp theo công nghệ và phát triển nông nghiệp	nhiều doanh nghiệp bắt đầu tiếp theo công nghệ và phát triển nông nghiệp.	0.00	-0.56	1.06
+phowhisper-small	1	1	14	nhiều doanh nghiệp bắt đầu triển lãm chủ yếu trong và trong công ty	nhiều doanh nghiệp bắt đầu triển lãm chủ yếu trong và trong công ty.	0.00	-0.54	1.02
+phowhisper-small	1	1	12	nhiều doanh nghiệp bắt đầu triển vọng về nước ngoài tai nạn	nhiều doanh nghiệp bắt đầu triển vọng về nước ngoài tai nạn.	0.00	-0.61	0.95
+phowhisper-small	1	1	11	nhiều doanh nghiệp bắt đầu tập trung vào tập trung t	nhiều doanh nghiệp bắt đầu tập trung vào tập trung........................................... t.	0.00	-0.37	1.64
+phowhisper-small	1	1	16	nhiều doanh nghiệp bắt đầu tập truyền nhiệm vụ việc và tiếp theo các công ty	nhiều doanh nghiệp bắt đầu tập truyền nhiệm vụ việc và tiếp theo các công ty.	0.00	-0.54	1.00
+phowhisper-small	1	1	13	nhiều doanh nghiệp gây bối rối doanh thái xuống xã hội đông nam	nhiều doanh nghiệp gây bối rối doanh thái xuống xã hội đông nam.	0.00	-0.58	1.03
+phowhisper-small	1	1	11	nhiều doanh nghiệp không thể thiếu sót trong việc thi đấu	nhiều doanh nghiệp không thể thiếu sót trong việc thi đấu.	0.00	-0.59	0.99
+phowhisper-small	1	1	14	nhiều doanh nghiệp nguyễn minh châu không thông báo về tài liệu quốc tế	nhiều doanh nghiệp nguyễn minh châu không thông báo về tài liệu quốc tế.	0.00	-0.54	1.02
+phowhisper-small	1	1	10	nhiều doanh nghiệp nguyễn minh châu không thụ tấn công	nhiều doanh nghiệp nguyễn minh châu không thụ tấn công.	0.00	-0.66	0.96
+phowhisper-small	1	1	14	nhiều doanh nghiệp nguyễn thị ngọc hồng chào và hiền thục kiều tên tuổi	nhiều doanh nghiệp nguyễn thị ngọc hồng chào và hiền thục kiều tên tuổi.	0.00	-0.51	1.09
+phowhisper-small	1	1	15	nhiều doanh nghiệp nguyễn thị ngọc minh đã tò mò theo truyền thông trên bảng	nhiều doanh nghiệp nguyễn thị ngọc minh đã tò mò theo truyền thông trên bảng.	0.00	-0.54	1.02
+phowhisper-small	1	1	13	nhiều doanh nghiệp nguyễn thị ngọc minh đã tò mò theo truyện ngắn	nhiều doanh nghiệp nguyễn thị ngọc minh đã tò mò theo truyện ngắn.	0.00	-0.57	1.02
+phowhisper-small	1	1	14	nhiều doanh nghiệp nguyễn thị ngọc minh đã tập trung kinh tế trong nước	nhiều doanh nghiệp nguyễn thị ngọc minh đã tập trung kinh tế trong nước.	0.00	-0.58	1.01
+phowhisper-small	1	1	9	nhiều doanh nghiệp nguyễn thị thiều lệnh ban đầu	nhiều doanh nghiệp nguyễn thị thiều lệnh ban đầu.	0.00	-0.57	1.03
+phowhisper-small	1	1	13	nhiều doanh nghiệp xâm lược công nghệ thành lập công nghệ thành phố	nhiều doanh nghiệp xâm lược công nghệ thành lập công nghệ thành phố.........	0.00	-0.59	1.32
+phowhisper-small	1	1	18	nhiều doanh nghiệp đã cải truyền thông trên các đảng và xã hội để điều trị động viên	nhiều doanh nghiệp đã cải truyền thông trên các đảng và xã hội để điều trị động viên.	0.00	-0.54	1.10
+phowhisper-small	1	1	17	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển nguyên nhân ở nước ngoài	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển nguyên nhân ở nước ngoài.	0.00	-0.45	1.05
+phowhisper-small	1	1	23	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển năng lượng trực tiếp từ mỹ doanh thể thứ năm nay	nhiều doanh nghiệp đã hoàn thành công nghệ trên và phát triển năng lượng trực tiếp từ mỹ doanh thể thứ năm nay.	0.00	-0.57	1.12
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã hoàn thành phim ca sĩ trong phim ca sĩ trước	nhiều doanh nghiệp đã hoàn thành phim ca sĩ trong phim ca sĩ trước.	0.00	-0.52	1.10
+phowhisper-small	1	1	13	nhiều doanh nghiệp đã không tham gia các cuộc thi để thần tượng	nhiều doanh nghiệp đã không tham gia các cuộc thi để thần tượng.	0.00	-0.59	0.94
+phowhisper-small	1	1	12	nhiều doanh nghiệp đã không tham gia hội thống nhất đất nước	nhiều doanh nghiệp đã không tham gia hội thống nhất đất nước.	0.00	-0.61	0.99
+phowhisper-small	1	1	12	nhiều doanh nghiệp đã không tham gia đoạn trích đoạn nguyên liệu	nhiều doanh nghiệp đã không tham gia đoạn trích đoạn nguyên liệu.	0.00	-0.65	1.04
+phowhisper-small	1	1	13	nhiều doanh nghiệp đã không tham gia đại sứ quán ở nước ngoài	nhiều doanh nghiệp đã không tham gia đại sứ quán ở nước ngoài.	0.00	-0.57	0.92
+phowhisper-small	1	1	20	nhiều doanh nghiệp đã không thay đổi công nghệ thì công nghệ này lại không thay đổi công nghệ này	nhiều doanh nghiệp đã không thay đổi công nghệ thì công nghệ này lại không thay đổi công nghệ này.	0.00	-0.52	1.54
+phowhisper-small	1	1	17	nhiều doanh nghiệp đã không thay đổi công nghệ thì công nghệ này sẽ không thay đổi	nhiều doanh nghiệp đã không thay đổi công nghệ thì công nghệ này sẽ không thay đổi.	0.00	-0.57	1.35
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã không thể thi đấu theo quy định của pháp luật	nhiều doanh nghiệp đã không thể thi đấu theo quy định của pháp luật.	0.00	-0.52	0.99
+phowhisper-small	1	1	16	nhiều doanh nghiệp đã không thể thiết kế tiếp theo các quy định của pháp luật	nhiều doanh nghiệp đã không thể thiết kế tiếp theo các quy định của pháp luật.	0.00	-0.49	0.99
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã không thể thiếu trong lịch sử kế hoạch đất nước	nhiều doanh nghiệp đã không thể thiếu trong lịch sử kế hoạch đất nước.	0.00	-0.56	0.95
+phowhisper-small	1	1	12	nhiều doanh nghiệp đã không thể thiếu trong lịch sử trung quốc	nhiều doanh nghiệp đã không thể thiếu trong lịch sử trung quốc.	0.00	-0.58	0.96
+phowhisper-small	1	1	11	nhiều doanh nghiệp đã không thể thiếu trong phim truyện ngắn	nhiều doanh nghiệp đã không thể thiếu trong phim truyện ngắn.	0.00	-0.53	0.97
+phowhisper-small	1	1	12	nhiều doanh nghiệp đã không thể thiếu trong phần văn học này	nhiều doanh nghiệp đã không thể thiếu trong phần văn học này.	0.00	-0.57	0.95
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã không thể truy cập bằng truyền thông trên đất nước	nhiều doanh nghiệp đã không thể truy cập bằng truyền thông trên đất nước.	0.00	-0.48	1.02
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã không thể truy cập thể thao tổng hợp quốc tế	nhiều doanh nghiệp đã không thể truy cập thể thao tổng hợp quốc tế.	0.00	-0.51	1.01
+phowhisper-small	1	1	11	nhiều doanh nghiệp đã không thể truy cập được trong phim	nhiều doanh nghiệp đã không thể truy cập được trong phim.	0.00	-0.56	0.96
+phowhisper-small	1	1	12	nhiều doanh nghiệp đã không thể truy cập được trong tập trận	nhiều doanh nghiệp đã không thể truy cập được trong tập trận.	0.00	-0.58	1.03
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã không thể truyền thông trên các đoạn trích nhật bản	nhiều doanh nghiệp đã không thể truyền thông trên các đoạn trích nhật bản.	0.00	-0.61	1.02
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã không thể truyền thông trên toàn quốc gia trong nước	nhiều doanh nghiệp đã không thể truyền thông trên toàn quốc gia trong nước.	0.00	-0.48	1.02
+phowhisper-small	1	1	16	nhiều doanh nghiệp đã không thể tập trung vào bảo vệ trực tiếp tục mua nhà	nhiều doanh nghiệp đã không thể tập trung vào bảo vệ trực tiếp tục mua nhà.	0.00	-0.54	0.95
+phowhisper-small	1	1	14	nhiều doanh nghiệp đã tập trung thành lập các công trình trên thành công	nhiều doanh nghiệp đã tập trung thành lập các công trình trên thành công.	0.00	-0.55	1.15
+phowhisper-small	1	1	13	nhiều doanh nghiệp đã xác định phạm luật đã xác định phạm luật	nhiều doanh nghiệp đã xác định phạm luật đã xác định phạm luật.	0.00	-0.53	1.40
+phowhisper-small	1	1	19	nhiều doanh nghiệp đã xác định phần vô địch là doanh nghiệp đã xảy ra doanh nghiệp xa máy	nhiều doanh nghiệp đã xác định phần vô địch là doanh nghiệp đã xảy ra doanh nghiệp xa máy.	0.00	-0.48	1.38
+phowhisper-small	1	1	18	nhiều doanh nghiệp đã xác định sự thành công đã xảy ra sự thiệt hồi tại nhà thơm	nhiều doanh nghiệp đã xác định sự thành công đã xảy ra sự thiệt hồi tại nhà thơm.	0.00	-0.58	1.10
+phowhisper-small	1	1	12	nhiều doanh nghiệp đã xác định xuất phát từ các tàu ngầm	nhiều doanh nghiệp đã xác định xuất phát từ các tàu ngầm.	0.00	-0.62	0.96
+phowhisper-small	1	1	15	nhiều doanh nghiệp đã xác định xuất phát từ các đảng cộng sản việt nam	nhiều doanh nghiệp đã xác định xuất phát từ các đảng cộng sản việt nam.	0.00	-0.62	1.05
+phowhisper-small	1	1	13	nhiều doanh nghiệp đã xác định xuất phát từ công ty thực phẩm	nhiều doanh nghiệp đã xác định xuất phát từ công ty thực phẩm.	0.00	-0.55	0.94
+phowhisper-small	1	1	13	nhiều doanh nghiệp đã xử lý các tàu hộ nguyên liệu trong nước	nhiều doanh nghiệp đã xử lý các tàu hộ nguyên liệu trong nước.	0.00	-0.53	0.93
+phowhisper-small	1	1	16	nhiều doanh nghiệp đã đề nghị truy bắt tiếng đáp luận cho công ty trung quốc	nhiều doanh nghiệp đã đề nghị truy bắt tiếng đáp luận cho công ty trung quốc.	0.00	-0.57	1.03
+phowhisper-small	1	1	22	nhiều người bày tỏ nguyên nhân khi xem nhẹ bóng đá tương tự với gia đình nguyễn thái đã hư hỏng hơn	nhiều người bày tỏ nguyên nhân khi xem nhẹ bóng đá tương tự với gia đình nguyễn thái đã hư hỏng hơn.	0.00	-0.64	1.06
+phowhisper-small	1	1	18	nhiều người bày tỏ nguồn cơ thể của mình bảo vệ lãnh đạo và tâm trạng của họ	nhiều người bày tỏ nguồn cơ thể của mình bảo vệ lãnh đạo và tâm trạng của họ.	0.00	-0.56	0.98
+phowhisper-small	1	1	17	nhiều người bày tỏ nếu thực hiện tương tác trước khi bày tỏ vấn đề của họ	nhiều người bày tỏ nếu thực hiện tương tác trước khi bày tỏ vấn đề của họ.	0.00	-0.53	1.04
+phowhisper-small	1	1	19	nhiều người bảo vệ tàu ngầm bãi biển có thể xảy ra tàu ngầm bãi biển hoặc xà phòng	nhiều người bảo vệ tàu ngầm bãi biển có thể xảy ra tàu ngầm bãi biển hoặc xà phòng.	0.00	-0.53	1.19
+phowhisper-small	1	1	21	nhiều trường hợp không thể không thoát triển lại những trường hợp không thoát triển lại những trường hợp không thoát	nhiều trường hợp không thể không thoát triển lại những trường hợp không thoát triển lại những trường hợp không thoát.	0.00	-0.52	2.09
+phowhisper-small	1	1	16	nhiều tài liệu không thể không sử dụng tài liệu từ phong trào tạo công an	nhiều tài liệu không thể không sử dụng tài liệu từ phong trào tạo công an.	0.00	-0.71	1.17
+phowhisper-small	1	1	18	những tay vợt phải chờ đám cháy qua đám tưới là những tay vợt phải chờ đám tưới	những tay vợt phải chờ đám cháy qua đám tưới là những tay vợt phải chờ đám tưới.	0.00	-0.35	1.49
+phowhisper-small	1	1	27	nípus tích lúa nật đỏ kém một chất cơ thần timus đau đớn bừa lâu lắm cây kíp mật nípus xì xì bếp lún ruột theo sân	nípus tích lúa nật đỏ kém một chất cơ thần timus đau đớn bừa lâu lắm cây kíp mật nípus xì xì bếp lún ruột theo sân.	0.00	-0.43	1.12
+phowhisper-small	1	1	18	nó có thể là tác động tác động do hệ thống tốt cho hệ thống tốt của nó	nó có thể là tác động tác động do hệ thống tốt cho hệ thống tốt của nó.	0.00	-0.64	1.46
+phowhisper-small	1	1	25	nó có thể xảy ra tình trạng tội nghiệp do công ty trung quốc thiên truyền thống và tâm sự đối với sự tổn thương	nó có thể xảy ra tình trạng tội nghiệp do công ty trung quốc thiên truyền thống và tâm sự đối với sự tổn thương.	0.00	-0.59	1.08
+phowhisper-small	1	1	18	nếu xâm phạm công an thì trò tâm phạm vi phạm nói là phạm trợ tâm phạm vi	nếu xâm phạm công an thì trò tâm phạm vi phạm nói là phạm trợ tâm phạm vi.	0.00	-0.67	1.33
+phowhisper-small	1	1	24	nếu xảy ra sự cố thì tội nghiệp cũng có thể xảy ra sự cố thị như xảy ra sự cố thị như vậy	nếu xảy ra sự cố thì tội nghiệp cũng có thể xảy ra sự cố thị như xảy ra sự cố thị như vậy.	0.00	-0.51	1.43
+phowhisper-small	1	1	27	on a lít tích slide hang it côn cột a sma mênh gồ biệt quít rai mít phít ái mát múa a plex slide trúc từng ních	on a lít tích slide hang it côn cột a sma mênh gồ biệt quít rai mít phít ái mát múa a plex slide trúc từng ních.	0.00	-0.67	1.13
+phowhisper-small	1	1	11	or rai đẹp thì o rai đẹp vớt quyết liệt phải	or rai đẹp thì o rai đẹp vớt quyết liệt phải.	0.00	-0.37	1.00
+phowhisper-small	1	1	9	phiền thông tin tổ chức xử lý thành công	phiền thông tin tổ chức xử lý thành công.	0.00	-0.63	0.93
+phowhisper-small	1	1	4	phong trào yêu nước	phong trào yêu nước.	0.00	-0.77	0.74
+phowhisper-small	1	1	12	phát triển cho tình hình trong âm nhạc chứng tình âm nhạc	phát triển cho tình hình trong âm nhạc chứng tình âm nhạc.	0.00	-0.61	1.12
+phowhisper-small	1	1	19	phó thủ tướng thị ngọc trinh phát biểu tiếp tục tổ chức tổ chức tổ chức tổ chức tỉnh	phó thủ tướng thị ngọc trinh phát biểu tiếp tục tổ chức tổ chức tổ chức tổ chức tỉnh.	0.00	-0.43	1.41
+phowhisper-small	1	1	13	phó thủ tướng thị trí thái lan xin công nghệ thuận lợi nhuận	phó thủ tướng thị trí thái lan xin công nghệ thuận lợi nhuận.	0.00	-0.51	1.03
+phowhisper-small	1	1	13	phó thủ tướng thị trường bảo vệ tổng hợp quốc gia châu âu	phó thủ tướng thị trường bảo vệ tổng hợp quốc gia châu âu.	0.00	-0.52	1.00
+phowhisper-small	1	1	13	phó thủ tướng tiếp tục điều tra di động thể thao truyền thông	phó thủ tướng tiếp tục điều tra di động thể thao truyền thông.	0.00	-0.48	0.98
+phowhisper-small	1	1	13	phó thủ tướng tiếp tục điều tra vụ việc truyền tải giao thông	phó thủ tướng tiếp tục điều tra vụ việc truyền tải giao thông.	0.00	-0.43	0.95
+phowhisper-small	1	1	24	phó thủ tướng vương quốc đã truy nguồn tài liệu từ phóng viên ban đầu cho phóng viên ban nữ trưởng ban đầu hơn	phó thủ tướng vương quốc đã truy nguồn tài liệu từ phóng viên ban đầu cho phóng viên ban nữ trưởng ban đầu hơn.	0.00	-0.48	1.20
+phowhisper-small	1	1	14	phó thủ tướng vương đình huệ phát biểu tại buổi làm phố đà nẵng	phó thủ tướng vương đình huệ phát biểu tại buổi làm phố đà nẵng.	0.00	-0.52	0.93
+phowhisper-small	1	1	19	phó thủ tướng vương đình huệ xây dựng và bảo vệ quốc phòng quản lý nhà nước đà nẵng	phó thủ tướng vương đình huệ xây dựng và bảo vệ quốc phòng quản lý nhà nước đà nẵng.	0.00	-0.54	1.03
+phowhisper-small	1	1	14	phần thân báo công cộng đã xây dựng và phân tích hình trong nước	phần thân báo công cộng đã xây dựng và phân tích hình trong nước.	0.00	-0.75	0.94
+phowhisper-small	1	1	11	phần thân bình chạy tới đại sứ quán đông nam bộ	phần thân bình chạy tới đại sứ quán đông nam bộ.	0.00	-0.62	0.90
+phowhisper-small	1	1	15	phật tích truyền hình tượng tuyệt vời trước khi chiến lược công tác xây dựng	phật tích truyền hình tượng tuyệt vời trước khi chiến lược công tác xây dựng.	0.00	-0.49	1.00
+phowhisper-small	1	1	13	phật tự tư thế tiền tự tưởng mọi chuyện sẽ diễn ra trong	phật tự tư thế tiền tự tưởng mọi chuyện sẽ diễn ra trong.	0.00	-0.60	0.99
+phowhisper-small	1	1	22	putin dự đoán rằng tổ chức công ty đà nẵng thì phải thất thoát khỏi sự thoát khỏi sự thoát vốn trước	putin dự đoán rằng tổ chức công ty đà nẵng thì phải thất thoát khỏi sự thoát khỏi sự thoát vốn trước.	0.00	-0.79	1.20
+phowhisper-small	1	1	10	pác sĩ kiện phát triển triển khai thác thông tin	pác sĩ kiện phát triển triển khai thác thông tin.	0.00	-0.72	1.05
+phowhisper-small	1	1	30	rộng mộng tính mạng xã hội chủ nghĩa xã hội chủ nghĩa xã hội chủ nghĩa xã hội chủ nghĩa xã thảo tổng thương hiệu quả tổng thống tài nguyên	rộng mộng tính mạng xã hội chủ nghĩa xã hội chủ nghĩa xã hội chủ nghĩa xã hội chủ nghĩa xã thảo tổng thương hiệu quả tổng thống tài nguyên.	0.00	-0.45	1.85
+phowhisper-small	1	1	44	so buff sexy cí giúp chết áp lực kiều bâu bệnh khiến cô em đối mặt sạch khỏi vết mịn tính xa hối là sexy và sexy sexy thì khiến em trở nên xinh xinh xấu và dễ cãi trên cây khiến bạn cười	so buff sexy cí giúp chết áp lực kiều bâu bệnh khiến cô em đối mặt sạch khỏi vết mịn tính xa hối là sexy và sexy sexy thì khiến em trở nên xinh xinh xấu và dễ cãi trên cây khiến bạn cười.	0.00	-0.87	1.31
+phowhisper-small	1	1	14	t t t t t t t t t t t t t n	t.t.t.t.t.t.t.t.t.t.t.t.t. n.	0.00	-0.55	1.93
+phowhisper-small	1	1	21	ta thiếu minh bạch tính tổ chức xã hội chính phủ đông an đã điều tra tị nạn và triều tiên	ta thiếu minh bạch tính tổ chức xã hội chính phủ đông an đã điều tra tị nạn và triều tiên.	0.00	-0.99	1.08
+phowhisper-small	1	1	5	ta thà thì thế nào	ta thà thì thế nào.	0.00	-0.61	0.83
+phowhisper-small	1	1	3	ta thà thôi	ta thà thôi.	0.00	-0.79	0.70
+phowhisper-small	1	1	12	tang tàu hướng dẫn tàu hướng dẫn tàu hướng dẫn kết quả	tang tàu hướng dẫn tàu hướng dẫn tàu hướng dẫn kết quả.	0.00	-0.58	1.64
+phowhisper-small	1	1	23	thay đổi theo dõi các hiệp đấu cháy quýt và cháy quấn phiệt thì thay đổi được thay đổi làng nguyễn thái long	thay đổi theo dõi các hiệp đấu cháy quýt và cháy quấn phiệt thì thay đổi được thay đổi làng nguyễn thái long.	0.00	-0.79	1.22
+phowhisper-small	1	1	15	thay đổi theo dõi các thao tác lập tức có thể thay đổi âm nhạc	thay đổi theo dõi các thao tác lập tức có thể thay đổi âm nhạc.	0.00	-0.56	1.05
+phowhisper-small	1	1	12	thay đổi theo dõi các thao tác lập tức được thể hiện	thay đổi theo dõi các thao tác lập tức được thể hiện.	0.00	-0.61	0.95
+phowhisper-small	1	1	11	thay đổi theo dõi các thói quen thuộc quốc tế khác	thay đổi theo dõi các thói quen thuộc quốc tế khác.	0.00	-0.53	0.94
+phowhisper-small	1	1	13	thay đổi theo dõi các thông tin câu lạc bí vàng quốc tế	thay đổi theo dõi các thông tin câu lạc bí vàng quốc tế.	0.00	-0.69	0.93
+phowhisper-small	1	1	9	thay đổi theo dõi âm nhạc và âm nhạc	thay đổi theo dõi âm nhạc và âm nhạc.	0.00	-0.54	1.00
+phowhisper-small	1	1	18	theo công ty đã tập trung truyện ngắn mạng về tai nạn và truyện ngắn sát thương mại	theo công ty đã tập trung truyện ngắn mạng về tai nạn và truyện ngắn sát thương mại.	0.00	-0.59	1.14
+phowhisper-small	1	1	13	theo dõi sách giáo khoa học và tập luyện tập luyện tập luôn	theo dõi sách giáo khoa học và tập luyện tập luyện tập luôn.	0.00	-0.61	1.17
+phowhisper-small	1	1	12	theo ngón tay tôi khẳng định mình là ngón tay tương lai	theo ngón tay tôi khẳng định mình là ngón tay tương lai.	0.00	-0.58	1.03
+phowhisper-small	1	1	7	theo như thế nào tương tự hơn	theo như thế nào tương tự hơn.	0.00	-0.79	0.83
+phowhisper-small	1	1	9	theo ông theo ông theo ông theo ông theo	theo ông theo ông theo ông theo ông theo.	0.00	-0.39	2.05
+phowhisper-small	1	1	10	theo ông theo ông theo ông theo ông theo theo	theo ông theo ông theo ông theo ông theo theo.	0.00	-0.35	2.08
+phowhisper-small	1	1	1	thi	thi.	0.00	-0.97	0.33
+phowhisper-small	1	1	13	thiên nhiên tôi đưa tới gần đây để phát triển tình tiếp tục	thiên nhiên tôi đưa tới gần đây để phát triển tình tiếp tục.	0.00	-0.58	1.01
+phowhisper-small	1	1	28	thiên quốc gia cho biết điều đó có thể có thể xảy ra tính toán xuyên của xe tăng trên và tăng trưởng trong lịch sử gia tăng	thiên quốc gia cho biết điều đó có thể có thể xảy ra tính toán xuyên của xe tăng trên và tăng trưởng trong lịch sử gia tăng.	0.00	-0.65	1.17
+phowhisper-small	1	1	1	thiếp	thiếp.	0.00	-0.95	0.50
+phowhisper-small	1	1	17	thiết kế tiếp theo các công ty xây dựng và xây dựng quốc gia đông nam phi	thiết kế tiếp theo các công ty xây dựng và xây dựng quốc gia đông nam phi.	0.00	-0.56	1.12
+phowhisper-small	1	1	2	thiếu hụt	thiếu hụt.	0.00	-0.92	0.64
+phowhisper-small	1	1	6	thiếu hụt tình tiết lộn xộn	thiếu hụt tình tiết lộn xộn.	0.00	-0.65	0.89
+phowhisper-small	1	1	8	thiếu hụt tình trạng tâm tình dân tộc	thiếu hụt tình trạng tâm tình dân tộc.	0.00	-0.54	0.94
+phowhisper-small	1	1	6	thiếu tố thì không thay thế	thiếu tố thì không thay thế.	0.00	-0.65	0.88
+phowhisper-small	1	1	13	thiếu tố thủ tướng xuân phúc đại biểu quốc hội đức thiên nhiên	thiếu tố thủ tướng xuân phúc đại biểu quốc hội đức thiên nhiên.	0.00	-0.61	0.97
+phowhisper-small	1	1	59	thiện thoại tây ban nha vợ đồng tâm thần rất kỳ quan xá của các cụ thể xây thạch còn tiên tiên tiên tiên tiên sinh cả các cụ thể xã hội đồng tâm lại với cụ thể xã hội bảo tàng đối với cụ thể nhà tư cụ tế với cụ thể nhà kế tế với cụ tế	thiện thoại tây ban nha vợ đồng tâm thần rất kỳ quan xá của các cụ thể xây thạch còn tiên tiên tiên tiên tiên sinh cả các cụ thể xã hội đồng tâm lại với cụ thể xã hội bảo tàng đối với cụ thể nhà tư cụ tế với cụ thể nhà kế tế với cụ tế.	0.00	-0.74	1.88
+phowhisper-small	1	1	11	thiện tử truyền thảo tổng biên phòng quản lý nhà nước	thiện tử truyền thảo tổng biên phòng quản lý nhà nước.	0.00	-0.59	0.94
+phowhisper-small	1	1	15	thiệp kháng máy chủ nghĩa xã hội đảm bảo chạy tới đại sứ quán đảng	thiệp kháng máy chủ nghĩa xã hội đảm bảo chạy tới đại sứ quán đảng.	0.00	-0.56	1.04
+phowhisper-small	1	1	6	thiệt mạng tại buổi làm việc	thiệt mạng tại buổi làm việc.	0.00	-0.82	0.89
+phowhisper-small	1	1	34	thiệu tình tiến triển về công nghệ nghệ thuật thực hiện công nghệ nghệ thuật thực hiện thiệu thiện nguyên nhân vụ việc trị chống tín dụng công nghệ mới được thiệu tính cách	thiệu tình tiến triển về công nghệ nghệ thuật thực hiện công nghệ nghệ thuật thực hiện thiệu thiện nguyên nhân vụ việc trị chống tín dụng công nghệ mới được thiệu tính cách.	0.00	-0.55	1.59
+phowhisper-small	1	1	9	thiệu tình tiếng nói trên thiệu tình tình trên	thiệu tình tiếng nói trên thiệu tình tình trên.	0.00	-0.64	1.18
+phowhisper-small	1	1	13	thruyền thông tốt nhất là các dạng đề thi đại học đại học	thruyền thông tốt nhất là các dạng đề thi đại học đại học.	0.00	-0.65	1.08
+phowhisper-small	1	1	8	thuật sạch tuyệt vời thế giới thứ nhất	thuật sạch tuyệt vời thế giới thứ nhất.	0.00	-0.54	0.90
+phowhisper-small	1	1	11	thành công trong phim truyền thông tình truyền hình thành công	thành công trong phim truyền thông tình truyền hình thành công.	0.00	-0.57	1.35
+phowhisper-small	1	1	9	thành thị trường thành thị trường học tiếp theo	thành thị trường thành thị trường học tiếp theo.	0.00	-0.55	1.25
+phowhisper-small	1	1	1	thái	thái.	0.00	-0.94	0.43
+phowhisper-small	1	1	8	thái bá ngược thời gian ở châu âu	thái bá ngược thời gian ở châu âu.	0.00	-0.80	0.85
+phowhisper-small	1	1	15	thái cẩn thận tạo nên tên lửa tác động thống nhất tác động âm nhạc	thái cẩn thận tạo nên tên lửa tác động thống nhất tác động âm nhạc.	0.00	-0.56	1.19
+phowhisper-small	1	1	24	tháng ba trong hai đêm nhạc tâm là tội phạm luật quân chủ tư dưới chủ tư dự trữ tài chính chủ nghĩa giảng	tháng ba trong hai đêm nhạc tâm là tội phạm luật quân chủ tư dưới chủ tư dự trữ tài chính chủ nghĩa giảng.	0.00	-0.86	1.12
+phowhisper-small	1	1	19	tháng ba tác phẩm giao thông đại học tiếp theo chiến lược công tác xây dựng và xây dựng	tháng ba tác phẩm giao thông đại học tiếp theo chiến lược công tác xây dựng và xây dựng.	0.00	-0.50	1.10
+phowhisper-small	1	1	13	tháng hai tổ chức xử lý truyền biên phòng theo luật quản lý	tháng hai tổ chức xử lý truyền biên phòng theo luật quản lý.	0.00	-0.60	0.93
+phowhisper-small	1	1	12	tháo gỡ tài liệu cao trong âm nhạc quốc tế gia đình	tháo gỡ tài liệu cao trong âm nhạc quốc tế gia đình.	0.00	-0.63	0.86
+phowhisper-small	1	1	21	tháo hoa có thoát khỏi tấn công táo hoa hay thoát khỏi tấn công có thoát khỏi tấn công táo hoa	tháo hoa có thoát khỏi tấn công táo hoa hay thoát khỏi tấn công có thoát khỏi tấn công táo hoa.	0.00	-0.45	1.97
+phowhisper-small	1	1	12	tháp quán tổng thống mỹ dung trung quốc tổng thống mỹ nói	tháp quán tổng thống mỹ dung trung quốc tổng thống mỹ nói.	0.00	-0.56	1.27
+phowhisper-small	1	1	7	tháp táng đảng cộng sản việt nam	tháp táng đảng cộng sản việt nam.	0.00	-0.54	0.92
+phowhisper-small	1	1	7	tháp táp táp táp táp táp táp	tháp táp táp táp táp táp táp.	0.00	-0.55	2.00
+phowhisper-small	1	1	2	thê tê	thê tê.	0.00	-0.78	0.53
+phowhisper-small	1	1	12	thì thiếu thật bởi vì tôi rất thích nhau trong cuộc sống	thì thiếu thật bởi vì tôi rất thích nhau trong cuộc sống.	0.00	-0.69	0.94
+phowhisper-small	1	1	11	thì thị trường cũng thừa nhận bất kỳ điều gì đó	thì thị trường cũng thừa nhận bất kỳ điều gì đó.	0.00	-0.68	0.91
+phowhisper-small	1	1	6	thích thú thích thú thích thú	thích thú thích thú thích thú.	0.00	-0.59	1.50
+phowhisper-small	1	1	3	thích thú thực	thích thú thực.	0.00	-0.77	0.73
+phowhisper-small	1	1	6	thích truyền thức dậy tên lửa	thích truyền thức dậy tên lửa.	0.00	-0.71	0.78
+phowhisper-small	1	1	11	thôi a a a a a a a a a t	thôi. a. a. a. a. a. a. a. a. a. t.	0.00	-0.66	1.80
+phowhisper-small	1	1	10	thôi a phủ có thể xảy ra tình tiết khác	thôi. a phủ có thể xảy ra tình tiết khác.	0.00	-0.63	0.85
+phowhisper-small	1	1	2	thôi thôi	thôi thôi.	0.00	-0.74	0.67
+phowhisper-small	1	1	18	thôi thôi thôi a a a a a a a a a a a a a a a	thôi thôi thôi. a a a a a a a a a a a a a a a.	0.00	-0.52	2.23
+phowhisper-small	1	1	9	thôi tí truy cập thể thao cho các em	thôi tí truy cập thể thao cho các em.	0.00	-0.50	0.88
+phowhisper-small	1	1	11	thôi tôi có thể thay tó vấn đề như thế nào	thôi tôi có thể thay tó vấn đề như thế nào.	0.00	-0.64	0.95
+phowhisper-small	1	1	19	thôi tôi cười mệt mỏi thế này không hề có sự cười mệt mà không có tâm lý gì	thôi tôi cười mệt mỏi thế này không hề có sự cười mệt mà không có tâm lý gì.	0.00	-0.61	1.19
+phowhisper-small	1	1	6	thôi tôi cầm điện thoại thông	thôi tôi cầm điện thoại thông.	0.00	-0.65	0.89
+phowhisper-small	1	1	10	thôi tôi ngồi dậy ngồi dậy mời quên lấy tiền	thôi tôi ngồi dậy ngồi dậy mời quên lấy tiền.	0.00	-0.74	1.09
+phowhisper-small	1	1	1	thông	thông.	0.00	-0.98	0.47
+phowhisper-small	1	1	1	thơ	thơ.	0.00	-0.71	0.38
+phowhisper-small	1	1	11	thương mại tâm thần thần tượng lãng mạn tâm thần tượng	thương mại tâm thần thần tượng lãng mạn tâm thần tượng.	0.00	-0.60	1.36
+phowhisper-small	1	1	15	thương nhau trong tình trạng tâm thần tượng thất bại của bộ đội nhà nước	thương nhau trong tình trạng tâm thần tượng thất bại của bộ đội nhà nước.	0.00	-0.61	1.04
+phowhisper-small	1	1	11	thương nhau trong tình yêu thương trong tình yêu thương nhau	thương nhau trong tình yêu thương trong tình yêu thương nhau.	0.00	-0.58	1.58
+phowhisper-small	1	1	16	thường xuyên tổ chức tổ chức thi công thiên lửa tổ chức tổ chức thi công	thường xuyên tổ chức tổ chức thi công thiên lửa tổ chức tổ chức thi công.	0.00	-0.47	1.63
+phowhisper-small	1	1	14	thường xuyên tổ chức tổ chức truyền thống trump tính toán trưởng trong nước	thường xuyên tổ chức tổ chức truyền thống trump tính toán trưởng trong nước.	0.00	-0.53	1.19
+phowhisper-small	1	1	16	thường xuyên tổ chức tổ chức truyền tải thể thao tổ chức tổ chức triển khai	thường xuyên tổ chức tổ chức truyền tải thể thao tổ chức tổ chức triển khai.	0.00	-0.45	1.46
+phowhisper-small	1	1	13	thường xuyên tổ chức tổ chức tài chính trị thống nhất đất nước	thường xuyên tổ chức tổ chức tài chính trị thống nhất đất nước.	0.00	-0.51	1.13
+phowhisper-small	1	1	13	thường xuyên tổ chức tổ chức tập trung thủ tướng nguyễn minh châu	thường xuyên tổ chức tổ chức tập trung thủ tướng nguyễn minh châu.	0.00	-0.54	1.11
+phowhisper-small	1	1	15	thường xuyên tổ chức tổ chức tổ chức tổ chức tổ chức tổng kinh nghiệm	thường xuyên tổ chức tổ chức tổ chức tổ chức tổ chức tổng kinh nghiệm.	0.00	-0.44	1.75
+phowhisper-small	1	1	8	thạch tình tình tình tình tình dân tộc	thạch tình tình tình tình tình dân tộc.	0.00	-0.55	1.44
+phowhisper-small	1	1	2	thất bại	thất bại.	0.00	-0.92	0.62
+phowhisper-small	1	1	9	thận tội nghiệp truyền thống tổng thống miền nam	thận tội nghiệp truyền thống tổng thống miền nam.	0.00	-0.59	1.08
+phowhisper-small	1	1	2	thập niên	thập niên.	0.00	-0.90	0.62
+phowhisper-small	1	1	3	thật ngạc nhiên	thật ngạc nhiên.	0.00	-0.79	0.70
+phowhisper-small	1	1	13	thật ngạc nhiên của anh khiến khán giả ngạc nhiên không thông tin	thật ngạc nhiên của anh khiến khán giả ngạc nhiên không thông tin.	0.00	-0.60	1.17
+phowhisper-small	1	1	11	thật ngạc nhiên khi tham gia các cuộc thi mới thoại	thật ngạc nhiên khi tham gia các cuộc thi mới thoại.	0.00	-0.70	0.94
+phowhisper-small	1	1	11	thật ngạc nhiên tôi không quên nhau mỗi khi nghe nhạc	thật ngạc nhiên tôi không quên nhau mỗi khi nghe nhạc.	0.00	-0.60	0.99
+phowhisper-small	1	1	9	thật ngạc nhiên và tự hào về cuộc sống	thật ngạc nhiên và tự hào về cuộc sống.	0.00	-0.56	0.83
+phowhisper-small	1	1	5	thật sự thích thú thế	thật sự thích thú thế.	0.00	-0.74	0.86
+phowhisper-small	1	1	4	thật sự tối đa	thật sự tối đa.	0.00	-0.84	0.71
+phowhisper-small	1	1	7	thật sự tốt trong việc chụp ảnh	thật sự tốt trong việc chụp ảnh.	0.00	-0.68	0.80
+phowhisper-small	1	1	7	thế giới thiệu truyền hình thành công	thế giới thiệu truyền hình thành công.	0.00	-0.57	0.89
+phowhisper-small	1	1	6	thế giới thiệu tình tiếp theo	thế giới thiệu tình tiếp theo.	0.00	-0.54	0.89
+phowhisper-small	1	1	17	thế mà có thể thực hiện các thông tin có thể thực hiện tác động thể thao	thế mà có thể thực hiện các thông tin có thể thực hiện tác động thể thao.	0.00	-0.57	1.38
+phowhisper-small	1	1	9	thế mục đích thì thế sáu chục mét vuông	thế mục đích thì thế sáu chục mét vuông.	0.00	-0.77	0.95
+phowhisper-small	1	1	17	thế nhưng tôi mong các tổ chức đám cháy hiệu quả lớn và hiệu quả lớn nhất	thế nhưng tôi mong các tổ chức đám cháy hiệu quả lớn và hiệu quả lớn nhất.	0.00	-0.58	1.11
+phowhisper-small	1	1	14	thị trường bảo mật dân tộc dân chủ nhân dân chủ nhân triều tiên	thị trường bảo mật dân tộc dân chủ nhân dân chủ nhân triều tiên.	0.00	-0.52	1.16
+phowhisper-small	1	1	7	thị trường bảo mật độc lập tức	thị trường bảo mật độc lập tức.	0.00	-0.66	0.84
+phowhisper-small	1	1	4	thị trường tiếp theo	thị trường tiếp theo.	0.00	-0.75	0.76
+phowhisper-small	1	1	9	thị trường truyền hình thành phố hồ chí minh	thị trường truyền hình thành phố hồ chí minh.	0.00	-0.51	0.92
+phowhisper-small	1	1	11	thời gian qua từng chiến lược chiến tranh xâm lao động	thời gian qua từng chiến lược chiến tranh xâm lao động.	0.00	-0.74	0.96
+phowhisper-small	1	1	14	thủ tướng nguyễn minh châu triều tiên ủng hộ quốc gia đông nam á	thủ tướng nguyễn minh châu triều tiên ủng hộ quốc gia đông nam á.	0.00	-0.52	0.94
+phowhisper-small	1	1	10	tin nhắn tin cho các bạn chí hướng vô sản	tin nhắn tin cho các bạn chí hướng vô sản.	0.00	-0.79	0.89
+phowhisper-small	1	1	20	tin nhắn tình tình của người tổ chức tiếp theo cô đơn cho ban giám khảo công nghệ trung quốc	tin nhắn tình tình của người tổ chức tiếp theo cô đơn cho ban giám khảo công nghệ trung quốc.	0.00	-0.62	1.02
+phowhisper-small	1	1	6	tin tức từng điểm tựa thi	tin tức từng điểm tựa thi.	0.00	-0.81	0.90
+phowhisper-small	1	1	15	tiếp theo có dấu hiệu của thị trường lệ tiếp tục xây dựng nhà hàng	tiếp theo có dấu hiệu của thị trường lệ tiếp tục xây dựng nhà hàng.	0.00	-0.60	1.00
+phowhisper-small	1	1	23	tiếp theo có thể các công trình xã hội bảo vệ tổ chức tín hiệu bảo vệ tín hiệu bảo vệ máy bay	tiếp theo có thể các công trình xã hội bảo vệ tổ chức tín hiệu bảo vệ tín hiệu bảo vệ máy bay.	0.00	-0.53	1.27
+phowhisper-small	1	1	20	tiếp theo có thể các công trình xã hội hoàn toàn tỉnh và công ty quản lý đều thay đổi	tiếp theo có thể các công trình xã hội hoàn toàn tỉnh và công ty quản lý đều thay đổi.	0.00	-0.52	1.09
+phowhisper-small	1	1	21	tiếp theo có thể các công trình xã hội tâm tư thế mạnh mẽ và tâm tư tiếp tục thay đổi	tiếp theo có thể các công trình xã hội tâm tư thế mạnh mẽ và tâm tư tiếp tục thay đổi.	0.00	-0.50	1.12
+phowhisper-small	1	1	18	tiếp theo có thể dính líu đến tình trạng tác động âm nhạc và tác động âm nhạc	tiếp theo có thể dính líu đến tình trạng tác động âm nhạc và tác động âm nhạc.	0.00	-0.43	1.23
+phowhisper-small	1	1	21	tiếp theo có thể làm bạn bị bệnh hoặc bệnh tim mạch do ung thư và chất dinh dưỡng thấp hơn	tiếp theo có thể làm bạn bị bệnh hoặc bệnh tim mạch do ung thư và chất dinh dưỡng thấp hơn.	0.00	-0.55	1.06
+phowhisper-small	1	1	17	tiếp theo có thể làm sạch các tội phạm gia tăng các tội phạm gia tăng hơn	tiếp theo có thể làm sạch các tội phạm gia tăng các tội phạm gia tăng hơn.	0.00	-0.47	1.27
+phowhisper-small	1	1	18	tiếp theo có thể tăng tốc độ tội phạm gia tăng tốc độ tội phạm gia tăng hơn	tiếp theo có thể tăng tốc độ tội phạm gia tăng tốc độ tội phạm gia tăng hơn.	0.00	-0.39	1.47
+phowhisper-small	1	1	21	tiếp theo có thể tăng tội phân tích trong và tham gia các công ty và các đảng cộng sản khác	tiếp theo có thể tăng tội phân tích trong và tham gia các công ty và các đảng cộng sản khác.	0.00	-0.49	1.10
+phowhisper-small	1	1	21	tiếp theo có thể xảy ra các vấn đề quân sự khác nhau trong các vấn đề quân sự khác nhau	tiếp theo có thể xảy ra các vấn đề quân sự khác nhau trong các vấn đề quân sự khác nhau.	0.00	-0.49	1.37
+phowhisper-small	1	1	24	tiếp theo có thể xảy ra sự tái tạo doanh nghiệp doanh thái và các công tác đang tiếp tục tiếp tục sau đó	tiếp theo có thể xảy ra sự tái tạo doanh nghiệp doanh thái và các công tác đang tiếp tục tiếp tục sau đó.	0.00	-0.49	1.18
+phowhisper-small	1	1	8	tiếp theo ntiếp theo ntiếp theo ntiếp tục	tiếp theo.ntiếp theo.ntiếp theo.ntiếp tục.	0.00	-0.40	1.79
+phowhisper-small	1	1	7	toàn tập truyền thông tình truyền hình	toàn tập truyền thông tình truyền hình.	0.00	-0.59	1.07
+phowhisper-small	1	1	15	toàn xin tất cả các em không thân mến cho cô trong các buổi sáng	toàn xin tất cả các em không thân mến cho cô trong các buổi sáng.	0.00	-0.86	0.94
+phowhisper-small	1	1	9	triển lãm triển khai thác trong phim truyện ngắn	triển lãm triển khai thác trong phim truyện ngắn.	0.00	-0.45	0.98
+phowhisper-small	1	1	12	triển lãm triển mục tiêu thị toán phát triển triển mở cửa	triển lãm triển mục tiêu thị toán phát triển triển mở cửa.	0.00	-0.48	1.16
+phowhisper-small	1	1	8	triển lãm đạo tỉnh quảng ninh cho biết	triển lãm đạo tỉnh quảng ninh cho biết.	0.00	-0.52	0.85
+phowhisper-small	1	1	16	trong bệnh viện điện ngầm có thể do truyền thông trả giá nguyên liệu thấp hơn	trong bệnh viện điện ngầm có thể do truyền thông trả giá nguyên liệu thấp hơn.	0.00	-0.60	1.03
+phowhisper-small	1	1	9	trong nhạc sĩ nguyễn thị ngọc minh châu âu	trong nhạc sĩ nguyễn thị ngọc minh châu âu.	0.00	-0.58	0.89
+phowhisper-small	1	1	5	trong phim truyện tình tiên	trong phim truyện tình tiên.	0.00	-0.69	0.80
+phowhisper-small	1	1	17	trong tai nạn có thể tham dự các tai nạn khác trong các tai nạn khác nhau	trong tai nạn có thể tham dự các tai nạn khác trong các tai nạn khác nhau.	0.00	-0.45	1.44
+phowhisper-small	1	1	12	trong tai nạn có thể thực hiện điều dưỡng tổng thống trump	trong tai nạn có thể thực hiện điều dưỡng tổng thống trump.	0.00	-0.52	1.03
+phowhisper-small	1	1	14	trong tai nạn có thể tổ chức tai nạn hoặc thực hiện tai nạn	trong tai nạn có thể tổ chức tai nạn hoặc thực hiện tai nạn.	0.00	-0.59	1.18
+phowhisper-small	1	1	17	trong tai nạn có thể tổ chức tài liệu tài liệu tài liệu cho các tài xế	trong tai nạn có thể tổ chức tài liệu tài liệu tài liệu cho các tài xế.	0.00	-0.45	1.27
+phowhisper-small	1	1	18	trong tai nạn có thể tổ chức tài liệu tài liệu tài liệu tài liệu tài liệu tiếng	trong tai nạn có thể tổ chức tài liệu tài liệu tài liệu tài liệu tài liệu tiếng.	0.00	-0.42	1.58
+phowhisper-small	1	1	14	trong tay vợ chồng anh cũng tập luyện tập luyện tập luyện tập luyện	trong tay vợ chồng anh cũng tập luyện tập luyện tập luyện tập luyện.	0.00	-0.49	1.62
+phowhisper-small	1	1	14	trong tay vợ chồng cô mang một đồng hồn gối dày nhỏ cho bà	trong tay vợ chồng cô mang một đồng hồn gối dày nhỏ cho bà.	0.00	-0.78	1.03
+phowhisper-small	1	1	13	trong truyện ngắn hình thân mật nguyễn thị ngọc trực tại việt nam	trong truyện ngắn hình thân mật nguyễn thị ngọc trực tại việt nam.	0.00	-0.46	1.00
+phowhisper-small	1	1	7	trong truyện ngắn truyện ngắn truyện ngắn	trong truyện ngắn truyện ngắn truyện ngắn.	0.00	-0.61	1.69
+phowhisper-small	1	1	8	trong tình trạng trên tình trạng tâm trạng	trong tình trạng trên tình trạng tâm trạng.	0.00	-0.61	1.36
+phowhisper-small	1	1	15	trong tình trạng tái tạo thông tin công ty thông tin quốc tế vẫn còn	trong tình trạng tái tạo thông tin công ty thông tin quốc tế vẫn còn.	0.00	-0.51	1.21
+phowhisper-small	1	1	68	trong túi giày thôi miệng là giày cầm tóc thịt từng màu trắng tạo màu trắng tạo thành tích tuổi tối thị trẻ thiếu thời gian tính đến tháng mười tới tháng mười tới tháng tại nhà thiếu thời gian tính đến đại sư năm tại nhà thiếu thời gian tính đến đại sư năm tại nhà thiếu thời gian tính đến đại sư năm năm mưu đề	trong túi giày thôi miệng là giày cầm tóc thịt từng màu trắng tạo màu trắng tạo thành tích tuổi tối thị trẻ thiếu thời gian tính đến tháng mười tới tháng mười tới tháng tại nhà thiếu thời gian tính đến đại sư năm tại nhà thiếu thời gian tính đến đại sư năm tại nhà thiếu thời gian tính đến đại sư năm năm mưu đề.	0.00	-0.55	2.33
+phowhisper-small	1	1	11	truy cập tỷ truyền thông thông thông thông thông thông thông	truy cập tỷ truyền thông thông thông thông thông thông thông.	0.00	-0.46	1.76
+phowhisper-small	1	1	11	truyền thông thoại tình hình truyền tình thoại tình thoại nga	truyền thông thoại tình hình truyền tình thoại tình thoại nga.	0.00	-0.36	1.45
+phowhisper-small	1	1	16	truyền thông thoại về tổ chức tổ chức truyền thông thoại về tổ chức triển lãm	truyền thông thoại về tổ chức tổ chức truyền thông thoại về tổ chức triển lãm.	0.00	-0.40	1.67
+phowhisper-small	1	1	15	truyền thông tin nguyễn thị thái tổng bí thư giám đốc cộng sản việt nam	truyền thông tin nguyễn thị thái tổng bí thư giám đốc cộng sản việt nam.	0.00	-0.45	0.98
+phowhisper-small	1	1	12	truyền thông triều tiên đề nghị đòi hỏi tình trạng tội nghiệp	truyền thông triều tiên đề nghị đòi hỏi tình trạng tội nghiệp.	0.00	-0.46	1.01
+phowhisper-small	1	1	10	truyền thông trên mạng xã hội nguyễn thị ngọc minh	truyền thông trên mạng xã hội nguyễn thị ngọc minh.	0.00	-0.53	0.96
+phowhisper-small	1	1	10	truyền thông trên thông minh a phủ nguyễn thị ngọc	truyền thông trên thông minh a phủ nguyễn thị ngọc.	0.00	-0.52	1.05
+phowhisper-small	1	1	14	truyền thông trên thông minh nguyễn thiện chứng minh nguyễn hồng quốc thiên nhiên	truyền thông trên thông minh nguyễn thiện chứng minh nguyễn hồng quốc thiên nhiên.	0.00	-0.50	1.35
+phowhisper-small	1	1	7	truyền thông trên thông trọng truyền hình	truyền thông trên thông trọng truyền hình.	0.00	-0.59	1.21
+phowhisper-small	1	1	11	truyền thông trên thông trọng truyền hình thông trọng sản xuất	truyền thông trên thông trọng truyền hình thông trọng sản xuất.	0.00	-0.46	1.38
+phowhisper-small	1	1	11	truyền thông trên thông trọng truyền hình trồng xe hoa đông	truyền thông trên thông trọng truyền hình trồng xe hoa đông.	0.00	-0.49	1.23
+phowhisper-small	1	1	13	truyền thông trên thông trọng tài chính là phiên bản trưởng tiền tàng	truyền thông trên thông trọng tài chính là phiên bản trưởng tiền tàng.	0.00	-0.58	1.13
+phowhisper-small	1	1	10	truyền thông trên thông trọng tài liệu quả tác động	truyền thông trên thông trọng tài liệu quả tác động.	0.00	-0.48	1.03
+phowhisper-small	1	1	12	truyền thông trên thảm sát tổng thống trump tính kỷ thủ đảng	truyền thông trên thảm sát tổng thống trump tính kỷ thủ đảng.	0.00	-0.51	1.01
+phowhisper-small	1	1	10	truyền thông trên toàn quốc hội bảo hiểm triển lãm	truyền thông trên toàn quốc hội bảo hiểm triển lãm.	0.00	-0.53	0.92
+phowhisper-small	1	1	10	truyền thông trên đại hội đồng quản lý trung quốc	truyền thông trên đại hội đồng quản lý trung quốc.	0.00	-0.56	0.97
+phowhisper-small	1	1	12	truyền thông trên đại hội đồng quản lý trực tiếp giáp định	truyền thông trên đại hội đồng quản lý trực tiếp giáp định.	0.00	-0.56	0.95
+phowhisper-small	1	1	13	truyền thông trên đại hội đồng quản lý trực tiếp tục quảng bình	truyền thông trên đại hội đồng quản lý trực tiếp tục quảng bình.	0.00	-0.53	0.98
+phowhisper-small	1	1	19	truyền thông trên đại hội đồng quản lý trực tiếp đối với chủ động quản lý quản lý này	truyền thông trên đại hội đồng quản lý trực tiếp đối với chủ động quản lý quản lý này.	0.00	-0.52	1.20
+phowhisper-small	1	1	13	truyền thông tình trong tai nạn có thể truyền tình trong tai nạn	truyền thông tình trong tai nạn có thể truyền tình trong tai nạn.	0.00	-0.53	1.32
+phowhisper-small	1	1	16	truyền thông tình trách nhiệm về tình trạng tâm trí và tâm trạng trên đất nước	truyền thông tình trách nhiệm về tình trạng tâm trí và tâm trạng trên đất nước.	0.00	-0.50	1.14
+phowhisper-small	1	1	5	truyền thông tình tuyển công	truyền thông tình tuyển công.	0.00	-0.64	0.90
+phowhisper-small	1	1	15	truyền thông tốt truyền hình tăng trưởng tình cảm thông tình cảm với người ta	truyền thông tốt truyền hình tăng trưởng tình cảm thông tình cảm với người ta.	0.00	-0.54	1.26
+phowhisper-small	1	1	10	truyền thông tốt truyền hình tốt truyền tốt truyền hình	truyền thông tốt truyền hình tốt truyền tốt truyền hình.	0.00	-0.49	1.66
+phowhisper-small	1	1	13	truyền thông tốt truyền hình tốt truyền tốt truyền hình tốt truyền hình	truyền thông tốt truyền hình tốt truyền tốt truyền hình tốt truyền hình.	0.00	-0.43	2.04
+phowhisper-small	1	1	11	truyền thông tốt truyền thông tốt truyền thông tốt tồn tại	truyền thông tốt truyền thông tốt truyền thông tốt tồn tại.	0.00	-0.46	1.77
+phowhisper-small	1	1	12	truyền thông tốt truyền thông tốt truyền tốt truyền tốt truyền hình	truyền thông tốt truyền thông tốt truyền tốt truyền tốt truyền hình.	0.00	-0.31	2.12
+phowhisper-small	1	1	12	truyền thông tốt truyền thông tốt tổng bí thư tỉnh bình đẳng	truyền thông tốt truyền thông tốt tổng bí thư tỉnh bình đẳng.	0.00	-0.44	1.27
+phowhisper-small	1	1	19	truyền thông tốt trên cán bộ tươi sáng trị trong cán bộ tươi tác miễn phí cho tài xế	truyền thông tốt trên cán bộ tươi sáng trị trong cán bộ tươi tác miễn phí cho tài xế.	0.00	-0.72	1.09
+phowhisper-small	1	1	13	truyền thông tốt tác giả thiệu tổng bí thư thế giới thông tin	truyền thông tốt tác giả thiệu tổng bí thư thế giới thông tin.	0.00	-0.45	1.07
+phowhisper-small	1	1	9	truyền thông tốt tác phẩm dòng lãnh thổ nhất	truyền thông tốt tác phẩm dòng lãnh thổ nhất.	0.00	-0.61	0.89
+phowhisper-small	1	1	12	truyền thông tốt tác phẩm dòng lãnh đạo tổng thống mỹ lâm	truyền thông tốt tác phẩm dòng lãnh đạo tổng thống mỹ lâm.	0.00	-0.52	0.97
+phowhisper-small	1	1	13	truyền thông tốt tình cảm thông tốt tình cảm thông trên khán đài	truyền thông tốt tình cảm thông tốt tình cảm thông trên khán đài.	0.00	-0.48	1.35
+phowhisper-small	1	1	15	truyền thông tốt tình cảm tình cảm tình cảm tình cảm tình cảm tình cảm	truyền thông tốt tình cảm tình cảm tình cảm tình cảm tình cảm tình cảm.	0.00	-0.36	2.09
+phowhisper-small	1	1	17	truyền thông tốt tình cảm tình cảm tình cảm tình cảm tình cảm tình cảm tình cảm	truyền thông tốt tình cảm tình cảm tình cảm tình cảm tình cảm tình cảm tình cảm.	0.00	-0.36	2.36
+phowhisper-small	1	1	15	truyền thông tốt tình cảm tình yêu tốt tình cảm tình yêu tình tình tình	truyền thông tốt tình cảm tình yêu tốt tình cảm tình yêu tình tình tình.	0.00	-0.43	1.67
+phowhisper-small	1	1	8	truyền thông tốt tình hình trong tình hình	truyền thông tốt tình hình trong tình hình.	0.00	-0.54	1.11
+phowhisper-small	1	1	12	truyền thông tốt tình hình trong tình trình thế giới thứ hai	truyền thông tốt tình hình trong tình trình thế giới thứ hai.	0.00	-0.54	1.12
+phowhisper-small	1	1	10	truyền thông tốt tình hình truyền hình tại đà nẵng	truyền thông tốt tình hình truyền hình tại đà nẵng.	0.00	-0.51	1.08
+phowhisper-small	1	1	12	truyền thông tốt tình hình truyền tình trong tình trình thế giới	truyền thông tốt tình hình truyền tình trong tình trình thế giới.	0.00	-0.42	1.29
+phowhisper-small	1	1	13	truyền thông tốt tình hình truyền tình truyền tình truyền tình truyền tình	truyền thông tốt tình hình truyền tình truyền tình truyền tình truyền tình.	0.00	-0.41	2.04
+phowhisper-small	1	1	12	truyền thông tốt tình hình và tâm trạng tình dục tên lửa	truyền thông tốt tình hình và tâm trạng tình dục tên lửa.	0.00	-0.46	1.01
+phowhisper-small	1	1	16	truyền thông tốt tổng bí thư trung quốc triều tiên thành lập tổ chức thiên tai	truyền thông tốt tổng bí thư trung quốc triều tiên thành lập tổ chức thiên tai.	0.00	-0.44	1.11
+phowhisper-small	1	1	17	truyền thông tốt tổng bí thư trung quốc triều tiên xin tổng bí thư trung quốc triều	truyền thông tốt tổng bí thư trung quốc triều tiên xin tổng bí thư trung quốc triều.	0.00	-0.46	1.49
+phowhisper-small	1	1	15	truyền thông tốt tổng bí thư tín hiệu tổng bí thư tín hiệu quốc tế	truyền thông tốt tổng bí thư tín hiệu tổng bí thư tín hiệu quốc tế.	0.00	-0.40	1.36
+phowhisper-small	1	1	10	truyền thông tốt tổng bí thư tỉnh bình dương thủ	truyền thông tốt tổng bí thư tỉnh bình dương thủ.	0.00	-0.53	1.02
+phowhisper-small	1	1	13	truyền thông tốt tổng bộ tổng thống trump tính tới tổng triều tiên	truyền thông tốt tổng bộ tổng thống trump tính tới tổng triều tiên.	0.00	-0.39	1.19
+phowhisper-small	1	1	15	truyền thông tốt về tác phẩm và tác dụng kiến nghị luận của tác giả	truyền thông tốt về tác phẩm và tác dụng kiến nghị luận của tác giả.	0.00	-0.53	1.00
+phowhisper-small	1	1	8	truyền tình truyền giải đấu tại đà nẵng	truyền tình truyền giải đấu tại đà nẵng.	0.00	-0.51	0.97
+phowhisper-small	1	1	36	trào vì trào vệ sinh in an áo a lát mây đinh thuốc là sinh ở khu huệ lao gom theo huệ xi ti sinh hoa cốt phước theo huệ sinh uếch nịch từ sin hệ	trào vì trào vệ sinh in an áo a lát mây đinh thuốc là sinh ở khu huệ lao gom theo huệ xi ti sinh hoa cốt phước theo huệ sinh uếch nịch từ sin hệ.	0.00	-0.48	1.28
+phowhisper-small	1	1	21	trình báo chí tổ chức thi công an ninh bộ công an đã xây dựng và phát triển đảng cộng sản	trình báo chí tổ chức thi công an ninh bộ công an đã xây dựng và phát triển đảng cộng sản.	0.00	-0.48	1.07
+phowhisper-small	1	1	10	trình độ thông tin công ty quản lý doanh nghiệp	trình độ thông tin công ty quản lý doanh nghiệp.	0.00	-0.54	0.94
+phowhisper-small	1	1	3	trò đồng nghiệp	trò đồng nghiệp.	0.00	-0.82	0.71
+phowhisper-small	1	1	13	tuy nhiên không thể không thăng tầy đèn phím tới đèn phím sáng	tuy nhiên không thể không thăng tầy đèn phím tới đèn phím sáng.	0.00	-0.64	1.19
+phowhisper-small	1	1	13	tuy nhiên không thể ngăn chặn tội phạm gia tăng tội nghiệp tươi	tuy nhiên không thể ngăn chặn tội phạm gia tăng tội nghiệp tươi.	0.00	-0.59	0.96
+phowhisper-small	1	1	13	tuy nhiên tôi không thể tâm sự về vấn đề từ chính mình	tuy nhiên tôi không thể tâm sự về vấn đề từ chính mình.	0.00	-0.67	0.93
+phowhisper-small	1	1	15	tá náy tính tính dáng tốt tác động tốt tác động dáng tác động dáng	tá náy tính tính dáng tốt tác động tốt tác động dáng tác động dáng.	0.00	-0.56	1.70
+phowhisper-small	1	1	10	tác phẩm dự án tác phẩm tác phẩm tác luận	tác phẩm dự án tác phẩm tác phẩm tác luận.	0.00	-0.55	1.36
+phowhisper-small	1	1	16	tác phẩm giao thông ban đầu tác phẩm giao thông ban đầu tác phẩm giao tác	tác phẩm giao thông ban đầu tác phẩm giao thông ban đầu tác phẩm giao tác.	0.00	-0.40	1.84
+phowhisper-small	1	1	5	tách tách tách tách tách	tách tách tách tách tách.	0.00	-0.52	1.67
+phowhisper-small	1	1	8	tách tách tách tách tách tách ta ta	tách tách tách tách tách tách ta ta.	0.00	-0.49	2.10
+phowhisper-small	1	1	7	táp táp táp táp táp táp táp	táp táp táp táp táp táp táp.	0.00	-0.48	2.06
+phowhisper-small	1	1	8	táp táp táp táp táp táp táp táp	táp táp táp táp táp táp táp táp.	0.00	-0.35	2.35
+phowhisper-small	1	1	13	téc tri mệnh tuyệt vời tổng bí thư tỉnh bạc liên triều tiên	téc tri mệnh tuyệt vời tổng bí thư tỉnh bạc liên triều tiên.	0.00	-0.56	0.98
+phowhisper-small	1	1	12	téc triệu tác tác tác tác tác tác tác tác tác tác	téc triệu tác tác tác tác tác tác tác tác tác tác.	0.00	-0.32	2.25
+phowhisper-small	1	1	13	téc truyền thông tốt trên các tàu ngầm gia tăng gia tăng tê	téc truyền thông tốt trên các tàu ngầm gia tăng gia tăng tê.	0.00	-0.47	1.01
+phowhisper-small	1	1	13	téc túc thần thần tượng tác động thần tác động thần tác động	téc túc thần thần tượng tác động thần tác động thần tác động.	0.00	-0.45	1.72
+phowhisper-small	1	1	10	tên là nguyễn thị ngọc quỳnh anh lưu tên tuổi	tên là nguyễn thị ngọc quỳnh anh lưu tên tuổi.	0.00	-0.58	0.94
+phowhisper-small	1	1	16	tên là quốc gia có tên lửa nhất thế giới lào cairo làng tiên tiên niên	tên là quốc gia có tên lửa nhất thế giới lào cairo làng tiên tiên niên.	0.00	-0.60	1.11
+phowhisper-small	1	1	15	tên là tên tuổi và tên lửa tên lửa cũng là tên lửa trực tiếp	tên là tên tuổi và tên lửa tên lửa cũng là tên lửa trực tiếp.	0.00	-0.49	1.37
+phowhisper-small	1	1	14	tên là xã đông nam cư dân đối với đảng cộng sản đảng đảng	tên là xã đông nam cư dân đối với đảng cộng sản đảng đảng.	0.00	-0.70	1.14
+phowhisper-small	1	1	19	tên tuổi thọ xuất hiện theo công ty tiếp theo sau đại sứ quán mỹ tiếp tục thành công	tên tuổi thọ xuất hiện theo công ty tiếp theo sau đại sứ quán mỹ tiếp tục thành công.	0.00	-0.65	1.05
+phowhisper-small	1	1	12	tình tiết kiểm điểm trình diễn ra tại đại học quản lý	tình tiết kiểm điểm trình diễn ra tại đại học quản lý.	0.00	-0.50	1.04
+phowhisper-small	1	1	16	tình tiết lập tổ chức xã hội đông đảo tỉnh quảng ninh mô hình đông đảo	tình tiết lập tổ chức xã hội đông đảo tỉnh quảng ninh mô hình đông đảo.	0.00	-0.60	1.14
+phowhisper-small	1	1	10	tình tiết lộ tình tiết lộ tình tiết lộn lại	tình tiết lộ tình tiết lộ tình tiết lộn lại.	0.00	-0.54	1.65
+phowhisper-small	1	1	10	tình tiết sáng tạo thế giới tiếp theo chiến tranh	tình tiết sáng tạo thế giới tiếp theo chiến tranh.	0.00	-0.53	0.98
+phowhisper-small	1	1	12	tình tiết truyền hình thông thoại tài liệu tài liệu quản lý	tình tiết truyền hình thông thoại tài liệu tài liệu quản lý.	0.00	-0.51	1.08
+phowhisper-small	1	1	7	tình tiết truyền hình trong tài liệu	tình tiết truyền hình trong tài liệu.	0.00	-0.74	0.90
+phowhisper-small	1	1	11	tình tiết tập trung vào tình tiết truyền hình thường xuyên	tình tiết tập trung vào tình tiết truyền hình thường xuyên.	0.00	-0.48	1.09
+phowhisper-small	1	1	7	tình trạng triển vọng triển khai tượng	tình trạng triển vọng triển khai tượng.	0.00	-0.69	1.02
+phowhisper-small	1	1	7	tính chính truyền tải về giải pháp	tính chính truyền tải về giải pháp.	0.00	-0.92	0.98
+phowhisper-small	1	1	13	tính cách truyền thông điện ngắn gọn tính cách truyền thông điện ngắn	tính cách truyền thông điện ngắn gọn tính cách truyền thông điện ngắn.	0.00	-0.40	1.48
+phowhisper-small	1	1	17	tính quyền truyền tải quản lý và tác phẩm quản lý cho công tác quản lý này	tính quyền truyền tải quản lý và tác phẩm quản lý cho công tác quản lý này.	0.00	-0.57	1.29
+phowhisper-small	1	1	19	tính toán bảo mật dân tộc thông tin an toàn quản lý và tác dụng quốc gia đông nam	tính toán bảo mật dân tộc thông tin an toàn quản lý và tác dụng quốc gia đông nam.	0.00	-0.54	1.03
+phowhisper-small	1	1	15	tính toán bảo vật công ty đã đặt ra một số hiệp định quan trọng	tính toán bảo vật công ty đã đặt ra một số hiệp định quan trọng.	0.00	-0.72	0.93
+phowhisper-small	1	1	12	tính toán bảo vệ tổ quốc tiếp tục điều tra làm rõ	tính toán bảo vệ tổ quốc tiếp tục điều tra làm rõ.	0.00	-0.60	0.88
+phowhisper-small	1	1	12	tính toán cơ thể của cơ thể vẫn tiếp tục truyền thông	tính toán cơ thể của cơ thể vẫn tiếp tục truyền thông.	0.00	-0.51	1.00
+phowhisper-small	1	1	17	tính toán cơ thể của ngành bảo vệ công tác đại sứ quán gia đông nam á	tính toán cơ thể của ngành bảo vệ công tác đại sứ quán gia đông nam á.	0.00	-0.57	0.97
+phowhisper-small	1	1	15	tính toán cơ thể của nhà nước ban đầu hoặc tính toán tính toán tính	tính toán cơ thể của nhà nước ban đầu hoặc tính toán tính toán tính.	0.00	-0.53	1.17
+phowhisper-small	1	1	14	tính toán cơ thể của nhà nước chiếm đoạt động thống nhất đất nước	tính toán cơ thể của nhà nước chiếm đoạt động thống nhất đất nước.	0.00	-0.56	1.04
+phowhisper-small	1	1	16	tính toán cơ thể của trẻ em khiến trẻ em thất bại và thói quen nhau	tính toán cơ thể của trẻ em khiến trẻ em thất bại và thói quen nhau.	0.00	-0.58	0.99
+phowhisper-small	1	1	16	tính toán thuyền trách nhiệm về tình trạng tâm tư thế giới trong các thông tin	tính toán thuyền trách nhiệm về tình trạng tâm tư thế giới trong các thông tin.	0.00	-0.57	1.03
+phowhisper-small	1	1	14	tính toán thuyền trưởng trong và theo khuynh hướng vô sản ở việt nam	tính toán thuyền trưởng trong và theo khuynh hướng vô sản ở việt nam.	0.00	-0.51	1.04
+phowhisper-small	1	1	21	tính toán trách nhiệm của các tác phẩm do các tác phẩm mỹ hoàn toàn tạo ra đối tượng quan trọng	tính toán trách nhiệm của các tác phẩm do các tác phẩm mỹ hoàn toàn tạo ra đối tượng quan trọng.	0.00	-0.72	1.14
+phowhisper-small	1	1	13	tính toán trị phạt không tính toán do công ty quản lý này	tính toán trị phạt không tính toán do công ty quản lý này.	0.00	-0.69	1.04
+phowhisper-small	1	1	11	tính toán tài chính truyền tải bảo vệ tài xếp hạng	tính toán tài chính truyền tải bảo vệ tài xếp hạng.	0.00	-0.56	1.01
+phowhisper-small	1	1	16	tính toán tài chính truyền tải công cộng về tài chính trước khi tới thành công	tính toán tài chính truyền tải công cộng về tài chính trước khi tới thành công.	0.00	-0.62	1.20
+phowhisper-small	1	1	17	tính toán xoay quanh xô và xoay toán toán xã hội chủ nghĩa xã đông nam á	tính toán xoay quanh xô và xoay toán toán xã hội chủ nghĩa xã đông nam á.	0.00	-0.54	1.10
+phowhisper-small	1	1	16	tính toán xác định của xe buýt là xe buýt là xe buýt là xe buýt	tính toán xác định của xe buýt là xe buýt là xe buýt là xe buýt.	0.00	-0.45	1.44
+phowhisper-small	1	1	13	tính tình tiếp theo của cơ thể bạn sắp tính tình tiếp tục	tính tình tiếp theo của cơ thể bạn sắp tính tình tiếp tục.	0.00	-0.37	1.17
+phowhisper-small	1	1	12	tòa tình hình trong tình hình thân mật dân trên đất nước	tòa tình hình trong tình hình thân mật dân trên đất nước.	0.00	-0.60	1.11
+phowhisper-small	1	1	19	tòa án cho thấy thế nào tòa án thì thế nào tòa án thì thế nào tòa án xong	tòa án cho thấy thế nào tòa án thì thế nào tòa án thì thế nào tòa án xong.	0.00	-0.43	1.90
+phowhisper-small	1	1	20	tòa án cho văn bản trước hiệu quả âm nhạc và tình cảm trong giai đoạn trước khi tòa án	tòa án cho văn bản trước hiệu quả âm nhạc và tình cảm trong giai đoạn trước khi tòa án.	0.00	-0.59	1.07
+phowhisper-small	1	1	18	tòa án tổng thống trump tòa án táo trắng tấn công trump tòa án tái quyền tả mình	tòa án tổng thống trump tòa án táo trắng tấn công trump tòa án tái quyền tả mình.	0.00	-0.48	1.27
+phowhisper-small	1	1	2	tóc tóc	tóc tóc.	0.00	-0.91	0.59
+phowhisper-small	1	1	16	tôi muốn các em bắt đầu xem lại bài học và truy cập theo ích nhau	tôi muốn các em bắt đầu xem lại bài học và truy cập theo ích nhau.	0.00	-0.77	0.91
+phowhisper-small	1	1	16	tôi phải rời xa xã đông nên tôi phải rời xa xã đông nên tôi phải	tôi phải rời xa xã đông nên tôi phải rời xa xã đông nên tôi phải.	0.00	-0.42	1.69
+phowhisper-small	1	1	26	tôi trở nên tự tin hơn nhiều khi xem lại đặc biệt sau khi nghe nhạc thì tôi tự tin hơn nhiều hơn nhiều hơn nữa	tôi trở nên tự tin hơn nhiều khi xem lại đặc biệt sau khi nghe nhạc thì tôi tự tin hơn nhiều hơn nhiều hơn nữa.	0.00	-0.66	1.33
+phowhisper-small	1	1	10	tõi tình dục tình trú trong tình trú truyện ngắn	tõi tình dục tình trú trong tình trú truyện ngắn.	0.00	-0.52	1.17
+phowhisper-small	1	1	14	tú nô tú nê nkia nổi tiếng trẻ nhưng không tốn nhiều tiếng cười	tú nô tú nê nkia nổi tiếng trẻ nhưng không tốn nhiều tiếng cười.	0.00	-0.78	1.05
+phowhisper-small	1	1	16	tú tô ta ta ta ta ta ta ta ta ta ta ta ta ta ta	tú tô ta ta ta ta ta ta ta ta ta ta ta ta ta ta.	0.00	-0.39	2.38
+phowhisper-small	1	1	8	tú u phú tú u phú tú unk	tú u phú tú u phú tú unk.	0.00	-0.57	1.30
+phowhisper-small	1	1	20	túi xúc xí nhất là phải uốn lượt theo luồng chân trình màu sắc châu âu trống từ phía trước	túi xúc xí nhất là phải uốn lượt theo luồng chân trình màu sắc châu âu trống từ phía trước.	0.00	-1.05	1.05
+phowhisper-small	1	1	13	tại đây cô nhanh chân tình cảm với nữ diễn viên hiền tảng	tại đây cô nhanh chân tình cảm với nữ diễn viên hiền tảng.	0.00	-0.68	0.94
+phowhisper-small	1	1	15	tất cả các thí sinh đều tham gia thi đấu và thi đấu cho nhau	tất cả các thí sinh đều tham gia thi đấu và thi đấu cho nhau.	0.00	-0.59	1.07
+phowhisper-small	1	1	9	tập kỷ niệm tập kỷ niệm tập kỷ niệm	tập kỷ niệm.tập kỷ niệm.tập kỷ niệm.	0.00	-0.40	1.80
+phowhisper-small	1	1	18	tập luyện cho biết ngay cả khi tập luyện tập luyện tập tục truyền tải quyết tai nạn	tập luyện cho biết ngay cả khi tập luyện tập luyện tập tục truyền tải quyết tai nạn.	0.00	-0.52	1.32
+phowhisper-small	1	1	12	tập luyện ngắn nguồn cung thành tổ chức tổ chức tham gia	tập luyện ngắn nguồn cung thành tổ chức tổ chức tham gia.	0.00	-0.61	1.06
+phowhisper-small	1	1	15	tập luyện thập nhgiờ của cơ sở bảo vệ tài chính trị phần tử vong	tập luyện thập nhgiờ của cơ sở bảo vệ tài chính trị phần tử vong.	0.00	-1.21	0.95
+phowhisper-small	1	1	4	tập luyện thể thao	tập luyện thể thao.	0.00	-0.63	0.78
+phowhisper-small	1	1	26	tập luyện tập luyện tập luyện chăm sóc các tài liệu pháp luật bảo vệ tài liệu quân sự công bố trong nước đập đầu tiên	tập luyện tập luyện tập luyện chăm sóc các tài liệu pháp luật bảo vệ tài liệu quân sự công bố trong nước đập đầu tiên.	0.00	-0.77	1.31
+phowhisper-small	1	1	8	tập luyện tập luyện tập luyện tập luyện	tập luyện tập luyện tập luyện tập luyện.	0.00	-0.46	2.15
+phowhisper-small	1	1	5	tập luyện âm nhạc âm	tập luyện âm nhạc âm.	0.00	-0.64	0.81
+phowhisper-small	1	1	11	tập luyện âm nhạc âm nhạc âm nhạc âm nhạc âm	tập luyện âm nhạc âm nhạc âm nhạc âm nhạc âm.	0.00	-0.53	1.72
+phowhisper-small	1	1	14	tập luyện âm nhạc âm nhạc âm nhạc âm nhạc âm nhạc âm nhạc	tập luyện âm nhạc âm nhạc âm nhạc âm nhạc âm nhạc âm nhạc.	0.00	-0.39	2.22
+phowhisper-small	1	1	15	tập luyện đa khoa tổ chức tổ chức tham gia thi công lập dân tộc	tập luyện đa khoa tổ chức tổ chức tham gia thi công lập dân tộc.	0.00	-0.49	1.11
+phowhisper-small	1	1	3	tập of of	tập. of. of.	0.00	-0.97	0.74
+phowhisper-small	1	1	13	tập tục ngồi bảo tồn các công tác truyền thông trên địa bàn	tập tục ngồi bảo tồn các công tác truyền thông trên địa bàn.	0.00	-0.56	0.99
+phowhisper-small	1	1	17	tập tục ngồi bảo tồn các công tác truyền thông tốt trên các công tác doanh nghiệp	tập tục ngồi bảo tồn các công tác truyền thông tốt trên các công tác doanh nghiệp.	0.00	-0.53	1.19
+phowhisper-small	1	1	10	tập tục ngồi bảo tồn các thông tin liên tiếp	tập tục ngồi bảo tồn các thông tin liên tiếp.	0.00	-0.65	0.90
+phowhisper-small	1	1	11	tập tục ngồi bảo tồn các tập tục ngồi bảo tồn	tập tục ngồi bảo tồn các tập tục ngồi bảo tồn.	0.00	-0.57	1.43
+phowhisper-small	1	1	3	tập tục thôi	tập tục thôi.	0.00	-0.81	0.67
+phowhisper-small	1	1	6	tập tục thôi theo công ty	tập tục thôi theo công ty.	0.00	-0.79	0.80
+phowhisper-small	1	1	17	tập tục triển khai tác giả thông tổ chức các cuộc kháng chiến chống mỹ cứu nước	tập tục triển khai tác giả thông tổ chức các cuộc kháng chiến chống mỹ cứu nước.	0.00	-0.50	1.01
+phowhisper-small	1	1	19	tập tục tìm hiểu rằng tinh thần phân tích công tác giáo dục công tác giáo dục tài sản	tập tục tìm hiểu rằng tinh thần phân tích công tác giáo dục công tác giáo dục tài sản.	0.00	-0.53	1.18
+phowhisper-small	1	1	12	tập tục tìm hiểu về bài học và tập tục truyền bạch	tập tục tìm hiểu về bài học và tập tục truyền bạch.	0.00	-0.53	1.01
+phowhisper-small	1	1	13	tập tục tập tục truy cập tác tập tác tập tác tập tác	tập tục tập tục truy cập tác tập tác tập tác tập tác.	0.00	-0.41	1.97
+phowhisper-small	1	1	13	tập tục tập tục truy cập tục tập tục tập tục tập tục	tập tục tập tục truy cập tục tập tục tập tục tập tục.	0.00	-0.32	2.33
+phowhisper-small	1	1	2	tập đoàn	tập đoàn.	0.00	-0.78	0.59
+phowhisper-small	1	1	6	tập đoàn trên làng châu âu	tập đoàn trên làng châu âu.	0.00	-0.66	0.85
+phowhisper-small	1	1	9	tổng biên giám khảo quốc tế đông nam á	tổng biên giám khảo quốc tế đông nam á.	0.00	-0.59	0.85
+phowhisper-small	1	1	13	tổng bí mật quản lý giải pháp quản lý quản lý đất nước	tổng bí mật quản lý giải pháp quản lý quản lý đất nước.	0.00	-0.59	1.15
+phowhisper-small	1	1	20	tổng bí thư nguyễn thiện chứng minh quốc đã tổng bí thư trưởng thị trường bảo vệ thị trường học	tổng bí thư nguyễn thiện chứng minh quốc đã tổng bí thư trưởng thị trường bảo vệ thị trường học.	0.00	-0.53	1.29
+phowhisper-small	1	1	14	tổng bí thư nguyễn thiện dịch vụ công an quản lý nhà văn đạt	tổng bí thư nguyễn thiện dịch vụ công an quản lý nhà văn đạt.	0.00	-0.62	0.90
+phowhisper-small	1	1	12	tổng bí thư nguyễn thái cẩm phí cho công an thành phố	tổng bí thư nguyễn thái cẩm phí cho công an thành phố.	0.00	-0.48	0.96
+phowhisper-small	1	1	15	tổng bí thư nguyễn thái cẩm phếp hợp đồng nghị luận văn học việt nam	tổng bí thư nguyễn thái cẩm phếp hợp đồng nghị luận văn học việt nam.	0.00	-0.45	0.94
+phowhisper-small	1	1	11	tổng bí thư nguyễn thị giáo dục triều tiên thành phố	tổng bí thư nguyễn thị giáo dục triều tiên thành phố.	0.00	-0.64	0.92
+phowhisper-small	1	1	12	tổng bí thư nguyễn thị giáo dục triều tiên tại việt nam	tổng bí thư nguyễn thị giáo dục triều tiên tại việt nam.	0.00	-0.54	0.91
+phowhisper-small	1	1	15	tổng bí thư nguyễn thị kim ngân dự án tổng bí thư nguyễn minh tuấn	tổng bí thư nguyễn thị kim ngân dự án tổng bí thư nguyễn minh tuấn.	0.00	-0.43	1.21
+phowhisper-small	1	1	17	tổng bí thư nguyễn thị kim ngân dự án tử vong do tử vong do tử vong	tổng bí thư nguyễn thị kim ngân dự án tử vong do tử vong do tử vong.	0.00	-0.45	1.21
+phowhisper-small	1	1	17	tổng bí thư nguyễn thị kim ngân dự án tử vong do vụ tai nạn giao thông	tổng bí thư nguyễn thị kim ngân dự án tử vong do vụ tai nạn giao thông.	0.00	-0.52	0.95
+phowhisper-small	1	1	12	tổng bí thư nguyễn thị kim ngân hàng châu âu thành công	tổng bí thư nguyễn thị kim ngân hàng châu âu thành công.	0.00	-0.58	0.97
+phowhisper-small	1	1	16	tổng bí thư thế tổng bí thư xin tổng bí thư xin tổng bí thư xé	tổng bí thư thế tổng bí thư xin tổng bí thư xin tổng bí thư xé.	0.00	-0.45	2.00
+phowhisper-small	1	1	18	tổng bí thư trung quốc hội bảo vệ tổ quốc hội bảo vệ bảo vệ tổ quốc hội	tổng bí thư trung quốc hội bảo vệ tổ quốc hội bảo vệ bảo vệ tổ quốc hội.	0.00	-0.41	1.65
+phowhisper-small	1	1	20	tổng bí thư trung quốc hội bảo vệ tổ quốc hội bảo vệ tổ quốc hội bảo vệ tổ quốc	tổng bí thư trung quốc hội bảo vệ tổ quốc hội bảo vệ tổ quốc hội bảo vệ tổ quốc.	0.00	-0.35	1.90
+phowhisper-small	1	1	31	tổng bí thư trung quốc tiếp tục điều tra các thông tin an táng tác giám sát truy tìm kiếm các thông tin an toàn khác tại chủ nghĩa trị quan	tổng bí thư trung quốc tiếp tục điều tra các thông tin an táng tác giám sát truy tìm kiếm các thông tin an toàn khác tại chủ nghĩa trị quan.	0.00	-0.51	1.24
+phowhisper-small	1	1	15	tổng bí thư trung quốc tiếp tục điều tra phòng vệ tinh quốc triều tiên	tổng bí thư trung quốc tiếp tục điều tra phòng vệ tinh quốc triều tiên.	0.00	-0.43	1.06
+phowhisper-small	1	1	13	tổng bí thư trung quốc tiếp tục điều tra quốc tế thứ hai	tổng bí thư trung quốc tiếp tục điều tra quốc tế thứ hai.	0.00	-0.49	1.01
+phowhisper-small	1	1	13	tổng bí thư trung quốc tế nhà nước thay đổi tên truyền thống	tổng bí thư trung quốc tế nhà nước thay đổi tên truyền thống.	0.00	-0.53	0.96
+phowhisper-small	1	1	13	tổng bí thư tài nguyên âm nhạc âm nhạc âm nhạc âm nhạc	tổng bí thư tài nguyên âm nhạc âm nhạc âm nhạc âm nhạc.	0.00	-0.46	1.40
+phowhisper-small	1	1	12	tổng bí thư tín hiệu quản lý đảng cộng sản việt nam	tổng bí thư tín hiệu quản lý đảng cộng sản việt nam.	0.00	-0.51	0.97
+phowhisper-small	1	1	17	tổng bí thư tín hiệu quốc tế giải pháp cho các quốc tế thời điểm thông tin	tổng bí thư tín hiệu quốc tế giải pháp cho các quốc tế thời điểm thông tin.	0.00	-0.51	1.02
+phowhisper-small	1	1	14	tổng bí thư tín hiệu tổng bí thư tín hiệu quốc tế đông nam	tổng bí thư tín hiệu tổng bí thư tín hiệu quốc tế đông nam.	0.00	-0.43	1.27
+phowhisper-small	1	1	28	tổng bí thư tín hiệu tổng bí thư tín hiệu tín hiệu tinh thần thoát nước tín hiệu tảo vệ tinh thần tinh tuyển động tinh tuyển động	tổng bí thư tín hiệu tổng bí thư tín hiệu tín hiệu tinh thần thoát nước tín hiệu tảo vệ tinh thần tinh tuyển động tinh tuyển động.	0.00	-0.44	1.77
+phowhisper-small	1	1	17	tổng bí thư tín hiệu tổng bí thư tín hiệu tín hiệu âm nhạc âm nhạc âm	tổng bí thư tín hiệu tổng bí thư tín hiệu tín hiệu âm nhạc âm nhạc âm.	0.00	-0.46	1.68
+phowhisper-small	1	1	16	tổng bí thư tín hiệu tổng bí thư tín hiệu tổng bí thư tín hiệu nga	tổng bí thư tín hiệu tổng bí thư tín hiệu tổng bí thư tín hiệu nga.	0.00	-0.34	2.00
+phowhisper-small	1	1	15	tổng bí thư tín ngưỡng quốc tế quốc tế quốc tế quốc tế quốc tế	tổng bí thư tín ngưỡng quốc tế quốc tế quốc tế quốc tế quốc tế.	0.00	-0.39	1.69
+phowhisper-small	1	1	14	tổng bí thư tín đối tượng truyền tai báo cáo tinh tế triều tiên	tổng bí thư tín đối tượng truyền tai báo cáo tinh tế triều tiên.	0.00	-0.50	0.97
+phowhisper-small	1	1	13	tổng bí thư tổng bí thư trung quốc trình dự án tử vong	tổng bí thư tổng bí thư trung quốc trình dự án tử vong.	0.00	-0.46	1.15
+phowhisper-small	1	1	10	tổng bí thư đảng cộng sản việt nam cho biết	tổng bí thư đảng cộng sản việt nam cho biết.	0.00	-0.56	0.92
+phowhisper-small	1	1	16	tổng bí thư đảng cộng sản đảng việt nam công nhận vụ án trực triều tiên	tổng bí thư đảng cộng sản đảng việt nam công nhận vụ án trực triều tiên.	0.00	-0.51	1.04
+phowhisper-small	1	1	19	tổng bộ xét tài liệu tổng bộ nguyên nhân viên xe đào đất thời điểm xây dựng nhà nước	tổng bộ xét tài liệu tổng bộ nguyên nhân viên xe đào đất thời điểm xây dựng nhà nước.	0.00	-0.60	1.05
+phowhisper-small	1	1	19	tổng hợp quốc tế nhà văn trương thừa nhận vụ án ảnh tuyên án tử vong tại nhà trường	tổng hợp quốc tế nhà văn trương thừa nhận vụ án ảnh tuyên án tử vong tại nhà trường.	0.00	-0.52	1.02
+phowhisper-small	1	1	12	tổng quan chức vụ án truyền tai thuế bảo vệ triều tiên	tổng quan chức vụ án truyền tai thuế bảo vệ triều tiên.	0.00	-0.52	0.94
+phowhisper-small	1	1	10	tổng quan cảnh sát thảo luật bảo vệ tổ quốc	tổng quan cảnh sát thảo luật bảo vệ tổ quốc.	0.00	-0.67	0.95
+phowhisper-small	1	1	17	tổng thống mỹ donald trump tổng thống mỹ donald trump dự án tổng thống mỹ donald trump	tổng thống mỹ donald trump tổng thống mỹ donald trump dự án tổng thống mỹ donald trump.	0.00	-0.30	1.93
+phowhisper-small	1	1	10	tổng thống mỹ donald trump tự chứng kiến triều tiên	tổng thống mỹ donald trump tự chứng kiến triều tiên.	0.00	-0.55	0.93
+phowhisper-small	1	1	34	tổng thống mỹ giám khảo quốc tế nhà nước quốc tế nhà nước quốc tế quốc tế quý vị quốc tế quân chủ nghĩa xã hội chống chế độ tử nạn đóng tên lửa	tổng thống mỹ giám khảo quốc tế nhà nước quốc tế nhà nước quốc tế quốc tế quý vị quốc tế quân chủ nghĩa xã hội chống chế độ tử nạn đóng tên lửa.	0.00	-0.58	1.48
+phowhisper-small	1	1	12	tổng thống mỹ gắn liền tổng tợni lỡ tình yêu tương lai	tổng thống mỹ gắn liền tổng tợni lỡ tình yêu tương lai.	0.00	-0.55	0.95
+phowhisper-small	1	1	14	tổng thống mỹ lâm phục vụ công an tiếp theo đuổi tiến triều tiên	tổng thống mỹ lâm phục vụ công an tiếp theo đuổi tiến triều tiên.	0.00	-0.48	1.04
+phowhisper-small	1	1	11	tổng thống mỹ lâm phục vụ tổng thống mỹ dân chủ	tổng thống mỹ lâm phục vụ tổng thống mỹ dân chủ.	0.00	-0.46	1.21
+phowhisper-small	1	1	17	tổng thống mỹ lâm phục vụ việc truy tặng quốc hội bảo vệ biên giới tây bắc	tổng thống mỹ lâm phục vụ việc truy tặng quốc hội bảo vệ biên giới tây bắc.	0.00	-0.52	1.01
+phowhisper-small	1	1	19	tổng thống mỹ lâm phục vụ việc truy tặng quốc hội quảng nam quốc hội quảng nam quốc hội	tổng thống mỹ lâm phục vụ việc truy tặng quốc hội quảng nam quốc hội quảng nam quốc hội.	0.00	-0.50	1.43
+phowhisper-small	1	1	16	tổng thống mỹ lâm phục vụ việc truy tặng quốc hội đảng cộng sản việt nam	tổng thống mỹ lâm phục vụ việc truy tặng quốc hội đảng cộng sản việt nam.	0.00	-0.53	1.06
+phowhisper-small	1	1	12	tổng thống mỹ lâm phục vụ việc truyền tải cách mạng nước	tổng thống mỹ lâm phục vụ việc truyền tải cách mạng nước.	0.00	-0.51	0.94
+phowhisper-small	1	1	12	tổng thống mỹ lâm phục vụ việc truyền tải cách đà nẵng	tổng thống mỹ lâm phục vụ việc truyền tải cách đà nẵng.	0.00	-0.56	0.92
+phowhisper-small	1	1	15	tổng thống mỹ lâm triều tiên lên tiếng đàn ông về tổng thống mỹ nước	tổng thống mỹ lâm triều tiên lên tiếng đàn ông về tổng thống mỹ nước.	0.00	-0.54	1.14
+phowhisper-small	1	1	15	tổng thống mỹ lâm triều tiên đề nghị đòi hỏi đối tượng truyền thống mỹ	tổng thống mỹ lâm triều tiên đề nghị đòi hỏi đối tượng truyền thống mỹ.	0.00	-0.52	1.13
+phowhisper-small	1	1	13	tổng thống mỹ lý giải pháp dạy nghị luận quốc hội đồng tính	tổng thống mỹ lý giải pháp dạy nghị luận quốc hội đồng tính.	0.00	-0.58	0.94
+phowhisper-small	1	1	11	tổng thống mỹ lý giải pháp tổng thống mỹ pháp luận	tổng thống mỹ lý giải pháp tổng thống mỹ pháp luận.	0.00	-0.51	1.21
+phowhisper-small	1	1	11	tổng thống mỹ lý giải pháp tổng thống mỹ pháp luật	tổng thống mỹ lý giải pháp tổng thống mỹ pháp luật.	0.00	-0.48	1.21
+phowhisper-small	1	1	14	tổng thống mỹ lý giải pháp tổng thống mỹ phóng xã đông nam á	tổng thống mỹ lý giải pháp tổng thống mỹ phóng xã đông nam á.	0.00	-0.50	1.15
+phowhisper-small	1	1	14	tổng thống mỹ lý liên tục xây dựng và tổng thống mỹ pháp luật	tổng thống mỹ lý liên tục xây dựng và tổng thống mỹ pháp luật.	0.00	-0.43	1.10
+phowhisper-small	1	1	18	tổng thống mỹ lý thuyết phục tổng thống dân chủ nghĩa xã hội quốc gia đông nam á	tổng thống mỹ lý thuyết phục tổng thống dân chủ nghĩa xã hội quốc gia đông nam á.	0.00	-0.51	1.09
+phowhisper-small	1	1	12	tổng thống mỹ lý thuyết phục tổng thống dân tộc dân chủ	tổng thống mỹ lý thuyết phục tổng thống dân tộc dân chủ.	0.00	-0.53	1.20
+phowhisper-small	1	1	15	tổng thống mỹ lý thuyết phục tổng thống mỹ lý thuyết phục cấm pháp luật	tổng thống mỹ lý thuyết phục tổng thống mỹ lý thuyết phục cấm pháp luật.	0.00	-0.44	1.46
+phowhisper-small	1	1	11	tổng thống mỹ lý thuyết phục tổng thống mỹ pháp luật	tổng thống mỹ lý thuyết phục tổng thống mỹ pháp luật.	0.00	-0.51	1.16
+phowhisper-small	1	1	14	tổng thống mỹ lý thuyết phục tổng thống mỹ pháp lý trí pháp luật	tổng thống mỹ lý thuyết phục tổng thống mỹ pháp lý trí pháp luật.	0.00	-0.50	1.29
+phowhisper-small	1	1	13	tổng thống mỹ lý thuyết phục tổng thống mỹ đặc sản nước ngoài	tổng thống mỹ lý thuyết phục tổng thống mỹ đặc sản nước ngoài.	0.00	-0.54	1.11
+phowhisper-small	1	1	12	tổng thống mỹ lý thuyết phục tổng thống mỹ đặc sản đảng	tổng thống mỹ lý thuyết phục tổng thống mỹ đặc sản đảng.	0.00	-0.53	1.19
+phowhisper-small	1	1	22	tổng thống mỹ lý thuyết phục tổng thống mỹ đức cho biết tổng thống mỹ lý thuyết phục mỹ lý thuyết tết	tổng thống mỹ lý thuyết phục tổng thống mỹ đức cho biết tổng thống mỹ lý thuyết phục mỹ lý thuyết tết.	0.00	-0.42	1.89
+phowhisper-small	1	1	14	tổng thống mỹ lý thuyết phục tổng thống mỹ đức thái vĩnh dưới đây	tổng thống mỹ lý thuyết phục tổng thống mỹ đức thái vĩnh dưới đây.	0.00	-0.56	1.13
+phowhisper-small	1	1	11	tổng thống mỹ lý thuyết phục đảng cộng sản việt nam	tổng thống mỹ lý thuyết phục đảng cộng sản việt nam.	0.00	-0.47	0.96
+phowhisper-small	1	1	17	tổng thống mỹ lý thủ đô tươi cho biết chức danh và phát triển tình tiếng nói	tổng thống mỹ lý thủ đô tươi cho biết chức danh và phát triển tình tiếng nói.	0.00	-0.58	0.98
+phowhisper-small	1	1	11	tổng thống mỹ lý tiếp tục bắt đầu kiện chiến lược	tổng thống mỹ lý tiếp tục bắt đầu kiện chiến lược.	0.00	-0.68	0.90
+phowhisper-small	1	1	15	tổng thống mỹ lý trí quốc tế đã thắng thế tổng thống mỹ lý tí	tổng thống mỹ lý trí quốc tế đã thắng thế tổng thống mỹ lý tí.	0.00	-0.40	1.31
+phowhisper-small	1	1	16	tổng thống mỹ lý trí quốc tế đã thắng thế tổng thống mỹ lý tía tư	tổng thống mỹ lý trí quốc tế đã thắng thế tổng thống mỹ lý tía tư.	0.00	-0.48	1.27
+phowhisper-small	1	1	14	tổng thống mỹ nam bắc kinh tế thời hạn kiểm điểm tại buổi làm	tổng thống mỹ nam bắc kinh tế thời hạn kiểm điểm tại buổi làm.	0.00	-0.70	1.01
+phowhisper-small	1	1	12	tổng thống mỹ nguyễn minh châu không tổng thống mỹ nước nhà	tổng thống mỹ nguyễn minh châu không tổng thống mỹ nước nhà.	0.00	-0.52	1.16
+phowhisper-small	1	1	12	tổng thống mỹ nguyễn minh châu tổng thống tuyển dụng tổng thống	tổng thống mỹ nguyễn minh châu tổng thống tuyển dụng tổng thống.	0.00	-0.42	1.29
+phowhisper-small	1	1	16	tổng thống mỹ nguyễn minh châu xin tổng thống mỹ dưới tổng thống mỹ nhà nước	tổng thống mỹ nguyễn minh châu xin tổng thống mỹ dưới tổng thống mỹ nhà nước.	0.00	-0.40	1.40
+phowhisper-small	1	1	13	tổng thống mỹ nguyễn minh châu xin tổng thống mỹ nước miền nam	tổng thống mỹ nguyễn minh châu xin tổng thống mỹ nước miền nam.	0.00	-0.52	1.14
+phowhisper-small	1	1	10	tổng thống mỹ nguyễn thái bảo tổng thống triều tiên	tổng thống mỹ nguyễn thái bảo tổng thống triều tiên.	0.00	-0.51	1.06
+phowhisper-small	1	1	12	tổng thống mỹ nguyễn thái bảo vệ quốc tế đông nam á	tổng thống mỹ nguyễn thái bảo vệ quốc tế đông nam á.	0.00	-0.56	0.91
+phowhisper-small	1	1	15	tổng thống mỹ nguyễn thái cẩm phái đặc biệt quốc tế quốc tế quốc tế	tổng thống mỹ nguyễn thái cẩm phái đặc biệt quốc tế quốc tế quốc tế.	0.00	-0.52	1.23
+phowhisper-small	1	1	14	tổng thống mỹ nguyễn thái cẩu đã tổng thống tổng thống mỹ ban đầu	tổng thống mỹ nguyễn thái cẩu đã tổng thống tổng thống mỹ ban đầu.	0.00	-0.53	1.31
+phowhisper-small	1	1	18	tổng thống mỹ nguyễn thị kim trung quốc vào tháng mười năm một nghìn chín trăm bốn nhăm	tổng thống mỹ nguyễn thị kim trung quốc vào tháng mười năm một nghìn chín trăm bốn nhăm.	0.00	-0.44	1.08
+phowhisper-small	1	1	13	tổng thống mỹ đức đức tiếp theo tổng thống mỹ đức bình đẳng	tổng thống mỹ đức đức tiếp theo tổng thống mỹ đức bình đẳng.	0.00	-0.44	1.38
+phowhisper-small	1	1	19	tổng thống nga putin thắng tổng thương tổng thống nga putin thắng tổng thương nga putin thắng tổng thảo	tổng thống nga putin thắng tổng thương tổng thống nga putin thắng tổng thương nga putin thắng tổng thảo.	0.00	-0.29	2.36
+phowhisper-small	1	1	14	tổng thống nga putin thắng tổng thương tổng thống nga putin thắng tổng thảo	tổng thống nga putin thắng tổng thương tổng thống nga putin thắng tổng thảo.	0.00	-0.45	1.81
+phowhisper-small	1	1	11	tổng thống nga putin thắng được đánh giá là đáng tiếc	tổng thống nga putin thắng được đánh giá là đáng tiếc.	0.00	-0.59	1.00
+phowhisper-small	1	1	12	tổng thống nga putin tiếp tục tổng thống nga putin truyền tải	tổng thống nga putin tiếp tục tổng thống nga putin truyền tải.	0.00	-0.41	1.26
+phowhisper-small	1	1	13	tổng thống nga putin triều tiên tĩnh triều tiên truyền tải đổ nước	tổng thống nga putin triều tiên tĩnh triều tiên truyền tải đổ nước.	0.00	-0.45	1.13
+phowhisper-small	1	1	15	tổng thống nga putin triều tiên tĩnh tác trước việc thực hiện luật sửa đất	tổng thống nga putin triều tiên tĩnh tác trước việc thực hiện luật sửa đất.	0.00	-0.48	0.98
+phowhisper-small	1	1	17	tổng thống nga putin triều tiên tĩnh từng bỏ phiên giới thiệu tổng thống mỹ nam bộ	tổng thống nga putin triều tiên tĩnh từng bỏ phiên giới thiệu tổng thống mỹ nam bộ.	0.00	-0.51	1.14
+phowhisper-small	1	1	12	tổng thống nga putin triều tiên tổng thống mỹ dung donald trump	tổng thống nga putin triều tiên tổng thống mỹ dung donald trump.	0.00	-0.47	1.10
+phowhisper-small	1	1	13	tổng thống nga putin trong phim truyền hình tổng thống mỹ dư luận	tổng thống nga putin trong phim truyền hình tổng thống mỹ dư luận.	0.00	-0.52	1.08
+phowhisper-small	1	1	11	tổng thống nga putin trong phim truyền tải giao thông thiện	tổng thống nga putin trong phim truyền tải giao thông thiện.	0.00	-0.51	0.99
+phowhisper-small	1	1	15	tổng thống nga putin tâm sự không thất thoát nước đổ máu cho nước ngoài	tổng thống nga putin tâm sự không thất thoát nước đổ máu cho nước ngoài.	0.00	-0.54	1.04
+phowhisper-small	1	1	18	tổng thống nga putin tâm sự không thất thoát nạn sau tổ chức tổng thống mỹ nam kroos	tổng thống nga putin tâm sự không thất thoát nạn sau tổ chức tổng thống mỹ nam kroos.	0.00	-0.54	1.10
+phowhisper-small	1	1	14	tổng thống nga putin tâm sự không thẩm quyền về vụ việc doanh nghiệp	tổng thống nga putin tâm sự không thẩm quyền về vụ việc doanh nghiệp.	0.00	-0.50	1.02
+phowhisper-small	1	1	16	tổng thống nga putin tâm sự không thẩm định nguyên liệu từ phong trào quốc tế	tổng thống nga putin tâm sự không thẩm định nguyên liệu từ phong trào quốc tế.	0.00	-0.50	0.99
+phowhisper-small	1	1	17	tổng thống nga putin tâm sự không thẩm định pháp luật quản lý tổng thống nhất nước	tổng thống nga putin tâm sự không thẩm định pháp luật quản lý tổng thống nhất nước.	0.00	-0.43	1.09
+phowhisper-small	1	1	15	tổng thống nga putin tâm sự không ổn định trong tổ chức tổng thống mỹ	tổng thống nga putin tâm sự không ổn định trong tổ chức tổng thống mỹ.	0.00	-0.44	1.12
+phowhisper-small	1	1	15	tổng thống nga putin tâm sự không ổn định trong tổng thống mỹ dư luận	tổng thống nga putin tâm sự không ổn định trong tổng thống mỹ dư luận.	0.00	-0.42	1.10
+phowhisper-small	1	1	16	tổng thống nga putin tâm sự là một trong những thành tích cao nhất của nga	tổng thống nga putin tâm sự là một trong những thành tích cao nhất của nga.	0.00	-0.52	1.02
+phowhisper-small	1	1	15	tổng thống nga putin tâm sự là một tên lửa triều tiên nhất của mỹ	tổng thống nga putin tâm sự là một tên lửa triều tiên nhất của mỹ.	0.00	-0.49	0.95
+phowhisper-small	1	1	16	tổng thống nga putin tâm sự là một tổ chức quan trọng trong lịch sử ukraine	tổng thống nga putin tâm sự là một tổ chức quan trọng trong lịch sử ukraine.	0.00	-0.57	0.99
+phowhisper-small	1	1	14	tổng thống nga putin tâm sự là một tổng thống tốt nhất trong nước	tổng thống nga putin tâm sự là một tổng thống tốt nhất trong nước.	0.00	-0.45	1.09
+phowhisper-small	1	1	30	tổng thống nga putin tâm sự là quân chủ nghĩa của ông dù chỉ là quân chủ nghĩa quân chủ nghĩa quân chủ nghĩa quân chủ nghĩa từng từng từng	tổng thống nga putin tâm sự là quân chủ nghĩa của ông dù chỉ là quân chủ nghĩa quân chủ nghĩa quân chủ nghĩa quân chủ nghĩa từng từng từng.	0.00	-0.40	1.91
+phowhisper-small	1	1	13	tổng thống nga putin tâm sự là quân đội quân chủ của ukraine	tổng thống nga putin tâm sự là quân đội quân chủ của ukraine.	0.00	-0.60	0.99
+phowhisper-small	1	1	17	tổng thống nga putin tâm sự là quân đội quân chủ nghĩa xã hội độc lập tức	tổng thống nga putin tâm sự là quân đội quân chủ nghĩa xã hội độc lập tức.	0.00	-0.53	1.03
+phowhisper-small	1	1	17	tổng thống nga putin tâm sự là quân đội quân dân chủ nghĩa xã hội độc lập	tổng thống nga putin tâm sự là quân đội quân dân chủ nghĩa xã hội độc lập.	0.00	-0.43	1.06
+phowhisper-small	1	1	18	tổng thống nga putin tâm sự là quân đội tiếp tục chiến lược gia tăng trưởng nước ngoài	tổng thống nga putin tâm sự là quân đội tiếp tục chiến lược gia tăng trưởng nước ngoài.	0.00	-0.47	1.02
+phowhisper-small	1	1	15	tổng thống nga putin tâm sự là tổng thống trump tâm sự nhất thế giới	tổng thống nga putin tâm sự là tổng thống trump tâm sự nhất thế giới.	0.00	-0.41	1.18
+phowhisper-small	1	1	11	tổng thống nga putin tâm sự muốn thống nhất đất nước	tổng thống nga putin tâm sự muốn thống nhất đất nước.	0.00	-0.50	1.07
+phowhisper-small	1	1	17	tổng thống nga putin tâm sự muốn thống nhất đất nước so với tổng thống nga putin	tổng thống nga putin tâm sự muốn thống nhất đất nước so với tổng thống nga putin.	0.00	-0.41	1.32
+phowhisper-small	1	1	13	tổng thống nga putin tâm sự thành công trên và thành công trên	tổng thống nga putin tâm sự thành công trên và thành công trên.	0.00	-0.56	1.17
+phowhisper-small	1	1	12	tổng thống nga putin tâm sự thông thoại về vụ việc này	tổng thống nga putin tâm sự thông thoại về vụ việc này.	0.00	-0.67	0.96
+phowhisper-small	1	1	17	tổng thống nga putin tâm sự thẩm quyền về vụ án tổ chức tổ chức tấn công	tổng thống nga putin tâm sự thẩm quyền về vụ án tổ chức tổ chức tấn công.	0.00	-0.53	1.15
+phowhisper-small	1	1	15	tổng thống nga putin tâm sự thẩm định trong tài liệu tổng thống nga putin	tổng thống nga putin tâm sự thẩm định trong tài liệu tổng thống nga putin.	0.00	-0.49	1.21
+phowhisper-small	1	1	14	tổng thống nga putin tâm sự trừng phạt các vấn đề liên quan trọng	tổng thống nga putin tâm sự trừng phạt các vấn đề liên quan trọng.	0.00	-0.49	0.93
+phowhisper-small	1	1	12	tổng thống nguyễn thị trung ương thành phim tổng thống nguyễn trung	tổng thống nguyễn thị trung ương thành phim tổng thống nguyễn trung.	0.00	-0.47	1.37
+phowhisper-small	1	1	15	tổng thống trump khẳng định không thay đổi theo hướng dẫn của tổng thống trump	tổng thống trump khẳng định không thay đổi theo hướng dẫn của tổng thống trump.	0.00	-0.42	1.23
+phowhisper-small	1	1	15	tổng thống trump tuyển quân chủ đầu tư quân chủ đầu tư chủ đầu cửa	tổng thống trump tuyển quân chủ đầu tư quân chủ đầu tư chủ đầu cửa.	0.00	-0.54	1.38
+phowhisper-small	1	1	19	tổng thống trump tuyển quân chủ đầu tư quân chủ đầu tư quân chủ đầu tư chủ đầu tư	tổng thống trump tuyển quân chủ đầu tư quân chủ đầu tư quân chủ đầu tư chủ đầu tư.	0.00	-0.44	1.83
+phowhisper-small	1	1	20	tổng thống trump tuyển quân chủ đầu tư quân chủ đầu tư quân chủ đầu tư quân chủ đầu tư	tổng thống trump tuyển quân chủ đầu tư quân chủ đầu tư quân chủ đầu tư quân chủ đầu tư.	0.00	-0.43	1.98
+phowhisper-small	1	1	17	tổng thống trump tự tháp tổng thống mỹ donald trump nói với tổng thống mỹ donald trump	tổng thống trump tự tháp tổng thống mỹ donald trump nói với tổng thống mỹ donald trump.	0.00	-0.45	1.63
+phowhisper-small	1	1	28	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống mỹ putin tâm tư tổng thống mỹ donald trump và tổng thống putin triều tiên	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống mỹ putin tâm tư tổng thống mỹ donald trump và tổng thống putin triều tiên.	0.00	-0.40	1.93
+phowhisper-small	1	1	21	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống mỹ putin tâm tư tổng thống tài xế	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống mỹ putin tâm tư tổng thống tài xế.	0.00	-0.44	1.52
+phowhisper-small	1	1	24	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống mỹ putin tâm tư tổng thống tổng thống putin triều tiên	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống mỹ putin tâm tư tổng thống tổng thống putin triều tiên.	0.00	-0.43	1.67
+phowhisper-small	1	1	18	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống trump cùng tổng thống trump	tổng thống trump tự tháp tổng thống mỹ donald trump và tổng thống trump cùng tổng thống trump.	0.00	-0.44	1.72
+phowhisper-small	1	1	10	tổng thống trump tự tháp tổng thống mỹ dư luận	tổng thống trump tự tháp tổng thống mỹ dư luận.	0.00	-0.48	1.12
+phowhisper-small	1	1	13	tổng thống trump tự tháp tổng thống mỹ luận diện mỹ pháp luật	tổng thống trump tự tháp tổng thống mỹ luận diện mỹ pháp luật.	0.00	-0.55	1.25
+phowhisper-small	1	1	14	tổng thống trump tự tháp tổng thống mỹ tâm trí đảng cộng sản đảng	tổng thống trump tự tháp tổng thống mỹ tâm trí đảng cộng sản đảng.	0.00	-0.51	1.25
+phowhisper-small	1	1	21	tổng thống trump tự tháp tổng thống mỹ tổng thống trump tự tháp tổng thống tài chính tổng thống tài công	tổng thống trump tự tháp tổng thống mỹ tổng thống trump tự tháp tổng thống tài chính tổng thống tài công.	0.00	-0.44	2.04
+phowhisper-small	1	1	16	tổng thống trump tự tháp tổng thống trump chủ quyền lợi dụng chủ quyền lợi dụng	tổng thống trump tự tháp tổng thống trump chủ quyền lợi dụng chủ quyền lợi dụng.	0.00	-0.51	1.57
+phowhisper-small	1	1	13	tổng thống trump tự tháp tổng thống trump tự tháp đầu năm cuối	tổng thống trump tự tháp tổng thống trump tự tháp đầu năm cuối.	0.00	-0.48	1.43
+phowhisper-small	1	1	14	tổng thống trump tự tin gắn liền với ông trump cùng tổng thống putin	tổng thống trump tự tin gắn liền với ông trump cùng tổng thống putin.	0.00	-0.45	1.19
+phowhisper-small	1	1	11	tổng thống trump tự tin ủng hộ quân sự dân chủ	tổng thống trump tự tin ủng hộ quân sự dân chủ.	0.00	-0.47	1.00
+phowhisper-small	1	1	15	tổng thống trump tự tin ủng hộ ông putin triều tiên từ tổng thống putin	tổng thống trump tự tin ủng hộ ông putin triều tiên từ tổng thống putin.	0.00	-0.41	1.21
+phowhisper-small	1	1	21	tổng đại biểu quốc hội đông nam á quốc hội bảo vệ quốc hội bảo vệ quốc hội đông nam á	tổng đại biểu quốc hội đông nam á quốc hội bảo vệ quốc hội bảo vệ quốc hội đông nam á.	0.00	-0.45	1.68
+phowhisper-small	1	1	16	tổng đảng cộng sản đảng cộng sản đảng báo cáo tổng đảng báo cáo tổng đảng	tổng đảng cộng sản đảng cộng sản đảng báo cáo tổng đảng báo cáo tổng đảng.	0.00	-0.40	2.28
+phowhisper-small	1	1	11	tổng đảng cộng sản đảng cộng sản đảng thảo tổng đảng	tổng đảng cộng sản đảng cộng sản đảng thảo tổng đảng.	0.00	-0.49	1.84
+phowhisper-small	1	1	16	từng chế độ tăng thẩm tác tập tục thành công đối với chủ động tập tục	từng chế độ tăng thẩm tác tập tục thành công đối với chủ động tập tục.	0.00	-0.82	1.13
+phowhisper-small	1	1	7	voi điện thoại sử dụng máy điện	voi điện thoại sử dụng máy điện.	0.00	-0.74	0.92
+phowhisper-small	1	1	24	voọng thần tử vệ sinh viên y học sinh viên y học sinh viên y học sinh viên y tại y học sinh viên	voọng thần tử vệ sinh viên y học sinh viên y học sinh viên y học sinh viên y tại y học sinh viên.	0.00	-0.68	1.94
+phowhisper-small	1	1	10	vóc dáng nổi tiếng cho lịch sử thế giới thiệu	vóc dáng nổi tiếng cho lịch sử thế giới thiệu.	0.00	-0.64	0.93
+phowhisper-small	1	1	11	vóc dáng tâm trạng tâm tình dục tâm trạng tương lai	vóc dáng tâm trạng tâm tình dục tâm trạng tương lai.	0.00	-0.59	1.27
+phowhisper-small	1	1	13	vụ án tình trạng tai nạn giao thông đánh bóng đá quốc tang	vụ án tình trạng tai nạn giao thông đánh bóng đá quốc tang.	0.00	-0.61	1.01
+phowhisper-small	1	1	13	xin tổ chức xin tổ chức xin tổ chức xin tổ chức xin	xin tổ chức xin tổ chức xin tổ chức xin tổ chức xin.	0.00	-0.43	2.34
+phowhisper-small	1	1	12	xác chết lệnh tâm trí truyền thông từ đầu đến cuối tuần	xác chết lệnh tâm trí truyền thông từ đầu đến cuối tuần.	0.00	-0.62	0.94
+phowhisper-small	1	1	18	y chang tâm sự là một yếu tố khủng hoảng nếu chất lượng tăng tới cao tốc độ	y chang tâm sự là một yếu tố khủng hoảng nếu chất lượng tăng tới cao tốc độ.	0.00	-0.67	1.02
+phowhisper-small	1	1	13	yên tĩnh tình truyền thông tình thông trên làng tâm trí trung quốc	yên tĩnh tình truyền thông tình thông trên làng tâm trí trung quốc.	0.00	-0.51	1.25
+phowhisper-small	1	1	12	á ờ a ờ a ờ ờ a ờ a ờ a	á ờ a ờ a ờ ờ a ờ a ờ a.	0.00	-0.64	1.68
+phowhisper-small	1	1	11	âng thê tê tê tê tê tê tê tê tê tê	âng thê tê tê tê tê tê tê tê tê tê.	0.00	-0.26	2.09
+phowhisper-small	1	1	5	éo ô éo ô éo	éo ô éo ô éo.	0.00	-0.61	0.95
+phowhisper-small	1	1	11	ô kê khai thác trong phim sách giáo viên đa khoa	ô kê khai thác trong phim sách giáo viên đa khoa.	0.00	-0.61	0.89
+phowhisper-small	1	1	5	ô kê khai tiếp theo	ô kê khai tiếp theo.	0.00	-0.73	0.73
+phowhisper-small	1	1	10	ô kê đăng ký kênh để kết hôn các em	ô kê đăng ký kênh để kết hôn các em.	0.00	-0.77	0.91
+phowhisper-small	1	1	14	ô kì thoại tồn tại thực lực tổng hợp quốc tế quốc thông tin	ô kì thoại tồn tại thực lực tổng hợp quốc tế quốc thông tin.	0.00	-0.44	1.14
+phowhisper-small	1	1	12	ô tô truyền thông thoại liên tục truyền thông thoại liên tục	ô tô truyền thông thoại liên tục truyền thông thoại liên tục.	0.00	-0.68	1.55
+phowhisper-small	1	1	18	ông hải cao thông tin cao tốc nguyên tộc thiều tiên thiệu trong chiến lược khách hàng thập	ông hải cao thông tin cao tốc nguyên tộc thiều tiên thiệu trong chiến lược khách hàng thập.	0.00	-0.97	1.11
+phowhisper-small	1	1	12	ông obama tạm dừng việc trong phim truyện tình truyện tình tranh	ông obama tạm dừng việc trong phim truyện tình truyện tình tranh.	0.00	-0.47	1.18
+phowhisper-small	1	1	1	đi	đi.................	0.00	-0.64	1.43
+phowhisper-small	1	1	15	điều này cho thấy các cầu thủ công ty đều không thể thiếu đầu tư	điều này cho thấy các cầu thủ công ty đều không thể thiếu đầu tư.	0.00	-0.58	1.11
+phowhisper-small	1	1	12	điều này cho thấy nguyên nhân của vết thương dễ dàng hơn	điều này cho thấy nguyên nhân của vết thương dễ dàng hơn.	0.00	-0.54	0.90
+phowhisper-small	1	1	16	điều này cho thấy người hâm mộ không khí thuộc vào nhà trong việc tập trung	điều này cho thấy người hâm mộ không khí thuộc vào nhà trong việc tập trung.	0.00	-0.64	0.96
+phowhisper-small	1	1	12	điều này cho thấy nền kinh doanh của thực tế tốt đẹp	điều này cho thấy nền kinh doanh của thực tế tốt đẹp.	0.00	-0.60	0.94
+phowhisper-small	1	1	13	điều này cho thấy tốc độ tăng trưởng mức độ tăng trưởng nhanh	điều này cho thấy tốc độ tăng trưởng mức độ tăng trưởng nhanh.............	0.00	-0.57	1.31
+phowhisper-small	1	1	14	điều này cho thấy tốc độ tăng trưởng mức độ tốc độ tăng trưởng	điều này cho thấy tốc độ tăng trưởng mức độ tốc độ tăng trưởng.	0.00	-0.53	1.30
+phowhisper-small	1	1	10	điều này cho thấy tốc độ tăng trưởng nhanh chóng	điều này cho thấy tốc độ tăng trưởng nhanh chóng.	0.00	-0.48	0.88
+phowhisper-small	1	1	14	điều này cho thấy tốc độ tăng trưởng nhanh chóng của nền kinh doanh	điều này cho thấy tốc độ tăng trưởng nhanh chóng của nền kinh doanh.	0.00	-0.54	0.95
+phowhisper-small	1	1	18	điều này giúp tên lửa đạn kỹ thuật và kỹ thuật bởi sự sạch sẽ của tên lửa	điều này giúp tên lửa đạn kỹ thuật và kỹ thuật bởi sự sạch sẽ của tên lửa.	0.00	-0.52	1.13
+phowhisper-small	1	1	17	điều này sẽ giúp bạn lựa chọn tình cảm và tình cảm với bạn bè yêu thương	điều này sẽ giúp bạn lựa chọn tình cảm và tình cảm với bạn bè yêu thương.	0.00	-0.55	1.05
+phowhisper-small	1	1	16	điều này đã làm thay đổi tất cả các công ty xã hội khác tại đây	điều này đã làm thay đổi tất cả các công ty xã hội khác tại đây.	0.00	-0.64	0.98
+phowhisper-small	1	1	15	điều này đã làm thiệt mạng tình dục khách hàng bị tai nạn khác chết	điều này đã làm thiệt mạng tình dục khách hàng bị tai nạn khác chết.	0.00	-0.64	0.97
+phowhisper-small	1	1	17	điểm ghi cho thấy có thể có thể thu hút khán giả tới tiếp theo chiến lược	điểm ghi cho thấy có thể có thể thu hút khán giả tới tiếp theo chiến lược.	0.00	-0.54	1.07
+phowhisper-small	1	1	24	điểm sâu tối đa phương a phủ nguyễn thị thành phố hồ chí minh cho biết là hồ chí minh đoàn theo quy tiết	điểm sâu tối đa phương. a phủ nguyễn thị thành phố hồ chí minh cho biết là hồ chí minh đoàn theo quy tiết.	0.00	-0.55	1.15
+phowhisper-small	1	1	10	điểm thiêng liêng là đối tượng không thể thiếu sót	điểm thiêng liêng là đối tượng không thể thiếu sót.	0.00	-0.53	1.00
+phowhisper-small	1	1	8	điểm thiêng liêng là đối tượng thiêng liêng	điểm thiêng liêng là đối tượng thiêng liêng.	0.00	-0.58	1.16
+phowhisper-small	1	1	18	điện kỳ thép libya chữ làng chí phụ nữ có sẳn sàng long chuộng ở trong rộng rộng	điện kỳ thép libya chữ làng chí phụ nữ có sẳn sàng long chuộng ở trong rộng rộng.	0.00	-0.48	1.11
+phowhisper-small	1	1	10	điện thoại bảo hiểm truyền tải giao thông thành công	điện thoại bảo hiểm truyền tải giao thông thành công.	0.00	-0.57	0.99
+phowhisper-small	1	1	10	điện thoại bảo vệ quản lý truyền thông đại học	điện thoại bảo vệ quản lý truyền thông đại học.	0.00	-0.61	0.96
+phowhisper-small	1	1	10	điện thoại giao thông tốt nghiệp quốc gia châu âu	điện thoại giao thông tốt nghiệp quốc gia châu âu.	0.00	-0.54	0.98
+phowhisper-small	1	1	16	điện thoại tôi có thể cho cô đưa các em đi du lịch ở trong đêm	điện thoại tôi có thể cho cô đưa các em đi du lịch ở trong đêm.	0.00	-0.63	0.94
+phowhisper-small	1	1	16	điện thoại tôi có thể nói chuyện tôi không thể nói chuyện tôi không thể nói	điện thoại tôi có thể nói chuyện tôi không thể nói chuyện tôi không thể nói.	0.00	-0.54	1.64
+phowhisper-small	1	1	18	điện thoại tôi có thể đảm bảo hệ tình trạng khẩu thuế trước khi đi dưới đường tây	điện thoại tôi có thể đảm bảo hệ tình trạng khẩu thuế trước khi đi dưới đường tây.	0.00	-0.57	1.06
+phowhisper-small	1	1	10	điện ảnh xử lý từ tài liệu cho tài liệu	điện ảnh xử lý từ tài liệu cho tài liệu.	0.00	-0.54	1.04
+phowhisper-small	1	1	14	đây là một cử tri không thể thiếu sót đúng tới một cử tri	đây là một cử tri không thể thiếu sót đúng tới một cử tri.	0.00	-0.62	1.07
+phowhisper-small	1	1	14	đây là một số hiệu quả không thể thiếu sót dưới đây đúng không	đây là một số hiệu quả không thể thiếu sót dưới đây đúng không.	0.00	-0.62	0.99
+phowhisper-small	1	1	16	đó chính là lý do vì sao chúng có mối quan hệ thống nhất đất nước	đó chính là lý do vì sao chúng có mối quan hệ thống nhất đất nước.	0.00	-0.63	0.99
+phowhisper-small	1	1	12	đó là câu hỏi mà bạn cần truy cập vào truyền hình	đó là câu hỏi mà bạn cần truy cập vào truyền hình.	0.00	-0.56	0.94
+phowhisper-small	1	1	12	đó là câu hỏi mà bạn cần truyền thống khi đăng ký	đó là câu hỏi mà bạn cần truyền thống khi đăng ký.	0.00	-0.58	0.93
+phowhisper-small	1	1	13	đó là câu hỏi mà bạn cần truyền thống nhất đối với xe	đó là câu hỏi mà bạn cần truyền thống nhất đối với xe.	0.00	-0.59	0.93
+phowhisper-small	1	1	11	đó là câu hỏi mà bạn cần truyền thống tốt hơn	đó là câu hỏi mà bạn cần truyền thống tốt hơn.	0.00	-0.58	0.93
+phowhisper-small	1	1	14	đó là câu hỏi mà bạn cần truyền thống tốt nhất đối với ai	đó là câu hỏi mà bạn cần truyền thống tốt nhất đối với ai.	0.00	-0.56	0.94
+phowhisper-small	1	1	11	đó là câu hỏi mà bạn nên cố gắng thay đổi	đó là câu hỏi mà bạn nên cố gắng thay đổi.	0.00	-0.55	0.84
+phowhisper-small	1	1	19	đó là câu hỏi mà bạn nên mở cửa hàng để có thể sử dụng chúng từ bóng đèn	đó là câu hỏi mà bạn nên mở cửa hàng để có thể sử dụng chúng từ bóng đèn.	0.00	-0.47	1.01
+phowhisper-small	1	1	14	đó là câu hỏi mà bạn nên rèn luyện từ đầu tư đến giờ	đó là câu hỏi mà bạn nên rèn luyện từ đầu tư đến giờ.	0.00	-0.53	0.92
+phowhisper-small	1	1	15	đó là câu hỏi mà bạn nên rèn luyện đoạn trích đoạn trích đoạn trích	đó là câu hỏi mà bạn nên rèn luyện đoạn trích đoạn trích đoạn trích.	0.00	-0.44	1.31
+phowhisper-small	1	1	13	đó là doanh nghiệp bị hoàn toàn doanh nghiệp doanh nghiệp doanh nghiệp	đó là doanh nghiệp bị hoàn toàn doanh nghiệp doanh nghiệp doanh nghiệp.	0.00	-0.53	1.65
+phowhisper-small	1	1	11	đó là doanh nghiệp bị hoàn toàn xâm lược doanh nghiệp	đó là doanh nghiệp bị hoàn toàn xâm lược doanh nghiệp.	0.00	-0.69	1.10
+phowhisper-small	1	1	8	đó là doanh nghiệp không thể thiếu sót	đó là doanh nghiệp không thể thiếu sót.	0.00	-0.69	0.86
+phowhisper-small	1	1	10	đó là doanh nghiệp không thể thiếu sót trong phim	đó là doanh nghiệp không thể thiếu sót trong phim.	0.00	-0.58	0.90
+phowhisper-small	1	1	12	đó là doanh nghiệp không thể thiếu sót trong phần mở bài	đó là doanh nghiệp không thể thiếu sót trong phần mở bài.	0.00	-0.49	0.90
+phowhisper-small	1	1	10	đó là doanh nghiệp không thể thiếu trong lịch sử	đó là doanh nghiệp không thể thiếu trong lịch sử.	0.00	-0.49	0.89
+phowhisper-small	1	1	14	đó là hình ảnh của thị trường quen thuộc của giải đấu kỹ thuật	đó là hình ảnh của thị trường quen thuộc của giải đấu kỹ thuật.	0.00	-0.58	1.00
+phowhisper-small	1	1	13	đó là khả năng tạo hình thức ăn cho cơ thể mọi người	đó là khả năng tạo hình thức ăn cho cơ thể mọi người.	0.00	-0.55	0.91
+phowhisper-small	1	1	13	đó là lý do vì sao nền kinh doanh thu hoạch đất nước	đó là lý do vì sao nền kinh doanh thu hoạch đất nước.	0.00	-0.60	0.91
+phowhisper-small	1	1	14	đó là lý do vì sao nền kinh doanh tuyệt mệnh liều như thế	đó là lý do vì sao nền kinh doanh tuyệt mệnh liều như thế.	0.00	-0.55	0.97
+phowhisper-small	1	1	18	đó là lý do vì sao nền kinh tế không hỗ trợ chất phẩm này nhiều hơn nữa	đó là lý do vì sao nền kinh tế không hỗ trợ chất phẩm này nhiều hơn nữa.	0.00	-0.61	0.94
+phowhisper-small	1	1	15	đó là lý do vì sao nền kinh tế không lưu ý đến tài chính	đó là lý do vì sao nền kinh tế không lưu ý đến tài chính.	0.00	-0.63	0.91
+phowhisper-small	1	1	15	đó là lý do vì sao nền kinh tế lại thi đấu như thế nào	đó là lý do vì sao nền kinh tế lại thi đấu như thế nào.	0.00	-0.72	0.92
+phowhisper-small	1	1	10	đó là lần cuối cùng tôi thất bại mật ong	đó là lần cuối cùng tôi thất bại mật ong.	0.00	-0.74	0.84
+phowhisper-small	1	1	17	đó là lần đầu tiên truyền thông trả lời các tài liệu về tình trạng tâm thần	đó là lần đầu tiên truyền thông trả lời các tài liệu về tình trạng tâm thần.	0.00	-0.55	1.03
+phowhisper-small	1	1	11	đó là lần đầu tiên truyền thông trả lời thế giới	đó là lần đầu tiên truyền thông trả lời thế giới.	0.00	-0.56	0.93
+phowhisper-small	1	1	13	đó là lần đầu tiên truyền thông đăng thổ đẳng hội thông tin	đó là lần đầu tiên truyền thông đăng thổ đẳng hội thông tin.	0.00	-0.60	1.08
+phowhisper-small	1	1	13	đó là lần đầu tiên trần tiến gặp vũ khán đài trong nước	đó là lần đầu tiên trần tiến gặp vũ khán đài trong nước.	0.00	-0.60	0.95
+phowhisper-small	1	1	16	đó là một cánh đồng máy máy máy cho huyền an toàn quân sự hồi giáo	đó là một cánh đồng máy máy máy cho huyền an toàn quân sự hồi giáo.	0.00	-0.91	0.99
+phowhisper-small	1	1	19	đó là một mối quan hệ tình dục có thể xảy ra do tổ chức tổ chức thi công	đó là một mối quan hệ tình dục có thể xảy ra do tổ chức tổ chức thi công.	0.00	-0.61	1.09
+phowhisper-small	1	1	15	đó là niềm hạnh phúc không thể quên tiếng nói của cơ thể gia đình	đó là niềm hạnh phúc không thể quên tiếng nói của cơ thể gia đình.	0.00	-0.52	0.94
+phowhisper-small	1	1	8	đó là niềm hạnh phúc không thể đoán	đó là niềm hạnh phúc không thể đoán.	0.00	-0.61	0.82
+phowhisper-small	1	1	10	đó là niềm hạnh phúc không tốt cho cuộc sống	đó là niềm hạnh phúc không tốt cho cuộc sống.	0.00	-0.54	0.87
+phowhisper-small	1	1	15	đó là niềm hạnh phúc không tốt cho cuộc sống và cuộc sống của mình	đó là niềm hạnh phúc không tốt cho cuộc sống và cuộc sống của mình.	0.00	-0.53	1.05
+phowhisper-small	1	1	29	đó là thông tin duy nhất đối với các cầu thủ đức và các cầu thủ đức có thể thiếu sót hoặc thiếu sót dẫn đến sự thoát thân	đó là thông tin duy nhất đối với các cầu thủ đức và các cầu thủ đức có thể thiếu sót hoặc thiếu sót dẫn đến sự thoát thân.............	0.00	-0.54	1.34
+phowhisper-small	1	1	15	đó là tình tiết mục tích cực tích cực tích cực tích cực tích cực	đó là tình tiết mục tích cực tích cực tích cực tích cực tích cực.	0.00	-0.39	1.76
+phowhisper-small	1	1	13	đó là tình trạng thiếu sót đối với tình trạng tâm thần kinh	đó là tình trạng thiếu sót đối với tình trạng tâm thần kinh.	0.00	-0.53	1.05
+phowhisper-small	1	1	15	đúng lúc này có ích kỷ lục không chỉ dừng lại ở phía đông nam	đúng lúc này có ích kỷ lục không chỉ dừng lại ở phía đông nam.	0.00	-0.65	0.93
+phowhisper-small	1	1	12	đại biểu quản lý quản lý đảng cộng sản đã thắng thế	đại biểu quản lý quản lý đảng cộng sản đã thắng thế.	0.00	-0.53	1.15
+phowhisper-small	1	1	10	đại diện quản lý quản lý quản lý đất nước	đại diện quản lý quản lý quản lý đất nước.	0.00	-0.71	1.24
+phowhisper-small	1	1	12	đại sứ quán mỹ tại đức đều thay đổi từng câu hỏi	đại sứ quán mỹ tại đức đều thay đổi từng câu hỏi.	0.00	-0.58	1.03
+phowhisper-small	1	1	17	đại sứ quán nguyễn thị ngọc long xin chào và hẹn gặp lại quốc gia châu âu	đại sứ quán nguyễn thị ngọc long xin chào và hẹn gặp lại quốc gia châu âu.	0.00	-0.38	0.96
+phowhisper-small	1	1	14	đầu tiên là một trong những quốc gia tiêu biểu nhất tại thời kỳ	đầu tiên là một trong những quốc gia tiêu biểu nhất tại thời kỳ.	0.00	-0.63	0.97
+phowhisper-small	1	1	13	đến năm một nghìn chín trăm bảy tám trăm quốc tế cộng sản	đến năm một nghìn chín trăm bảy tám trăm quốc tế cộng sản.	0.00	-0.50	1.00
+phowhisper-small	1	1	14	đến năm một nghìn chín trăm hai mươi tám theo chiến lược chiến tranh	đến năm một nghìn chín trăm hai mươi tám theo chiến lược chiến tranh.	0.00	-0.58	1.04
+phowhisper-small	1	1	15	để tạo nên một vẻ đẹp mắt và ngạc nhiên cho vẻ đẹp mắt nhất	để tạo nên một vẻ đẹp mắt và ngạc nhiên cho vẻ đẹp mắt nhất.	0.00	-0.62	1.14
+phowhisper-small	1	1	15	đội trận khai thác sản phẩm sau khi thiệt mạng vì thương hiệu âm nhạc	đội trận khai thác sản phẩm sau khi thiệt mạng vì thương hiệu âm nhạc.	0.00	-0.59	1.01
+phowhisper-small	1	1	8	đừng buông tay ngồi tù tơ trong mắt	đừng buông tay ngồi tù tơ trong mắt.	0.00	-0.81	0.87
+phowhisper-small	1	1	28	ư of abe ae ae nếu xác nhận đợi lý thì anh sẽ tiếp tục thay thế cho phép viện kiểm sát và thay thế cho vay nội	ư. of. abe. ae. ae. nếu xác nhận đợi lý thì anh sẽ tiếp tục thay thế cho phép viện kiểm sát và thay thế cho vay nội.	0.00	-0.89	1.15
+phowhisper-small	1	1	10	̀̉ǹ̀ ường tồ̀i kiếi tồi kiếi giường tồi kiếi vái	̀̉ǹ̀ ường tồ̀i kiếi tồi kiếi giường tồi kiếi vái.	0.00	-0.74	1.46
+phowhisper-small	1	1	8	ố nguồn nguồn nguồn nguồn nguồn nguồn xả	ố nguồn nguồn nguồn nguồn nguồn nguồn xả.	0.00	-0.52	2.11
+phowhisper-small	1	1	11	ủng hộ tổ chức tổ chức tổng kỳ thiên truyền thống	ủng hộ tổ chức tổ chức tổng kỳ thiên truyền thống.	0.00	-0.50	1.16
+phowhisper-small	1	1	13	ừm a phủ môi trường bắt đầu cố tình xây dựng đất nước	ừm. a phủ môi trường bắt đầu cố tình xây dựng đất nước.	0.00	-0.62	0.92
+small	1	1	10	bây giờ mình mình sẽ lại một clip bắt đầu	Bây giờ mình mình sẽ lại một clip bắt đầu	0.49	-2.98	1.11
+small	1	1	4	bên sạch vô sạch	Bên sạch vô sạch	0.57	-2.44	0.88
+small	1	1	6	chung chung chung chung chung chung	Chung chung chung chung chung chung…	0.49	-1.49	1.90
+small	1	1	12	chào mừng các bạn và hẹn gặp lại trong video tiếp theo	Chào mừng các bạn và hẹn gặp lại trong video tiếp theo!	0.38	-0.89	0.90
+small	1	1	3	chào tạm biệt	Chào tạm biệt!	0.37	-1.19	0.68
+small	1	1	9	chào tạm biệt và hẹn gặp lại mọi người	Chào tạm biệt và hẹn gặp lại mọi người.	0.41	-0.94	0.86
+small	1	1	6	chúc chúc chúc chúc chúc chúc	Chúc chúc, chúc chúc, chúc chúc...	0.54	-0.81	1.67
+small	1	1	25	các bạn có thể nhớ đăng ký kênh của mình để đăng ký kênh của mình vào kênh của tất cả những người thân tế	Các bạn có thể nhớ đăng ký kênh của mình để đăng ký kênh của mình vào kênh của tất cả những người thân tế.	0.56	-1.66	1.57
+small	1	1	17	các bạn hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Các bạn hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.47	-0.50	0.90
+small	1	1	12	cảm ơn các bạn for watching sharing and subscribing to the channel	Cảm ơn các bạn for watching, sharing and subscribing to the channel.	0.46	-0.93	0.95
+small	1	1	14	cảm ơn các bạn for watching this video and sharing it with your friends	Cảm ơn các bạn for watching this video and sharing it with your friends.	0.58	-1.06	0.94
+small	1	1	21	cảm ơn các bạn và các bạn đã đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Cảm ơn các bạn và các bạn đã đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.55	-0.72	2.11
+small	1	1	8	cảm ơn các bạn và hẹn gặp lại	Cảm ơn các bạn và hẹn gặp lại.	0.83	-0.83	0.86
+small	1	1	27	cảm ơn các bạn và hẹn gặp lại trong video tiếp theo hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn và hẹn gặp lại trong video tiếp theo, hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.77	-0.73	1.05
+small	1	1	19	cảm ơn các bạn và hẹn gặp lại trong video tiếp theo hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn và hẹn gặp lại trong video tiếp theo, hẹn gặp lại trong video tiếp theo.	0.53	-0.85	1.41
+small	1	1	23	cảm ơn các bạn và hẹn gặp lại trong video tiếp theo hẹn gặp lại và hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn và hẹn gặp lại trong video tiếp theo, hẹn gặp lại và hẹn gặp lại trong video tiếp theo.	0.71	-0.74	1.63
+small	1	1	26	cảm ơn các bạn và hẹn gặp lại trong video tiếp theo kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Cảm ơn các bạn và hẹn gặp lại trong video tiếp theo kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.82	-0.62	1.84
+small	1	1	31	cảm ơn các bạn và hẹn gặp lại video tiếp theo kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Cảm ơn các bạn và hẹn gặp lại video tiếp theo kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.74	-0.48	2.38
+small	1	1	17	cảm ơn các bạn đã chào mừng các bạn và hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn đã chào mừng các bạn và hẹn gặp lại trong video tiếp theo.	0.26	-1.02	1.02
+small	1	1	31	cảm ơn các bạn đã chào tạm biệt và hẹn gặp lại trong video tiếp theo kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Cảm ơn các bạn đã chào tạm biệt và hẹn gặp lại trong video tiếp theo kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.62	-0.61	1.72
+small	1	1	23	cảm ơn các bạn đã cố gắng và hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã cố gắng và hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.57	-0.68	0.99
+small	1	1	18	cảm ơn các bạn đã quay bản thân bản thân bản thân bản thân bản thân bản thân	Cảm ơn các bạn đã quay bản thân bản thân bản thân bản thân bản thân bản thân.	0.53	-0.96	2.02
+small	1	1	19	cảm ơn các bạn đã subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.43	-0.52	0.93
+small	1	1	25	cảm ơn các bạn đã đón tìm thấy video này hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã đón tìm thấy video này, hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.65	-0.67	1.02
+small	1	1	9	cảm ơn các bạn đã đón xem video này	Cảm ơn các bạn đã đón xem video này.	0.41	-1.28	0.89
+small	1	1	23	cảm ơn các bạn đã đón xem video này hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video này	Cảm ơn các bạn đã đón xem video này, hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video này	0.60	-0.76	1.01
+small	1	1	24	cảm ơn các bạn đã đón xem video này hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã đón xem video này, hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.79	-0.74	1.01
+small	1	1	16	cảm ơn các bạn đã đón xem video này hẹn gặp lại và hẹn gặp lại	Cảm ơn các bạn đã đón xem video này, hẹn gặp lại và hẹn gặp lại.	0.46	-0.96	1.13
+small	1	1	17	cảm ơn các bạn đã ủng hộ hẹn gặp lại hẹn gặp lại và hẹn gặp lại	Cảm ơn các bạn đã ủng hộ, hẹn gặp lại, hẹn gặp lại và hẹn gặp lại.	0.53	-0.71	1.37
+small	1	1	18	cảm ơn các bạn đã ủng hộ kênh của mình và hẹn gặp lại trong video tiếp theo	Cảm ơn các bạn đã ủng hộ kênh của mình và hẹn gặp lại trong video tiếp theo.	0.35	-1.05	0.97
+small	1	1	25	cảm ơn các bạn đã ủng hộ video này và hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn các bạn đã ủng hộ video này và hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.70	-0.63	1.03
+small	1	1	26	cảm ơn mọi người đã cố gặp lại video này và hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã cố gặp lại video này và hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.69	-0.74	1.03
+small	1	1	9	cảm ơn mọi người đã quay lại video này	Cảm ơn mọi người đã quay lại video này.	0.62	-0.86	1.11
+small	1	1	24	cảm ơn mọi người đã quay lại video này hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã quay lại video này, hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.69	-0.68	1.00
+small	1	1	19	cảm ơn mọi người đã quay lại video này hẹn gặp lại hẹn gặp lại và hẹn gặp lại	Cảm ơn mọi người đã quay lại video này, hẹn gặp lại, hẹn gặp lại và hẹn gặp lại.	0.31	-0.85	1.30
+small	1	1	24	cảm ơn mọi người đã đón xem video này hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn mọi người đã đón xem video này, hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.65	-0.69	1.00
+small	1	1	27	cảm ơn tất cả các bạn đã quay lại video này và hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Cảm ơn tất cả các bạn đã quay lại video này và hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn.	0.54	-0.76	1.06
+small	1	1	25	cảm ơn tất cả các bạn đã đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Cảm ơn tất cả các bạn đã đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.79	-0.61	2.36
+small	1	1	1	dạ	Dạ.	0.84	-0.80	0.38
+small	1	1	6	giờ tạm biệt đến phần đầu	Giờ tạm biệt đến phần đầu	0.49	-2.98	1.11
+small	1	1	5	how about you follow that	How about you follow that?	0.26	-0.40	1.12
+small	1	1	14	hãy subscribe cho kênh la la school để không bỏ lỡ những video này	Hãy subscribe cho kênh La La School Để không bỏ lỡ những video này.	0.46	-0.76	0.99
+small	1	1	13	hãy subscribe cho kênh lalaschool để không bỏ lỡ những video hấp dẫn	Hãy subscribe cho kênh lalaschool để không bỏ lỡ những video hấp dẫn	0.57	-0.59	0.91
+small	1	1	15	hãy subscribe cho kênh lê mì gõ để không bỏ lỡ những video hấp dẫn	Hãy subscribe cho kênh Lê Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.87	-0.68	0.89
+small	1	1	14	hãy subscribe cho kênh mì gõ để không bỏ lỡ những video hấp dẫn	Hãy subscribe cho kênh Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.50	-0.45	0.88
+small	1	1	6	hẹn gặp lại hẹn gặp lại	Hẹn gặp lại, hẹn gặp lại.	0.68	-0.83	1.09
+small	1	1	8	hẹn gặp lại trong những video tiếp theo	Hẹn gặp lại trong những video tiếp theo.	0.81	-0.98	0.99
+small	1	1	7	hẹn gặp lại và hẹn gặp lại	Hẹn gặp lại và hẹn gặp lại.	0.62	-0.86	1.11
+small	1	1	4	hứa hứa hứa hứa	Hứa, hứa, hứa, hứa	0.56	-0.69	1.44
+small	1	1	5	hứa hứa hứa hứa hứa	Hứa hứa hứa hứa hứa...	0.52	-0.86	1.60
+small	1	1	3	hữu hữu hữu	Hữu hữu hữu!	0.50	-1.20	1.00
+small	1	1	1	mmmmmmmmmmmmmmmm	MMMMMMMMMMMMMMMM	0.32	-0.98	1.45
+small	1	1	1	mmmmmmmmmmmmmmmmmm	MMMMMMMMMMMMMMMMMM	0.40	-0.94	1.64
+small	1	1	6	my bass listen to your heartbeat	My bass listen to your heartbeat	0.26	-0.40	1.12
+small	1	1	2	mà chào	Mà chào.	0.46	-1.22	0.56
+small	1	1	3	máu máu máu	Máu! Máu! Máu!	0.53	-0.67	1.00
+small	1	1	1	mẹo	Mẹo!	0.54	-1.15	0.43
+small	1	1	2	nhanh đi	Nhanh đi!	0.58	-1.56	0.56
+small	1	1	1	nhưng	Nhưng...	0.37	-1.94	0.53
+small	1	1	14	nhưng nếu các tên tân tân không tham gia nếu không thì làm sao	Nhưng nếu các tên tân tân không tham gia, nếu không thì làm sao?	0.32	-1.36	1.88
+small	1	1	5	này nghe niel hãy nghe	Này, nghe Niel, hãy nghe.	0.24	-1.07	1.19
+small	1	1	5	nó đã được sử dụng	Nó đã được sử dụng.	0.55	-1.62	0.79
+small	1	1	22	nếu các bạn có thông tin thì hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Nếu các bạn có thông tin, thì hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn.	0.65	-0.91	1.00
+small	1	1	26	nếu các bạn có thể nhìn thấy các video này thì hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Nếu các bạn có thể nhìn thấy các video này, thì hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn.	0.49	-1.01	1.07
+small	1	1	27	nếu các bạn có thể nhận thật hãy đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Nếu các bạn có thể nhận thật, hãy đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.31	-0.71	2.22
+small	1	1	28	nếu các bạn có thể nhận thật hãy đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh	Nếu các bạn có thể nhận thật, hãy đăng ký kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh kênh.	0.78	-0.66	2.31
+small	1	1	2	rất nhiềuihn	Rất nhiềuihn	0.58	-3.71	0.67
+small	1	1	6	rồi rồi rồi rồi rồi rồi	Rồi! Rồi! Rồi! Rồi! Rồi! Rồi!	0.49	-0.67	2.28
+small	1	1	8	thu hồn thu hồn thu hồn thu hồn	Thu hồn, thu hồn, thu hồn, thu hồn.	0.48	-0.85	1.87
+small	1	1	3	thôi tạm biệt	Thôi, tạm biệt.	0.50	-2.25	0.82
+small	1	1	16	tuyệt hãy subscribe cho kênh la la school để không bỏ lỡ những video hấp dẫn	Tuyệt, hãy subscribe cho kênh La La School Để không bỏ lỡ những video hấp dẫn	0.48	-0.75	0.94
+small	1	1	17	tuyệt là hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Tuyệt là hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.69	-0.75	0.90
+small	1	1	2	tại sao	Tại sao?	0.50	-2.25	0.82
+small	1	1	2	tạm biệt	Tạm biệt!	0.50	-0.99	0.62
+small	1	1	24	tất cả là thơ lượng của tất cả các tên tất cả các tên tân tân tân tân tân tân tân tân tân tân	Tất cả là thơ lượng của tất cả các tên tất cả các tên tân tân tân tân tân tân tân tân tân tân...	0.32	-1.36	1.88
+small	1	1	8	tất cả ở đó tất cả ở đó	Tất cả ở đó. Tất cả ở đó.	0.24	-1.07	1.19
+small	1	1	2	tập 2	Tập 2	0.39	-1.86	0.47
+small	1	1	1	uhmmmmmm	Uhmmmmmm...	0.44	-2.77	0.73
+small	1	1	1	ui	Ui~~	0.46	-3.43	0.33
+small	1	1	9	we build it up just to break it down	We build it up just to break it down	0.26	-0.40	1.12
+small	1	1	6	xin chào tất cả các bạn	Xin chào tất cả các bạn.	0.71	-0.83	0.78
+small	1	1	1	xong	Xong	0.48	-2.14	0.33
+small	1	1	4	đón chào các bạn	Đón chào các bạn!	0.40	-1.59	0.72
+small	1	1	17	đón có thể quay trở lại một video kế hoạch của tất cả những người thân tế	Đón có thể quay trở lại một video kế hoạch của tất cả những người thân tế.	0.56	-1.66	1.57
+small	1	1	16	đón hãy subscribe cho kênh ghiền mì gõ để không bỏ lỡ những video hấp dẫn	Đón hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn	0.45	-0.47	0.90
+small	1	1	5	ơ ơ ơ ơ ơ	Ơ, Ơ, Ơ, Ơ, Ơ.	0.36	-0.71	1.19
+small	1	1	2	ư ư	Ư... Ư...	0.49	-1.18	0.65
+small	1	1	1	ước	Ước	0.39	-1.14	0.43
+small	1	1	3	ước ước ước	Ước! Ước! Ước!	0.28	-0.64	1.21
+small	1	1	3	ả ả ả	Ả... Ả... Ả...	0.56	-0.73	1.11
+small	1	1	3	ảa ảa ảa	Ảa Ảa Ảa	0.55	-0.75	0.88
+small	1	1	4	ảnh ảnh ảnh ảnh	Ảnh Ảnh Ảnh Ảnh	0.83	-0.83	1.35
+small	1	1	3	ảu ảu ảu	Ảu... Ảu... Ảu...	0.58	-0.58	1.21
+small	1	1	5	ấu ấu ấu ấu ấu	Ấu... Ấu... Ấu... Ấu... Ấu...	0.48	-0.47	2.05
+small	1	1	6	ấu ấu ấu ấu ấu ấu	Ấu, Ấu, Ấu, Ấu, Ấu, Ấu	0.58	-0.43	2.00
