@@ -3,6 +3,7 @@
 import csv
 import importlib.util
 import sys
+import time
 import wave
 from pathlib import Path
 
@@ -218,3 +219,40 @@ def test_ghost_texts_count_noise_segments_that_still_produce_text():
     assert int(off["vad_false_triggers"]) > 0
     assert off["ghost_texts"] == off["vad_false_triggers"]  # every false trigger speaks without the filter
     assert on["vad_false_triggers"] == off["vad_false_triggers"] and on["ghost_texts"] == 0
+
+
+def test_filter_modes_share_one_whisper_call_per_segment_and_keep_its_time():
+    """filter off/on rows come from the same recognition: half the calls, same latency, the filter alone differs."""
+    import types
+
+    from audio_translator.asr import SegmentFilter, WhisperASR
+
+    calls = []
+
+    class FakeModel:
+        def transcribe(self, pcm, **kw):
+            calls.append(kw["initial_prompt"])
+            time.sleep(0.002)
+            return [types.SimpleNamespace(text="Hãy subscribe cho kênh", no_speech_prob=0.9, avg_logprob=-0.2,
+                                          compression_ratio=1.0)], None
+
+    def make(name):
+        asr = WhisperASR("small")
+        asr._model = FakeModel()
+        return asr
+
+    rng = np.random.default_rng(1)
+    bursts = np.zeros(16000 * 20)
+    for k in range(0, bursts.size, 16000):
+        bursts[k:k + 4000] = rng.normal(0, 4000, 4000)
+    speech = np.sin(np.arange(16000) * 0.2) * 8000.0
+    rows = []
+    ab.run([(speech, "x")], [bursts], ["m"], make, lambda v: db.energy_vad, corpus="c", noise_name="n",
+           prompts=[None, "câu mồi"], snrs=[0.0], seed=0, emit=rows.append,
+           filters=(None, SegmentFilter(blacklist=())))
+    assert [(r["prompt"], r["filter"]) for r in rows] == [("off", "off"), ("off", "on"), ("on", "off"), ("on", "on")]
+    per_prompt = len(calls) // 2
+    assert calls == [None] * per_prompt + ["câu mồi"] * per_prompt  # one recognition per segment and prompt
+    for off, on in (rows[:2], rows[2:]):
+        assert off["asr_ms_mean"] == on["asr_ms_mean"] and float(off["asr_ms_mean"]) >= 2
+        assert int(off["ghost_texts"]) > 0 and on["ghost_texts"] == 0  # no_speech_prob 0.9 > 0.6

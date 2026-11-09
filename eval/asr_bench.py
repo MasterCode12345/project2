@@ -24,7 +24,9 @@ Hallucination columns (``--vads`` webrtc/silero, ``--filters`` off/on = the
 app's ``--asr-filter``): ``vad_false_triggers`` = segments in the scored noise
 window of the matching noise-only clip, ``ghost_texts`` = how many of those
 still produce text after the filter (what would be translated and spoken),
-``vad_extra_segs`` = segments of the speech clip outside the utterance. One CSV row is appended as soon as it is measured, so a
+``vad_extra_segs`` = segments of the speech clip outside the utterance. The
+filter modes of one prompt x VAD share each Whisper call (``memoize_segments``),
+so their rows differ only by the filter. One CSV row is appended as soon as it is measured, so a
 long run that stops keeps what it finished.
 
     uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/vivos \\
@@ -37,6 +39,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gc
+import hashlib
 import sys
 import time
 import wave
@@ -87,17 +90,52 @@ def load_fleurs(root: Path, limit: int | None) -> list[tuple[np.ndarray, str]]:
 
 # --------------------------------------------------------------------- timing
 class TimedASR:
-    """Wraps a recognizer and records (seconds, audio seconds) per transcribe call."""
+    """Wraps a recognizer and records (seconds, audio seconds) per transcribe call.
+
+    When the recognizer's segments come from ``memoize_segments``, the time is
+    that of the real Whisper call (a replay costs nothing).
+    """
 
     def __init__(self, asr) -> None:
         self.asr = asr
         self.calls: list[tuple[float, float]] = []
 
     def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:
+        if hasattr(self.asr, "last_call_s"):
+            self.asr.last_call_s = None
         t0 = time.perf_counter()
         text = self.asr.transcribe(audio, sample_rate)
-        self.calls.append((time.perf_counter() - t0, audio.size / sample_rate))
+        secs = getattr(self.asr, "last_call_s", None)
+        self.calls.append((time.perf_counter() - t0 if secs is None else secs, audio.size / sample_rate))
         return text
+
+
+def memoize_segments(asr) -> dict | None:
+    """Make ``asr.transcribe_segments`` replay segments of audio it already recognised (same prompt).
+
+    The ASR filter only drops segments, so filter off/on share one Whisper call
+    per audio segment: identical text before filtering (no decoding
+    nondeterminism between the two rows) and half the run time. The real
+    call's duration is kept in ``asr.last_call_s``. Returns the memo (clear it to
+    forget), or None when the recognizer has no ``transcribe_segments``.
+    """
+    real = getattr(asr, "transcribe_segments", None)
+    if real is None:
+        return None
+    memo: dict = {}
+
+    def cached(audio: np.ndarray, sample_rate: int):
+        key = (hashlib.sha1(np.ascontiguousarray(audio).tobytes()).digest(), sample_rate, asr.initial_prompt)
+        if key not in memo:
+            t0 = time.perf_counter()
+            segs = real(audio, sample_rate)
+            memo[key] = (segs, time.perf_counter() - t0)
+        segs, asr.last_call_s = memo[key]
+        return segs
+
+    asr.transcribe_segments = cached
+    asr.last_call_s = None
+    return memo
 
 
 def latency_stats(calls: list[tuple[float, float]]) -> tuple[float, float, float]:
@@ -161,8 +199,11 @@ def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make
             log(f"skipping model '{model}': {exc}")
             continue
         load_s = time.perf_counter() - t0
+        memo = memoize_segments(asr)
         for prompt in prompts:
             for vad_name in vads:
+                if memo is not None:
+                    memo.clear()  # shared by the filter modes of one prompt x VAD only
                 for seg_filter in filters:
                     bench_model(utts, noises, asr, lambda v=vad_name: make_vad(v), corpus=corpus,
                                 noise_name=noise_name, model=model, prompt=prompt, snrs=snrs, seed=seed,
