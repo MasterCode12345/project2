@@ -1,7 +1,6 @@
 """scripts/collect_hallucinations.py: noise disjoint from the benches, aggregation (fake ASR)."""
 
 import importlib.util
-import sys
 import types
 import wave
 from pathlib import Path
