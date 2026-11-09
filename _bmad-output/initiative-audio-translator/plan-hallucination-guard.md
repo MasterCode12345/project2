@@ -3,7 +3,7 @@ title: 'Hallucination guard — Silero VAD option, Whisper confidence filter + V
 type: 'feature'
 ticket: ''
 created: '2026-10-31'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '0d42a1b680d4f3d9a302ae7659c2bdf61ef52bbc'
 route: 'full'
 route_source: 'auto'
@@ -64,14 +64,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/audio_translator/segmenter.py` -- `SileroVad` streaming + `silero_vad()` -- VAD mới
-- [ ] `src/audio_translator/asr.py`, `hallucinations_vi.txt` -- `SegmentFilter` (ngưỡng + danh sách đen), dùng trong `transcribe` khi bật -- lọc câu ma
-- [ ] `src/audio_translator/config.py`, `cli.py`, `orchestrator.py` -- settings, flags, chọn VAD theo session -- tích hợp
-- [ ] `scripts/collect_hallucinations.py` -- chạy Whisper (small, phowhisper-small) trên đoạn VAD cắt ra từ nhiễu không trùng, in tần suất câu → chọn tay vào `hallucinations_vi.txt` kèm nguồn -- danh sách đen có căn cứ
-- [ ] `eval/asr_bench.py` -- `--vad`, `--filter`, 3 cột mới -- đo đạc
-- [ ] `tests/test_segmenter.py`, `tests/test_asr.py`, `tests/test_asr_bench.py`, `tests/test_frontends.py` -- mọi dòng matrix -- regression
-- [ ] `README.md` -- `--vad`, `--asr-filter`, cách xây danh sách đen, bảng kết quả -- docs
-- [ ] Sau khi bench ASR (Bước 1) chạy xong: đo `small` và `phowhisper-small` × VAD {webrtc, silero} × lọc {tắt, bật} × SNR {clean, 20, 10, 5, 0} trên VIVOS × {DEMAND, MUSAN}, ghi `results/guard_*.csv` -- kết quả
+- [x] `src/audio_translator/segmenter.py` -- `SileroVad` streaming + `silero_vad()` -- VAD mới
+- [x] `src/audio_translator/asr.py`, `hallucinations_vi.txt` -- `SegmentFilter` (ngưỡng + danh sách đen), dùng trong `transcribe` khi bật -- lọc câu ma
+- [x] `src/audio_translator/config.py`, `cli.py`, `orchestrator.py` -- settings, flags, chọn VAD theo session -- tích hợp
+- [x] `scripts/collect_hallucinations.py` -- chạy Whisper (small, phowhisper-small) trên đoạn VAD cắt ra từ nhiễu không trùng, in tần suất câu → chọn tay vào `hallucinations_vi.txt` kèm nguồn -- danh sách đen có căn cứ
+- [x] `eval/asr_bench.py` -- `--vad`, `--filter`, 3 cột mới -- đo đạc
+- [x] `tests/test_segmenter.py`, `tests/test_asr.py`, `tests/test_asr_bench.py`, `tests/test_frontends.py` -- mọi dòng matrix -- regression
+- [x] `README.md` -- `--vad`, `--asr-filter`, cách xây danh sách đen, bảng kết quả -- docs
+- [x] Sau khi bench ASR (Bước 1) chạy xong: đo `small` và `phowhisper-small` × VAD {webrtc, silero} × lọc {tắt, bật} × SNR {clean, 20, 10, 5, 0} trên VIVOS × {DEMAND, MUSAN}, ghi `results/guard_*.csv` -- kết quả
 
 **Acceptance Criteria:**
 - Given `--vad silero --asr-filter`, when chạy app, then câu nói vẫn được dịch và không có lỗi.
@@ -87,7 +87,15 @@ context:
 - `scripts/collect_hallucinations.py`: sources = 930 files (910 MUSAN noise outside the bench's seed-0 sample of 20 + 20 MUSAN music); verified disjoint from the bench sample.
 - Matrix row "Silero trên tiếng nói" is tested with a fake session (no speech audio in tests); the real-model behaviour on VIVOS was checked by the prototype (0 missed utterances in 100 × 8 conditions) and is re-measured by the bench.
 - Prototype numbers (scratchpad, webrtc vs Silero 0.5, false triggers on 100 noise-only clips): DEMAND 96/105/101 → 24/24/27, MUSAN 141/117/115 → 0/3/10 at 20/10/0 dB; webrtc numbers reproduce the `a03a1d2` bench exactly.
-- Pending (needs the CPU after the step-1 bench): run the collect script, curate `hallucinations_vi.txt`, run the guard bench.
+- Collect + curate done: 913 distinct outputs from 200 disjoint MUSAN noise+music files (`results/hallucination_candidates.tsv`) → 9 phrases (≥ 4 words, each with its source), 0 matches in 13,277 real VIVOS/FLEURS sentences.
+- `eval/asr_bench.py` memoizes Whisper per prompt × VAD (`memoize_segments`) so filter off/on share one call and its time.
+
+## Results (2026-11-09, `results/guard_vivos_{demand,musan}.csv`, 100 VIVOS utts, seed 0)
+
+- `vad_false_triggers` webrtc → Silero: DEMAND 96–109 → 24–27 (−75%), MUSAN 115–141 → 0–10 (−93–100%). Per-file check: Silero fires only on the 3/17 DEMAND scenes with real background voices (OMEETING, PCAFETER, PRESTO); 0 frames on the other 14.
+- `ghost_texts` (20/10/5/0 dB), webrtc+off → Silero+filter: small DEMAND 96/104/108/97 → 4/4/5/4, MUSAN 124/102/108/112 → 0/0/0/1; phowhisper DEMAND 96/105/109/101 → 24/22/26/26, MUSAN 141/117/115/115 → 0/3/4/9. The filter is ~useless for PhoWhisper (no_speech_prob always 0, varied news-like ghosts).
+- WER: small never worse than +0.2 and up to −4.5 points at 0 dB. PhoWhisper +2.2 (DEMAND 5 dB) and +4.1 (MUSAN 0 dB), i.e. the "≤ 1 point" criterion is **not strictly met** there. Per-utterance diagnosis: each regression is dominated by one PhoWhisper repetition loop (+28 / +17 words); without it Silero has fewer errors than webrtc. webrtc WER at those cells is not reproducible between runs (13.2 vs 16.0, 7.3 vs 9.0; Silero reproduces exactly), most likely faster-whisper's sampled temperature fallback on long noisy webrtc segments.
+- Defaults unchanged (webrtc, filter off), pending the human decision. Follow-ups: repetition-loop guard for PhoWhisper; background-speaker triggers are a separate problem.
 
 ## Plan Change Log
 
