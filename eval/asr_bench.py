@@ -138,6 +138,16 @@ def memoize_segments(asr) -> dict | None:
     return memo
 
 
+def seed_decoder(seed: int) -> None:
+    """Fix CTranslate2's RNG: faster-whisper falls back to sampling (temperature > 0) on hard
+    audio, so without a seed a noisy row's WER changes from run to run."""
+    try:
+        import ctranslate2
+    except ImportError:  # --smoke without the ASR stack
+        return
+    ctranslate2.set_random_seed(seed)
+
+
 def latency_stats(calls: list[tuple[float, float]]) -> tuple[float, float, float]:
     """(mean ms, P95 ms, RTF) over transcribe calls; zeros when there are none."""
     if not calls:
@@ -160,6 +170,7 @@ def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_nam
         for k, (speech, ref) in enumerate(utts):
             clip = db.build_clip(speech, noises[k % len(noises)], snr, rng)
             timed = TimedASR(asr)
+            seed_decoder(seed + k)  # per clip, so a row does not depend on the rows before it
             r = db.run_pipeline(clip.noisy, None, make_vad(), timed)
             refs.append(db.normalize_vi(ref))
             hyps.append(db.normalize_vi(r.text_in(clip.speech_s)))
@@ -168,6 +179,7 @@ def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_nam
                     scored.append(call)
                 else:
                     extra += 1
+            seed_decoder(seed + k)
             noise_run = db.run_pipeline(clip.noise_only, None, make_vad(), asr)
             for a, b, text in noise_run.segments:
                 if db.overlaps((a, b), clip.noise_window_s):

@@ -116,7 +116,12 @@ def test_segmented_input_is_one_call_per_segment_joined_per_sentence():
     assert hyps[0] == "I go to school" and hyps[1] is None and hyps[2] == "" and hyps[3] == "I"
     assert failed == 1 and len(secs) == 4  # per-call latency, the unit the app translates
     assert mt.split_segments(" a  |||  b c ||| ") == ["a", "b c"] and mt.split_segments("") == []
-    assert mt.seg_model_key("phowhisper-small", 2, 600) == "phowhisper-small+seg(vad2,600ms)"
+    from audio_translator.config import Settings
+
+    assert mt.seg_model_key("phowhisper-small", Settings(vad_backend="webrtc", asr_filter=False)) \
+        == "phowhisper-small+seg(vad2,600ms)"  # the historical cache name
+    assert mt.seg_model_key("phowhisper-small", Settings(vad_backend="silero", asr_filter=True)) \
+        == "phowhisper-small+seg(silero0.5,600ms,filter)"
 
 
 def test_pivot_route_is_named_in_the_row_label():
