@@ -140,7 +140,8 @@ def test_loading_an_unconverted_local_model_is_not_announced_as_a_download(model
 
 
 # ---------------------------------------------------------- hallucination filter
-from audio_translator.asr import SegmentFilter, filter_from_settings, load_blacklist, normalize_text  # noqa: E402
+from audio_translator.asr import (  # noqa: E402
+    SegmentFilter, collapse_repeats, filter_from_settings, load_blacklist, normalize_text)
 
 
 def seg(text, nsp=0.1, lp=-0.3, cr=1.5):
@@ -220,7 +221,8 @@ def test_all_segments_filtered_gives_empty_text(seg_fw):
 
 
 def test_filter_from_settings():
-    assert filter_from_settings(Settings()) is None
+    assert filter_from_settings(Settings(asr_filter=False)) is None
+    assert isinstance(filter_from_settings(Settings()), SegmentFilter)  # on by default
     f = filter_from_settings(Settings(asr_filter=True, asr_max_no_speech_prob=0.5, asr_min_avg_logprob=-0.8,
                                       asr_max_compression_ratio=2.0))
     assert (f.max_no_speech_prob, f.min_avg_logprob, f.max_compression_ratio) == (0.5, -0.8, 2.0)
@@ -232,7 +234,7 @@ def test_orchestrator_recognizer_gets_filter_and_session_vad_from_settings(monke
     orch = Orchestrator.__new__(Orchestrator)
     orch.settings = Settings(asr_filter=True)
     assert isinstance(orch._make_recognizer("small").segment_filter, SegmentFilter)
-    orch.settings = Settings()
+    orch.settings = Settings(asr_filter=False)
     assert orch._make_recognizer("small").segment_filter is None
 
 
@@ -254,9 +256,34 @@ def test_cli_vad_and_filter_flags_reach_settings():
         def shutdown(self):
             pass
 
-    cli.main(["--vad", "silero", "--silero-threshold", "0.7", "--asr-filter"], orchestrator_factory=Orch)
-    assert (seen["s"].vad_backend, seen["s"].silero_threshold, seen["s"].asr_filter) == ("silero", 0.7, True)
+    cli.main(["--vad", "webrtc", "--silero-threshold", "0.7", "--no-asr-filter"], orchestrator_factory=Orch)
+    assert (seen["s"].vad_backend, seen["s"].silero_threshold, seen["s"].asr_filter) == ("webrtc", 0.7, False)
     d = cli.build_parser().parse_args([])
-    assert (d.vad, d.asr_filter) == ("webrtc", False)
+    assert (d.vad, d.asr_filter) == ("silero", True)  # defaults since the guard bench
+    assert cli.build_parser().parse_args(["--asr-filter"]).asr_filter is True
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["--vad", "energy"])
+
+
+@pytest.mark.parametrize("text, want", [
+    ("râu ria đã ba ngày không cạo a a a a a a a a d n", "râu ria đã ba ngày không cạo a d n"),  # 1-word loop
+    ("nga thi ấy càng nhìn nốt nga a nga thi ấy càng nhìn nốt nga a nga thi ấy càng nhìn nốt nguy cơ",
+     "nga thi ấy càng nhìn nốt nga a nga thi ấy càng nhìn nốt nguy cơ"),  # 8-word unit twice -> once
+    ("cảm ơn, cảm ơn, cảm ơn, cảm ơn.", "cảm ơn."),  # compared normalised; the last copy is kept
+    ("rất rất rất đẹp", "rất rất rất đẹp"),  # 3 x one word: speech
+    ("alo alo anh nghe không", "alo alo anh nghe không"),
+    ("bác sĩ phẫu thuật bác sĩ phẫu thuật và bác sĩ gây mê", "bác sĩ phẫu thuật bác sĩ phẫu thuật và bác sĩ gây mê"),
+    ("", ""),
+])
+def test_collapse_repeats(text, want):
+    assert collapse_repeats(text) == want
+
+
+def test_filter_writes_a_decoding_loop_once_and_records_it(seg_fw):
+    loop = "Xin chào " + "a " * 10
+    seg_fw.segments = [seg(loop)]
+    a = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL))
+    assert a.transcribe(np.zeros(1600, np.int16), 16000) == "Xin chào a"
+    assert a.dropped == [("repetition", loop.strip())]
+    b = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL, collapse_loops=False))
+    assert b.transcribe(np.zeros(1600, np.int16), 16000) == loop.strip()

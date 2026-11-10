@@ -558,7 +558,7 @@ class Orchestrator:
         for q in (self._frames_q, self._seg_q, self._tr_q, self._tl_q):
             while True:
                 try:
-                    item = q.get_nowait()
+                    q.get_nowait()
                 except queue.Empty:
                     break
                 if q is not self._frames_q:

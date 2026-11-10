@@ -10,8 +10,8 @@ Two questions:
   (no VAD/segmenter, no noise, no prompt, beam 5), so the gap text_norm -> asr
   is recognition errors only and text -> text_norm is lost casing/punctuation;
 * (C) what the app really does (``condition=asr_seg``): the recording goes
-  through the app's webrtcvad + Segmenter (``Settings`` aggressiveness and
-  silence), each segment is transcribed and translated on its own, and the
+  through the app's VAD + Segmenter and ASR filter (``Settings``: VAD backend,
+  its threshold, silence, ``asr_filter``), each segment is transcribed and translated on its own, and the
   segment translations are joined for scoring. Latency is then per segment,
   the unit the app translates; ``n_inputs``/``mean_words`` say how many
   translator inputs a row had and how long they were.
@@ -59,6 +59,7 @@ import csv
 import gc
 import sys
 import time
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -446,27 +447,34 @@ def google_backend() -> Backend:
                    lambda a, b: GoogleTranslator(mt_code(a, "google"), mt_code(b, "google")))
 
 
-def seg_model_key(model: str, aggressiveness: int, silence_ms: int) -> str:
-    """ASR cache name of a segmented run: another segmentation is another transcript."""
-    return f"{model}+seg(vad{aggressiveness},{silence_ms}ms)"
+def seg_model_key(model: str, app) -> str:
+    """ASR cache name of a segmented run (``app``: Settings): another segmentation is another transcript.
+
+    webrtc without the ASR filter keeps the historical ``seg(vad2,600ms)`` name.
+    """
+    vad = f"vad{app.vad_aggressiveness}" if app.vad_backend == "webrtc" else f"{app.vad_backend}{app.silero_threshold:g}"
+    return f"{model}+seg({vad},{app.silence_ms}ms{',filter' if app.asr_filter else ''})"
 
 
-def whisper_recognizer(language: str, beam_size: int, segmented_vad: tuple[int, int] | None = None):
-    """Whole-recording transcript, or with ``segmented_vad=(aggressiveness, silence_ms)`` the app's
-    webrtcvad + Segmenter, one transcript per segment joined with SEG_SEP (empty segments dropped)."""
+def whisper_recognizer(language: str, beam_size: int, segmented=None):
+    """Whole-recording transcript (no VAD, no filter), or with ``segmented=Settings`` the app's VAD +
+    Segmenter + ASR filter, one transcript per segment joined with SEG_SEP (empty segments dropped)."""
     def make(model: str) -> Callable[[Pair], str]:
-        from audio_translator.asr import WhisperASR
-        from audio_translator.segmenter import webrtc_vad
+        from audio_translator.asr import WhisperASR, filter_from_settings
+        from audio_translator.segmenter import vad_from_settings
 
-        asr = WhisperASR(model, language=language, beam_size=beam_size)
+        asr = WhisperASR(model, language=language, beam_size=beam_size,
+                         segment_filter=filter_from_settings(segmented) if segmented is not None else None)
         asr.load()
 
         def recognize(pair: Pair) -> str:
+            import ctranslate2
+
+            ctranslate2.set_random_seed(zlib.crc32(pair.id.encode()))  # sampled fallback: same text every run
             x = np.clip(np.rint(db.read_wav(pair.audio)), -32768, 32767).astype(np.int16)
-            if segmented_vad is None:
+            if segmented is None:
                 return asr.transcribe(x, db.RATE)
-            aggressiveness, silence_ms = segmented_vad
-            r = db.run_pipeline(x, None, webrtc_vad(aggressiveness), asr, silence_ms=silence_ms)
+            r = db.run_pipeline(x, None, vad_from_settings(segmented), asr, silence_ms=segmented.silence_ms)
             return f" {SEG_SEP} ".join(" ".join(t.split()) for t in r.texts if t.strip())
 
         return recognize
@@ -552,6 +560,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--backends", default="argos,google",
                    help="comma list of argos, google, nllb-600m, m2m100-418m (converted models only)")
     p.add_argument("--conditions", default=",".join(CONDITIONS))
+    p.add_argument("--seg-vad", choices=["webrtc", "silero"], default=None,
+                   help="asr_seg: VAD of the segmentation (default: the app's Settings)")
+    p.add_argument("--seg-filter", choices=["off", "on"], default=None,
+                   help="asr_seg: the app's ASR filter (default: the app's Settings)")
     p.add_argument("--asr-models", default="small,phowhisper-small")
     p.add_argument("--restore", default="off",
                    help="comma list of off, sent, vibert-capu (converted models only): casing/punctuation "
@@ -670,17 +682,17 @@ def main(argv: list[str] | None = None) -> int:
                 backends.append(google_backend())
         from audio_translator.config import Settings
 
-        app = Settings()
-        seg_vad = (app.vad_aggressiveness, app.silence_ms)
+        app = Settings(**({"vad_backend": args.seg_vad} if args.seg_vad else {}),
+                       **({"asr_filter": args.seg_filter == "on"} if args.seg_filter else {}))
         recognizers = {False: whisper_recognizer(src_lang.whisper, args.beam_size),
-                       True: whisper_recognizer(src_lang.whisper, args.beam_size, segmented_vad=seg_vad)}
+                       True: whisper_recognizer(src_lang.whisper, args.beam_size, segmented=app)}
         cache = AsrCache(args.asr_cache)
 
         def make_recognizer(model: str, segmented: bool):
             return recognizers[segmented](model)
 
         def asr_key(model: str, segmented: bool) -> str:
-            return seg_model_key(model, *seg_vad) if segmented else model
+            return seg_model_key(model, app) if segmented else model
 
     samples_out = args.samples_out or args.out.with_name(args.out.stem + "_samples.tsv")
     first = corpora[0]

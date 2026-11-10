@@ -1,0 +1,17 @@
+corpus,noise,model,prompt,vad,filter,snr_db,n_utts,wer,cer,asr_ms_mean,asr_ms_p95,asr_rtf,load_s,vad_extra_segs,vad_false_triggers,ghost_texts
+vivos,noise,phowhisper-small,off,webrtc,off,20,100,0.1043,0.0683,1484,1939,0.226,0.7,18,141,141
+vivos,noise,phowhisper-small,off,webrtc,off,10,100,0.0685,0.0287,1510,1896,0.219,0.7,13,117,117
+vivos,noise,phowhisper-small,off,webrtc,off,5,100,0.1370,0.0731,1909,2454,0.273,0.7,12,115,115
+vivos,noise,phowhisper-small,off,webrtc,off,0,100,0.1483,0.0934,2321,9142,0.329,0.7,13,115,115
+vivos,noise,phowhisper-small,off,webrtc,on,20,100,0.1043,0.0683,1484,1939,0.226,0.7,18,141,141
+vivos,noise,phowhisper-small,off,webrtc,on,10,100,0.0685,0.0287,1510,1896,0.219,0.7,13,117,117
+vivos,noise,phowhisper-small,off,webrtc,on,5,100,0.1022,0.0568,1909,2454,0.273,0.7,12,115,115
+vivos,noise,phowhisper-small,off,webrtc,on,0,100,0.1483,0.0934,2321,9142,0.329,0.7,13,115,115
+vivos,noise,phowhisper-small,off,silero,off,20,100,0.0593,0.0278,1529,1657,0.468,0.7,0,0,0
+vivos,noise,phowhisper-small,off,silero,off,10,100,0.0675,0.0357,1361,1535,0.410,0.7,2,3,3
+vivos,noise,phowhisper-small,off,silero,off,5,100,0.0787,0.0395,1390,1820,0.414,0.7,4,4,4
+vivos,noise,phowhisper-small,off,silero,off,0,100,0.1738,0.1023,1775,2440,0.528,0.7,5,10,10
+vivos,noise,phowhisper-small,off,silero,on,20,100,0.0593,0.0278,1529,1657,0.468,0.7,0,0,0
+vivos,noise,phowhisper-small,off,silero,on,10,100,0.0675,0.0357,1361,1535,0.410,0.7,2,3,3
+vivos,noise,phowhisper-small,off,silero,on,5,100,0.0787,0.0395,1390,1820,0.414,0.7,4,4,4
+vivos,noise,phowhisper-small,off,silero,on,0,100,0.1483,0.0903,1775,2440,0.528,0.7,5,10,10

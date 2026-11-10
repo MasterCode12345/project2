@@ -53,6 +53,43 @@ def normalize_text(text: str) -> str:
     return " ".join(text.split())
 
 
+def _min_repeats(n: int) -> int:
+    """Consecutive copies of an n-word unit that count as a decoding loop."""
+    return 4 if n == 1 else 3 if n <= 4 else 2
+
+
+def collapse_repeats(text: str, max_unit: int = 8) -> str:
+    """Keep one copy of a word sequence Whisper repeated in a loop.
+
+    A unit of n words (compared normalised) repeated consecutively at least
+    ``_min_repeats(n)`` times (4 for one word, 3 for 2-4 words, 2 for 5 or
+    more) is written once: "cạo a a a a a" -> "cạo a". Shorter repetitions
+    ("rất rất rất", "bác sĩ phẫu thuật bác sĩ phẫu thuật") are speech and are kept. The longest
+    span covered wins; text without a loop is returned unchanged.
+    """
+    words = text.split()
+    keys = [normalize_text(w) for w in words]
+    out, i = [], 0
+    while i < len(words):
+        best_n, best_len = 0, 0
+        for n in range(1, max_unit + 1):
+            unit = keys[i:i + n]
+            if len(unit) < n or not all(unit):
+                break
+            r = 1
+            while keys[i + r * n:i + (r + 1) * n] == unit:
+                r += 1
+            if r >= _min_repeats(n) and r * n > best_len:
+                best_n, best_len = n, r * n
+        if best_n:
+            out.extend(words[i + best_len - best_n:i + best_len])  # last copy: keeps its punctuation
+            i += best_len
+        else:
+            out.append(words[i])
+            i += 1
+    return " ".join(out) if len(out) < len(words) else text
+
+
 def load_blacklist(path: Path = BLACKLIST_PATH) -> tuple[str, ...]:
     """Phrases, one per line (``phrase<TAB># source``); ``#`` lines are comments."""
     phrases = []
@@ -74,12 +111,15 @@ class SegmentFilter:
     ``avg_logprob < min_avg_logprob``, OR ``compression_ratio >
     max_compression_ratio``, OR its normalised text contains a blacklisted
     phrase as whole words. Other segments of the same utterance are kept.
+    A kept segment's text goes through ``collapse_repeats`` (``collapse_loops``):
+    PhoWhisper sometimes loops on noisy audio ("cạo a a a a …").
     """
 
     max_no_speech_prob: float = 0.6
     min_avg_logprob: float = -1.0
     max_compression_ratio: float = 2.4
     blacklist: tuple[str, ...] = field(default_factory=load_blacklist)
+    collapse_loops: bool = True
 
     def reason(self, seg) -> str | None:
         """Why ``seg`` would be dropped, or None to keep it."""
@@ -96,6 +136,10 @@ class SegmentFilter:
 
     def keep(self, seg) -> bool:
         return self.reason(seg) is None
+
+    def clean(self, text: str) -> str:
+        """Text of a kept segment, with decoding loops written once."""
+        return collapse_repeats(text) if self.collapse_loops else text
 
 
 def filter_from_settings(settings) -> SegmentFilter | None:
@@ -130,7 +174,7 @@ class WhisperASR:
         self.beam_size = beam_size
         self.initial_prompt = initial_prompt or None
         self.segment_filter = segment_filter  # None: keep every segment (previous behaviour)
-        self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last transcribe call
+        self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last call; "repetition": shortened, kept
         self._model = None
         self._lock = threading.Lock()
 
@@ -167,8 +211,14 @@ class WhisperASR:
         kept, self.dropped = [], []
         for seg in self.transcribe_segments(audio, sample_rate):
             why = self.segment_filter.reason(seg) if self.segment_filter is not None else None
+            text = seg.text.strip()
             if why is None:
-                kept.append(seg.text.strip())
+                if self.segment_filter is not None:
+                    clean = self.segment_filter.clean(text)
+                    if clean != text:
+                        self.dropped.append(("repetition", text))
+                    text = clean
+                kept.append(text)
             else:
-                self.dropped.append((why, seg.text.strip()))
+                self.dropped.append((why, text))
         return " ".join(kept).strip()

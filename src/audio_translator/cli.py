@@ -29,8 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Whisper model (default: medium; see --list-models)")
     p.add_argument("--asr-prompt", default=None, metavar="TEXT",
                    help="Whisper initial prompt, e.g. a Vietnamese sentence with diacritics (default: none)")
-    p.add_argument("--asr-filter", action="store_true",
-                   help="drop Whisper segments with low confidence or a known Vietnamese hallucination")
+    p.add_argument("--asr-filter", action=argparse.BooleanOptionalAction, default=Settings().asr_filter,
+                   help="drop Whisper segments with low confidence or a known Vietnamese hallucination, "
+                        "and write decoding loops once (default: on)")
     p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
                    help="translation backend: offline = Argos (default), google, or a converted multilingual "
                         "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")

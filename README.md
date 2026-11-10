@@ -42,7 +42,7 @@
 |---|---|---|
 | M1 Giao diện / điều phối | `gui.py`, `cli.py`, `orchestrator.py` | Start/Stop; chọn micro, đầu ra và model; mỗi lần Start là một phiên mới. Giao diện chỉ giao tiếp với orchestrator qua sự kiện |
 | M2 Thu âm | `capture.py` | sounddevice (PortAudio). Callback chỉ chép khung âm thanh, gắn mốc thời gian rồi đẩy vào hàng đợi |
-| M3 VAD / phân đoạn | `segmenter.py` | webrtcvad, giữ 300 ms trước khi bắt đầu nói, chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
+| M3 VAD / phân đoạn | `segmenter.py` | Silero VAD (mặc định) hoặc webrtcvad, giữ 300 ms trước khi bắt đầu nói, chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
 | M4 ASR | `asr.py`, `model_manager.py` | faster-whisper chạy CPU int8, ngôn ngữ `vi`. Có 6 model (tiny → large-v3), tải ở luồng nền, giữ tối đa 2 model trong RAM |
 | M5 Dịch | `translate.py` | Model Argos vi→en (~66 MB) chạy trực tiếp bằng CTranslate2 + SentencePiece; dự phòng bằng Google Translate |
 | M6 TTS | `tts.py` | edge-tts, giọng `en-US-AriaNeural`, giải mã MP3 thành PCM |
@@ -148,19 +148,19 @@ uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv   
 
 FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
 
-### Chống câu "ma" (thử nghiệm)
+### Chống câu "ma"
 
-Khi có nhiễu, webrtcvad bật nhầm gần như ở mọi clip chỉ có nhiễu (96–141 lần trên 100 clip), và Whisper "bịa" câu cho các đoạn đó, ví dụ *"Hãy subscribe cho kênh Ghiền Mì Gõ…"*. Có hai lớp chặn, cả hai **mặc định tắt** (kết quả đo ở cuối mục này):
+Khi có nhiễu, webrtcvad bật nhầm gần như ở mọi clip chỉ có nhiễu (96–141 lần trên 100 clip), và Whisper "bịa" câu cho các đoạn đó, ví dụ *"Hãy subscribe cho kênh Ghiền Mì Gõ…"*. Có hai lớp chặn, **cả hai bật mặc định** từ khi có kết quả đo ở cuối mục này. Muốn quay lại hành vi cũ:
 
 ```sh
-uv run audio-translator --cli --model phowhisper-small --vad silero [--silero-threshold 0.5] --asr-filter
+uv run audio-translator --cli --model phowhisper-small --vad webrtc --no-asr-filter
 ```
 
 | Flag | Ý nghĩa | Mặc định |
 |---|---|---|
-| `--vad {webrtc,silero}` | bộ phát hiện tiếng nói. Silero dùng model `silero_vad_v6.onnx` có sẵn trong faster-whisper (không thêm dependency), chạy streaming theo cửa sổ 32 ms | `webrtc` |
+| `--vad {webrtc,silero}` | bộ phát hiện tiếng nói. Silero dùng model `silero_vad_v6.onnx` có sẵn trong faster-whisper (không thêm dependency), chạy streaming theo cửa sổ 32 ms | `silero` |
 | `--silero-threshold p` | xác suất tiếng nói để bắt đầu một đoạn; đoạn kết thúc khi xác suất < p − 0,15 | `0.5` |
-| `--asr-filter` | bỏ từng segment Whisper có `no_speech_prob` > 0,6, **hoặc** `avg_logprob` < −1,0, **hoặc** `compression_ratio` > 2,4, hoặc chứa một câu trong danh sách đen | tắt |
+| `--asr-filter` / `--no-asr-filter` | bỏ từng segment Whisper có `no_speech_prob` > 0,6, **hoặc** `avg_logprob` < −1,0, **hoặc** `compression_ratio` > 2,4, hoặc chứa một câu trong danh sách đen. Trong các segment giữ lại, một cụm bị lặp thành vòng (1 từ ×4, 2–4 từ ×3, ≥ 5 từ ×2) chỉ được viết **một lần**: `asr.collapse_repeats`, không đổi câu nào trong 14.134 câu thật của VIVOS/FLEURS | bật |
 
 faster-whisper tự nó chỉ bỏ segment khi *cả* `no_speech_prob` > 0,6 *và* `avg_logprob` < −1,0, nên câu ma vẫn lọt qua. Danh sách đen nằm ở `src/audio_translator/hallucinations_vi.txt`. Mỗi câu có ít nhất 4 từ, được so khớp nguyên cụm trên văn bản đã chuẩn hóa, và có ghi nguồn. Danh sách này được xây bằng `scripts/collect_hallucinations.py` từ nhiễu **không trùng** với nhiễu dùng để đo (các file MUSAN `noise` không nằm trong mẫu của bench, cùng MUSAN `music`), để không "học tủ" trên tập đo.
 
@@ -194,6 +194,14 @@ uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/v
 | MUSAN | `phowhisper-small` | –/9,4/7,0/13,7/13,2 | –/5,9/6,7/7,9/17,3 |
 
   Với `small`, Silero + lọc không làm WER tệ hơn quá 0,2 điểm ở bất kỳ mức SNR nào, và tốt hơn tới 4,5 điểm ở 0 dB vì bộ lọc bỏ được câu ma xen vào câu thật. Với PhoWhisper, có hai ô tệ hơn quá 1 điểm: DEMAND 5 dB (+2,2) và MUSAN 0 dB (+4,1). Đã chẩn đoán từng câu: ở mỗi ô, phần lớn mức tăng đến từ **một câu** mà PhoWhisper rơi vào vòng lặp ("…không cạo a a a a…", thừa 28 từ; một câu lặp ba lần, thừa 17 từ). Bỏ câu đó ra thì Silero ít lỗi hơn webrtc ở cả hai ô. Thêm vào đó, WER của webrtc ở các ô này **không lặp lại được giữa hai lần chạy** (13,2 → 16,0 và 7,3 → 9,0), trong khi Silero ra đúng từng số. Lý do có thể là các đoạn dài, nhiều nhiễu do webrtc cắt ra làm faster-whisper chuyển sang giải mã có lấy mẫu ngẫu nhiên. Vì vậy chênh lệch 1–3 điểm ở SNR thấp chưa đủ để kết luận theo hướng nào.
+- **Đo lại với mặc định mới** (`results/guard2_vivos_{demand,musan}.csv`, PhoWhisper, đã cố định seed của CTranslate2 nên chạy lại ra đúng số; bộ lọc gồm cả bước viết vòng lặp một lần). WER, webrtc không lọc → Silero + lọc (%):
+
+| Nhiễu | sạch | 20 dB | 10 dB | 5 dB | 0 dB |
+|---|---|---|---|---|---|
+| DEMAND | 6,9 → **5,6** | 6,0 → 6,8 | 6,2 → 7,2 | 7,4 → 8,6 | 13,1 → **12,1** |
+| MUSAN | – | 10,4 → **5,9** | 6,9 → 6,8 | 13,7 → **7,9** | 14,8 → 14,8 |
+
+  Bước viết vòng lặp một lần, cùng dùng Silero, giảm WER từ 9,4 xuống 8,6 (DEMAND 5 dB) và từ 17,4 xuống 14,8 (MUSAN 0 dB). Hai ô từng tụt mạnh (+2,2 và +4,1) giờ chỉ còn +1,2 và 0. Còn đúng một ô vượt mức "tệ hơn ≤ 1 điểm": DEMAND 5 dB, +1,2 điểm, khoảng 12 từ trên 100 câu. Ba ô khác tốt hơn rõ. Câu ma giữ nguyên như bảng trên: 22–26 (DEMAND, tiếng người ở nền) và 0–10 (MUSAN).
 - **Hạn chế:** mới đo 100 câu với một seed; nhiễu chỉ có hai bộ. Danh sách đen (9 cụm) được xây từ 200 file MUSAN (noise và music) không trùng với nhiễu đo, nhưng cùng nguồn MUSAN, nên con số trên MUSAN có thể lạc quan hơn so với nhiễu thật. Ngưỡng lọc giữ mặc định của Whisper, chưa tinh chỉnh.
 
 ### Đo chất lượng dịch (M5)
@@ -225,7 +233,7 @@ uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # 
   - `text`: câu chuẩn.
   - `text_norm`: câu chuẩn viết thường, bỏ dấu câu.
   - `asr`: chữ ASR của cả bản ghi.
-  - `asr_seg`: **đúng như app chạy thật**. Bản ghi đi qua webrtcvad và Segmenter của app (độ nhạy và ngưỡng im lặng lấy từ `Settings`), rồi mỗi đoạn được nhận dạng và dịch riêng. Độ trễ được tính theo từng đoạn.
+  - `asr_seg`: **đúng như app chạy thật**. Bản ghi đi qua VAD, Segmenter và bộ lọc ASR của app (lấy từ `Settings`; `--seg-vad`/`--seg-filter` để đổi), rồi mỗi đoạn được nhận dạng và dịch riêng. Độ trễ được tính theo từng đoạn.
 - **Khôi phục chữ hoa và dấu câu (`--restore off,sent,vibert-capu`):** có thêm các dòng mà mỗi đầu vào kiểu ASR được khôi phục trước khi dịch. Thời gian khôi phục nằm ở `restore_mean_ms`/`restore_p95_ms`. Xem mục "Khôi phục chữ hoa và dấu câu" bên dưới.
 - **CSV:** `corpus, src_lang, tgt_lang, backend, condition, asr_model, restore, n_sents, src_wer, bleu, chrf, bleu_lc, chrf_lc, n_inputs, mean_words, mean_latency_ms, p95_latency_ms, restore_mean_ms, restore_p95_ms, n_failed`. `n_inputs`/`mean_words` cho biết số lần gọi dịch và độ dài trung bình của mỗi đầu vào. `bleu_lc`/`chrf_lc` là cùng điểm đó nhưng không phân biệt hoa thường, vì đầu ra của app là giọng nói, người nghe không thấy chữ hoa. `bleu`/`chrf` (có phân biệt) vẫn là chỉ số chính.
 - **File mẫu `<out>_samples.tsv`:** 20 câu FLEURS cố định, kèm toàn bộ tập tự viết. Mỗi dòng có câu nguồn, chữ đưa vào dịch, bản dịch và tham chiếu.
@@ -281,7 +289,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 265 passed
+uv run --group eval pytest -q     # 273 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -371,6 +379,7 @@ Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so vớ
 - **`vibert-capu` giúp cả hai bộ dịch ở mọi điều kiện.** Trong điều kiện giống app nhất (`asr_seg`), Argos tăng +2,8 BLEU / +2,4 chrF, NLLB tăng +1,6 / +1,5. Chi phí chỉ khoảng 22 ms mỗi đoạn.
 - Trên câu chuẩn bỏ dấu, `vibert-capu` cho Argos 24,9 BLEU, cao hơn cả mức "chỉ thêm dấu câu thật" (24,1), vì nó khôi phục được cả chữ hoa tên riêng. Riêng dấu câu thì đo trên chữ FLEURS bỏ dấu: F1 0,81 (dấu chấm 0,88, dấu phẩy 0,70), chữ hoa F1 0,88. Phép đo này chỉ chạy một lần để khám phá.
 - **Cắt đoạn như app làm mất điểm:** WER tăng từ 13,0% lên 15,9%, và câu bị cắt giữa chừng nên khó dịch. Argos giảm từ 15,8 xuống 13,0 BLEU, NLLB từ 21,3 xuống 16,6. Đây là khoảng mất mà các số `asr` trước đây không thấy.
+- Bảng trên đo với webrtcvad, mặc định khi đó. **Với mặc định mới (Silero + bộ lọc ASR, `results/mt_vi_en_seg_silero.csv`):** Argos đạt 12,35 / 43,4 (`off`) và **15,15 / 45,5** (`vibert-capu`), tức **thấp hơn khoảng 0,7 BLEU** so với webrtc. WER nguồn gần như không đổi (15,9%). Lý do: Silero cắt nhiều đoạn hơn (843 đoạn, trung bình 13,3 từ, so với 761 đoạn, 14,8 từ), nên câu bị chia nhỏ hơn. Đổi lại, trên audio có nhiễu, Silero giảm câu ma 75–100% (mục 4, "Chống câu ma"). Muốn bù khoản mất này thì gom đoạn ngắn trước khi dịch (mục 9).
 - **Đạt mục tiêu ≤500 ms/đoạn:** Argos có hoặc không có `vibert-capu`. NLLB **không đạt**: trung bình khoảng 0,57 s, P95 khoảng 1,2 s.
 - **Bất thường:** trên bộ 25 câu tự viết (chưa duyệt), `sent` làm *giảm* điểm (Argos từ 31,5 xuống 28,2). Xem mẫu thì thấy câu có chữ hoa đầu và dấu chấm cuối khiến Argos chuyển sang thì quá khứ ("I was", "began"), có lẽ vì giống văn tin tức. Vì vậy `sent` không phải lựa chọn an toàn. Trên bộ này, `vibert-capu` đưa Argos từ 31,5 lên 40,9 và NLLB từ 35,6 lên 48,6, nhưng bộ này chưa được dùng để kết luận.
 - `src_wer` của `text_norm` + `vibert-capu` là 0,0002 thay vì 0, vì nhãn `$MERGE_SPACE` có lúc ghép hai từ làm một.
@@ -391,7 +400,7 @@ Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so vớ
 ## 8. Vấn đề đang gặp (cần góp ý)
 
 1. **Nhận dạng tiếng Việt sai, chủ yếu sai dấu thanh** (nắng→nặng, ngày→ngay, tối→tội, Bách→Bạch). Lỗi này **kéo theo dịch sai** ("Bàn ăn tối chưa" thành "Is the table bad?"). Model `medium` chậm hơn khoảng 70% mà không chính xác hơn `small` trên mẫu thử. **Đây là ưu tiên số 1.**
-2. **Whisper "ảo giác" sinh ra câu "ma":** khi có tạp âm, Whisper tạo ra câu người dùng không nói, thường là câu kiểu phụ đề YouTube ("…subscribe kênh… để không bỏ lỡ video"). Nguyên nhân là webrtcvad để lọt tạp âm và code chưa lọc theo độ tin cậy của Whisper. **Đã có thử nghiệm** `--vad silero --asr-filter`: số câu ma giảm từ 96–141 xuống còn 0–27 trên 100 clip nhiễu, phần còn lại chủ yếu là tiếng người nói ở nền (mục 4, "Chống câu ma"). Hai lựa chọn này chưa bật mặc định. PhoWhisper đôi khi rơi vào vòng lặp lặp từ, chưa có cơ chế chặn.
+2. **Whisper "ảo giác" sinh ra câu "ma":** khi có tạp âm, Whisper tạo ra câu người dùng không nói, thường là câu kiểu phụ đề YouTube ("…subscribe kênh… để không bỏ lỡ video"). Nguyên nhân là webrtcvad để lọt tạp âm và code chưa lọc theo độ tin cậy của Whisper. **Đã xử lý phần lớn:** Silero VAD và bộ lọc ASR (bật mặc định) giảm số câu ma từ 96–141 xuống 0–27 trên 100 clip nhiễu. Phần còn lại chủ yếu là tiếng người nói ở nền, một bài toán khác: chỉ nghe người dùng. Vòng lặp lặp từ của PhoWhisper được viết lại một lần (mục 4, "Chống câu ma").
 3. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần.
 4. **Độ trễ tăng mạnh khi gọi Meet** (7–10 s): câu "ma" chiếm chỗ trong hàng đợi, và Chrome dùng chung CPU với Whisper.
 5. **Model dịch nhỏ yếu với tên riêng:** "Đại học Bách Khoa Hà Nội" bị dịch thành "University of Hanoi".
@@ -437,7 +446,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  265 test (pytest)
+├── tests/                  273 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
