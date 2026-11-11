@@ -1,6 +1,6 @@
 # Audio Translator: dịch giọng nói Việt → Anh qua micro ảo
 
-> **EN summary:** A desktop app (macOS) that listens to Vietnamese speech from the microphone, recognizes it (faster-whisper), translates it to English (Argos, offline), synthesizes English speech (Edge TTS) and plays it into a **virtual microphone (BlackHole)**, so the other side of a Zoom / Google Meet / Discord call hears English. English install guide: [README.en.md](README.en.md).
+> **EN summary:** A desktop app (macOS) that listens to Vietnamese speech from the microphone, recognizes it (PhoWhisper via faster-whisper, Silero VAD, hallucination filter), restores casing/punctuation (vibert-capu), translates it to English (Argos, offline), synthesizes English speech (Edge TTS) and plays it into a **virtual microphone (BlackHole)**, so the other side of a Zoom / Google Meet / Discord call hears English. English install guide: [README.en.md](README.en.md).
 
 Đồ án **GR2 (Project 2)**, đề tài 1 **"Công cụ Dịch Audio"**, thuộc định hướng *Ứng dụng đa phương tiện và AI/ML trong hệ thống Edge–Cloud*, Trường CNTT & TT, Đại học Bách khoa Hà Nội (SOICT – HUST).
 
@@ -10,58 +10,76 @@
 
 ## 1. Luồng hoạt động
 
+Cấu hình mặc định hiện nay (`src/audio_translator/config.py`):
+
 ```
 🎤 Micro máy tính
    │ khung 30 ms, 16 kHz mono
    ▼
-[M2] Thu âm ─────────▶ [M3] VAD / cắt câu (600 ms im lặng = hết câu, tối đa 15 s)
-                              │ Segment #n  (ghi mốc speech_end)
-                              ▼
-                       [M4] ASR – faster-whisper (tiếng Việt → chữ)
-                              ▼
-                       [M5] Dịch – Argos vi→en offline (lỗi → Google)
-                              ▼
-                       [M6] TTS – Edge TTS (chữ tiếng Anh → giọng nói)
-                              ▼
-                       [M7] Sắp thứ tự theo segment_id + đổi sang 48 kHz stereo
-                              ▼
-                       [M8] Phát vào BlackHole 2ch (ghi mốc first_audio_out)
-                              ▼
-          Zoom / Meet / Discord chọn "BlackHole 2ch" làm micro ──▶ 🎧 người nghe
+[M2] Thu âm ──▶ (M3a lọc nhiễu, mặc định tắt)
+                  ▼
+[M3] Silero VAD + cắt câu (600 ms im lặng = hết câu, tối đa 15 s)        mốc speech_end, segmented
+                  ▼
+[M4] ASR – PhoWhisper-small (faster-whisper, CPU int8)                   mốc asr_start / asr_end
+     + bộ lọc câu ma: no_speech_prob / avg_logprob / compression_ratio,
+       danh sách đen, viết vòng lặp lặp từ một lần
+     (chưa convert PhoWhisper → cảnh báo và dùng tạm Whisper small)
+                  ▼
+[M4b] Khôi phục chữ hoa + dấu câu – vibert-capu (nếu đã convert)          mốc restored
+                  ▼
+[M5] Dịch – Argos vi→en offline (câu lỗi → Google)                        mốc mt_start / mt_end
+                  ▼
+[M6] TTS – Edge TTS (chữ tiếng Anh → giọng nói)                           mốc tts_start / tts_end
+                  ▼
+[M7] Sắp thứ tự theo segment_id + đổi sang 48 kHz stereo
+                  ▼
+[M8] Phát vào BlackHole 2ch                                               mốc first_audio_out
+                  ▼
+Zoom / Meet / Discord chọn "BlackHole 2ch" làm micro ──▶ 🎧 người nghe
 
-[M1] Giao diện PySide6 / CLI + bộ điều phối (orchestrator): Start/Stop, phiên, luồng, hàng đợi, sự kiện
+[M1] Giao diện PySide6 / CLI + bộ điều phối: Start/Stop, phiên, luồng, hàng đợi, sự kiện,
+     ghi độ trễ từng đoạn ra CSV khi có --latency-log
 ```
 
-- **Độ trễ** = `first_audio_out − speech_end`, tính từ lúc kết thúc câu nói đến lúc âm thanh đầu tiên vào micro ảo.
+- **Độ trễ đầu cuối** = `first_audio_out − speech_end`, tính từ lúc kết thúc câu nói đến lúc âm thanh đầu tiên vào micro ảo. Con số này gồm cả 600 ms chờ im lặng để biết câu đã kết thúc.
 - Mỗi khâu chạy trên **một luồng riêng**, nối với nhau bằng **hàng đợi có giới hạn**, nên các câu được xử lý song song theo kiểu dây chuyền.
-- Mỗi câu mang theo `session_id`, `segment_id` và mốc thời gian của từng bước.
+- Mỗi câu mang theo `session_id`, `segment_id` và mốc thời gian của từng bước. `--latency-log PATH` ghi các mốc đó ra CSV, mỗi đoạn một dòng (mục 4, "Đo độ trễ trong app thật").
 
 ## 2. Kiến trúc 8 module
 
 | Module | File | Cách làm |
 |---|---|---|
-| M1 Giao diện / điều phối | `gui.py`, `cli.py`, `orchestrator.py` | Start/Stop; chọn micro, đầu ra và model; mỗi lần Start là một phiên mới. Giao diện chỉ giao tiếp với orchestrator qua sự kiện |
+| M1 Giao diện / điều phối | `gui.py`, `cli.py`, `orchestrator.py`, `latency_log.py` | Start/Stop; chọn micro, đầu ra và model; mỗi lần Start là một phiên mới. Giao diện chỉ giao tiếp với orchestrator qua sự kiện. Log độ trễ (tùy chọn) được ghi từ luồng worker, không bao giờ từ callback âm thanh |
 | M2 Thu âm | `capture.py` | sounddevice (PortAudio). Callback chỉ chép khung âm thanh, gắn mốc thời gian rồi đẩy vào hàng đợi |
-| M3 VAD / phân đoạn | `segmenter.py` | Silero VAD (mặc định) hoặc webrtcvad, giữ 300 ms trước khi bắt đầu nói, chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
-| M4 ASR | `asr.py`, `model_manager.py` | faster-whisper chạy CPU int8, ngôn ngữ `vi`. Có 6 model (tiny → large-v3), tải ở luồng nền, giữ tối đa 2 model trong RAM |
-| M5 Dịch | `translate.py` | Model Argos vi→en (~66 MB) chạy trực tiếp bằng CTranslate2 + SentencePiece; dự phòng bằng Google Translate |
+| M3a Lọc nhiễu (tắt) | `denoise.py` | log-MMSE + observation adding + cổng SNR; chưa bật vì bench chưa thấy lợi (mục 4) |
+| M3 VAD / phân đoạn | `segmenter.py` | **Silero VAD** v6 (ONNX có sẵn trong faster-whisper, chạy streaming), hoặc webrtcvad (`--vad webrtc`). Giữ 300 ms trước khi bắt đầu nói, chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
+| M4 ASR | `asr.py`, `model_manager.py` | faster-whisper chạy CPU int8, ngôn ngữ `vi`. Mặc định **`phowhisper-small`** (convert một lần, dự phòng `small`). Có 8 model trong danh mục, tải ở luồng nền, giữ tối đa 2 model trong RAM. Bộ lọc câu ma theo từng segment Whisper (`--asr-filter`, bật) |
+| M4b Khôi phục | `restore.py` | vibert-capu (viBERT gắn nhãn kiểu GECToR), encoder CTranslate2 int8 + lớp nhãn numpy; `--restore auto` dùng nếu đã convert |
+| M5 Dịch | `translate.py`, `languages.py` | Model Argos vi→en (~66 MB) chạy trực tiếp bằng CTranslate2 + SentencePiece; dự phòng bằng Google Translate theo từng câu. Tùy chọn NLLB-200 / M2M100 (`--translator`) |
 | M6 TTS | `tts.py` | edge-tts, giọng `en-US-AriaNeural`, giải mã MP3 thành PCM |
 | M7 Chuẩn hóa / lập lịch phát | `playout.py` | Đổi tần số bằng soxr; sắp câu theo `segment_id`; câu thiếu chờ tối đa 5 s; quá tải thì bỏ câu cũ nhất |
 | M8 Kết nối audio ảo | `virtual_out.py`, `devices.py` | Phát vào BlackHole 2ch; watchdog 2 s phát hiện mất thiết bị |
 
 Phần dùng chung: `config.py` (toàn bộ tham số), `models.py` (định dạng dữ liệu và sự kiện).
 
-## 3. Công nghệ và chi phí
+## 3. Công nghệ, giấy phép và chi phí
 
-| Khâu | Công cụ | Chạy ở đâu | Chi phí |
-|---|---|---|---|
-| ASR | faster-whisper (Whisper, mã nguồn mở) | Trên máy (edge), CPU | Miễn phí |
-| Dịch | Argos Translate vi→en (mã nguồn mở) | Trên máy, offline | Miễn phí |
-| Dịch dự phòng | Google Translate qua `deep-translator` (không chính thức) | Cloud | Miễn phí, bị giới hạn số lần gọi |
-| TTS | Edge TTS qua `edge-tts` (không chính thức) | Cloud | Miễn phí, cần internet |
-| Micro ảo | BlackHole 2ch | macOS | Miễn phí |
+| Khâu | Công cụ | Giấy phép | Chạy ở đâu | Chi phí |
+|---|---|---|---|---|
+| ASR | faster-whisper + CTranslate2 | MIT | Trên máy, CPU | Miễn phí |
+| ASR (model mặc định) | [PhoWhisper-small](https://huggingface.co/vinai/PhoWhisper-small) (VinAI), convert sang CTranslate2 | BSD-3-Clause (model card) | Trên máy | Miễn phí |
+| ASR (dự phòng, tùy chọn) | Whisper `small` … `large-v3` (OpenAI, bản Systran) | MIT | Trên máy | Miễn phí |
+| VAD | Silero VAD v6, file ONNX đi kèm faster-whisper, chạy bằng onnxruntime | MIT | Trên máy | Miễn phí |
+| VAD (tùy chọn) | webrtcvad | MIT | Trên máy | Miễn phí |
+| Khôi phục chữ hoa, dấu câu | [dragonSwing/vibert-capu](https://huggingface.co/dragonSwing/vibert-capu) | CC-BY-SA-4.0 (`SOURCE.json`) | Trên máy | Miễn phí |
+| Dịch (mặc định) | Argos Translate vi→en 1.9, dẫn xuất từ OPUS-MT | CC-BY-4.0 (README của gói) | Trên máy, offline | Miễn phí |
+| Dịch (tùy chọn) | NLLB-200-distilled-600M | CC-BY-NC-4.0: chỉ dùng phi thương mại | Trên máy | Miễn phí |
+| Dịch (tùy chọn) | M2M100-418M | MIT | Trên máy | Miễn phí |
+| Dịch dự phòng | Google Translate qua `deep-translator` (không chính thức) | MIT (thư viện) | Cloud | Miễn phí, bị giới hạn số lần gọi |
+| TTS | Edge TTS qua `edge-tts` (không chính thức) | LGPLv3 (thư viện) | Cloud | Miễn phí, cần internet |
+| Micro ảo | BlackHole 2ch | GPL-3.0 | macOS | Miễn phí |
 
-Python 3.12 · PySide6 · sounddevice · webrtcvad · soxr · miniaudio · CTranslate2 · uv.
+Python 3.12 · PySide6 (LGPL) · sounddevice · Silero / webrtcvad · soxr · miniaudio · CTranslate2 · onnxruntime · uv. Không có torch trong app: torch chỉ được cài tạm khi convert model.
 
 ## 4. Cài đặt và chạy (macOS)
 
@@ -70,20 +88,41 @@ brew install uv blackhole-2ch        # có thể cần khởi động lại máy
 git clone https://github.com/MasterCode12345/project2.git && cd project2
 uv sync
 uv run audio-translator --cli --list-devices   # phải thấy "BlackHole 2ch"
-uv run audio-translator --cli --list-models    # xem các model Whisper đã tải hay chưa
+uv run audio-translator --cli --list-models    # xem các model Whisper đã tải / convert hay chưa
 ```
 
-**Chạy giao diện:** `uv run audio-translator`. Chọn micro, Output = **BlackHole 2ch**, Model = `small`, rồi bấm **Start**.
+**Convert model một lần** (torch và transformers chỉ được cài tạm cho lệnh này):
+```sh
+uv run --with transformers --with torch python scripts/convert_phowhisper.py small              # ASR mặc định
+uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu   # khôi phục dấu câu
+```
+- Chưa convert PhoWhisper thì app vẫn chạy: nó báo rõ (dòng đỏ trên giao diện, WARNING trong CLI) kèm lệnh convert, rồi dùng tạm Whisper `small` cho phiên đó.
+- Chưa convert vibert-capu thì app dịch nguyên chữ ASR như trước, không báo gì, vì `--restore auto`.
+
+**Chạy giao diện:** `uv run audio-translator`. Chọn micro, Output = **BlackHole 2ch**; Model đã được chọn sẵn là `phowhisper-small`. Bấm **Start**.
 
 **Chạy dòng lệnh:**
 ```sh
-uv run audio-translator --cli --model small [--input "Tên micro"] [--translator google]
+uv run audio-translator --cli [--model phowhisper-small] [--input "Tên micro"] [--translator google]
 ```
 
-**Nên làm thêm (một lần): bộ khôi phục chữ hoa và dấu câu.** Bộ này giúp bản dịch tốt hơn rõ rệt (mục 6). Lệnh dưới đây tải 462 MB rồi convert còn 117 MB. Sau đó app tự dùng nó, vì mặc định là `--restore auto`. Không convert thì app vẫn chạy như trước.
+### Đo độ trễ trong app thật
+
+`--latency-log PATH` (mặc định tắt) ghi thêm vào `PATH` một dòng CSV cho mỗi đoạn. Mỗi dòng gồm:
+- `session_id`, `segment_id`, `status` (`played` / `dropped`) và lý do khi bị bỏ, ví dụ `no_speech` (bộ lọc chặn câu ma, `detail` ghi `blacklist: …`), `mt_error`, `tts_error`, `overload`;
+- cấu hình đã thật sự chạy: model ASR (ghi `small` nếu đang dùng dự phòng), VAD, bộ lọc, bộ khôi phục, bộ dịch;
+- các mốc `speech_end … first_audio_out` và thời gian từng khâu (ms), kể cả thời gian chờ trong hàng đợi;
+- `e2e_ms`, số từ, chữ tiếng Việt và bản dịch.
+
+File được ghi từ luồng worker, không bao giờ từ callback âm thanh. Nếu không ghi được file thì app báo một lần, phiên vẫn chạy tiếp. Cờ này dùng được với cả CLI lẫn giao diện:
+
 ```sh
-uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
+uv run audio-translator --cli --latency-log ~/gr2_manual/latency_cli.csv
+uv run audio-translator --latency-log ~/gr2_manual/latency_meet.csv          # giao diện
+uv run python eval/latency_report.py ~/gr2_manual/latency_cli.csv [--markdown]   # TB / P50 / P95 / max từng khâu + số đoạn bị bỏ
 ```
+
+Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch bản 10 câu chuẩn bị sẵn): [docs/manual_test.md](docs/manual_test.md). File log chứa nguyên văn lời nói, nên để **ngoài repo**.
 
 **Dùng trong ứng dụng chat:** vào phần cài đặt âm thanh của Zoom / Meet / Discord và chọn **BlackHole 2ch** làm micro. Âm thanh đã dịch chỉ đi vào BlackHole, không bao giờ phát ra loa.
 
@@ -289,29 +328,29 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 273 passed
+uv run --group eval pytest -q     # 288 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
-## 6. Kết quả đo hiện tại
+## 6. Kết quả đo
 
-Máy dùng để đo: MacBook Pro (Apple Silicon), Whisper chạy bằng CPU (int8), dịch Argos offline, TTS Edge.
+Máy dùng để đo: MacBook Pro (Apple Silicon, 8 GB RAM), chạy bằng CPU (int8). Mục này tách riêng **số đo bằng bench** (cấu hình hiện tại, có file trong `results/`) và **số đo tay cũ** (cấu hình MVP).
 
-**Độ trễ khi không gọi Meet (model `small`, 4 câu):** 2,45–2,69 s, **trung bình ≈ 2,57 s**. Trong đó có khoảng 0,6 s là thời gian chờ im lặng để biết câu đã kết thúc.
+### 6.1 Cấu hình hiện tại: số đo bằng bench
 
-**So sánh model `small` và `medium` (cùng 5 câu tiếng Việt):**
-
-| Câu gốc | small nhận dạng | medium nhận dạng |
+| Câu hỏi | Kết quả | File |
 |---|---|---|
-| Ngày mai trời nắng hay mưa? | Ngay mai **tới nặng** hay mưa | Ngay mai **tới nặng** hay mưa |
-| Tôi muốn đi học võ, đi tập gym. | …học **phỏ**, đi tập **dím** | …học **vỏ**, đi tập **diễn** |
-| Bạn ăn tối chưa? | **Bàn** ăn tối chưa | Bạn **ảnh tội** chưa |
-| Tôi là sinh viên ĐH Bách Khoa Hà Nội | …**Bạch** Khoa… | ✅ đúng hoàn toàn |
-| Cuộc họp sẽ bắt đầu lúc ba giờ chiều | ✅ đúng | ✅ đúng |
-| **Tỷ lệ lỗi âm tiết** | **7/37 ≈ 19%** | **7/37 ≈ 19%** |
-| **Độ trễ trung bình** | **2,74 s** | **4,61 s** |
+| ASR: WER trên FLEURS vi sạch (ngoài miền) | `phowhisper-small` **16,7%**, `small` 27,3%, `large-v3-turbo` 14,8%, `phowhisper-medium` 13,0% | `results/asr_fleurs_demand.csv` |
+| Câu ma trên 100 clip chỉ có nhiễu (20/10/5/0 dB), PhoWhisper | webrtc, không lọc: 96–109 (DEMAND), 115–141 (MUSAN) → **Silero + lọc: 22–26 (DEMAND, tiếng người nói ở nền), 0–10 (MUSAN)** | `results/guard_vivos_*.csv`, `results/guard2_vivos_*.csv` |
+| WER câu thật khi có nhiễu, PhoWhisper, webrtc → Silero + lọc | sạch 6,9 → 5,6; tệ hơn nhiều nhất +1,2 điểm (DEMAND 5 dB); tốt hơn nhiều nhất −5,8 (MUSAN 5 dB) | `results/guard2_vivos_*.csv` |
+| Dịch, như app (cắt đoạn, chữ PhoWhisper), Argos, BLEU / chrF | không khôi phục 12,35 / 43,4 → **vibert-capu 15,15 / 45,5** | `results/mt_vi_en_seg_silero.csv` |
+| Độ trễ dịch mỗi đoạn, Argos + vibert-capu, TB / P95 | 95 / 215 ms; khôi phục thêm 23 / 47 ms | `results/mt_vi_en_seg_silero.csv` |
 
-**Khi gọi thật qua Google Meet:** người bên kia nghe được tiếng Anh, nhưng độ trễ tăng lên **≈ 4,7–10,5 s** và xuất hiện các câu "ma" (xem mục 8).
+Chi tiết từng bench nằm ở mục 4 ("Chống câu ma") và mục 6.2.
+
+**Độ trễ đầu cuối trong app thật với cấu hình này: chưa đo.** Công cụ đã có (`--latency-log`, `eval/latency_report.py`); kịch bản đo ở [docs/manual_test.md](docs/manual_test.md). Số sẽ được ghi vào đây kèm tên file sau khi chạy.
+
+### 6.2 Chi tiết bench dịch
 
 **Chất lượng dịch (Argos vi→en, FLEURS test, 347 câu, `results/mt_vi_en.csv`):**
 
@@ -384,6 +423,26 @@ Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so vớ
 - **Bất thường:** trên bộ 25 câu tự viết (chưa duyệt), `sent` làm *giảm* điểm (Argos từ 31,5 xuống 28,2). Xem mẫu thì thấy câu có chữ hoa đầu và dấu chấm cuối khiến Argos chuyển sang thì quá khứ ("I was", "began"), có lẽ vì giống văn tin tức. Vì vậy `sent` không phải lựa chọn an toàn. Trên bộ này, `vibert-capu` đưa Argos từ 31,5 lên 40,9 và NLLB từ 35,6 lên 48,6, nhưng bộ này chưa được dùng để kết luận.
 - `src_wer` của `text_norm` + `vibert-capu` là 0,0002 thay vì 0, vì nhãn `$MERGE_SPACE` có lúc ghép hai từ làm một.
 
+### 6.3 Số đo tay cũ (cấu hình MVP: Whisper `small`/`medium`, webrtcvad, chưa lọc câu ma, chưa khôi phục)
+
+Các số này đo tay trước khi có bench, chỉ để tham khảo lịch sử. Chúng **không** áp dụng cho cấu hình hiện tại.
+
+**Độ trễ khi không gọi Meet (model `small`, 4 câu):** 2,45–2,69 s, **trung bình ≈ 2,57 s**. Trong đó có khoảng 0,6 s là thời gian chờ im lặng để biết câu đã kết thúc.
+
+**So sánh model `small` và `medium` (cùng 5 câu tiếng Việt):**
+
+| Câu gốc | small nhận dạng | medium nhận dạng |
+|---|---|---|
+| Ngày mai trời nắng hay mưa? | Ngay mai **tới nặng** hay mưa | Ngay mai **tới nặng** hay mưa |
+| Tôi muốn đi học võ, đi tập gym. | …học **phỏ**, đi tập **dím** | …học **vỏ**, đi tập **diễn** |
+| Bạn ăn tối chưa? | **Bàn** ăn tối chưa | Bạn **ảnh tội** chưa |
+| Tôi là sinh viên ĐH Bách Khoa Hà Nội | …**Bạch** Khoa… | ✅ đúng hoàn toàn |
+| Cuộc họp sẽ bắt đầu lúc ba giờ chiều | ✅ đúng | ✅ đúng |
+| **Tỷ lệ lỗi âm tiết** | **7/37 ≈ 19%** | **7/37 ≈ 19%** |
+| **Độ trễ trung bình** | **2,74 s** | **4,61 s** |
+
+**Khi gọi thật qua Google Meet:** người bên kia nghe được tiếng Anh, nhưng độ trễ tăng lên **≈ 4,7–10,5 s** và xuất hiện các câu "ma" (xem mục 8).
+
 ## 7. Đã giải quyết được
 
 - ✅ Đi trọn vẹn từ micro đến bên nghe qua micro ảo, theo đúng kiến trúc 8 module. Đã chạy được với Google Meet.
@@ -396,17 +455,22 @@ Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so vớ
 - ✅ **Dịch offline:** Google Translate từng chặn IP vì gọi quá nhiều, nên chuyển sang chạy model Argos trực tiếp bằng CTranslate2, không cần thư viện `argostranslate` vốn kéo theo PyTorch nặng vài GB.
 - ✅ **Đổi model ngay trên giao diện:** tải ở luồng nền, giữ model trong RAM để đổi qua lại nhanh.
 - ✅ **Mất thiết bị hay lỗi mạng chỉ bị báo lỗi**, ứng dụng không sập.
+- ✅ **Nhận dạng tiếng Việt tốt hơn:** mặc định PhoWhisper-small, WER trên FLEURS giảm từ 27,3% (`small`) xuống 16,7% (`results/asr_fleurs_demand.csv`). Chưa convert thì app dùng tạm `small` và báo rõ.
+- ✅ **Câu "ma" khi có nhiễu:** Silero VAD và bộ lọc ASR (danh sách đen, ngưỡng độ tin cậy, viết vòng lặp một lần), bật mặc định. Trên 100 clip chỉ có nhiễu, số câu ma giảm từ 96–141 xuống 0–26 (`results/guard*_vivos_*.csv`).
+- ✅ **Dịch kém vì chữ ASR không có dấu câu:** khôi phục chữ hoa và dấu câu bằng vibert-capu trước khi dịch, +2,8 BLEU với Argos trong điều kiện giống app (`results/mt_vi_en_restore.csv`).
+- ✅ **Bench đo được, chạy lại ra đúng số:** WER/CER, BLEU/chrF, độ trễ từng khâu bench, seed cố định (kể cả seed của bộ giải mã CTranslate2).
+- ✅ **Công cụ đo độ trễ trong app thật:** `--latency-log` và `eval/latency_report.py`.
 
 ## 8. Vấn đề đang gặp (cần góp ý)
 
-1. **Nhận dạng tiếng Việt sai, chủ yếu sai dấu thanh** (nắng→nặng, ngày→ngay, tối→tội, Bách→Bạch). Lỗi này **kéo theo dịch sai** ("Bàn ăn tối chưa" thành "Is the table bad?"). Model `medium` chậm hơn khoảng 70% mà không chính xác hơn `small` trên mẫu thử. **Đây là ưu tiên số 1.**
-2. **Whisper "ảo giác" sinh ra câu "ma":** khi có tạp âm, Whisper tạo ra câu người dùng không nói, thường là câu kiểu phụ đề YouTube ("…subscribe kênh… để không bỏ lỡ video"). Nguyên nhân là webrtcvad để lọt tạp âm và code chưa lọc theo độ tin cậy của Whisper. **Đã xử lý phần lớn:** Silero VAD và bộ lọc ASR (bật mặc định) giảm số câu ma từ 96–141 xuống 0–27 trên 100 clip nhiễu. Phần còn lại chủ yếu là tiếng người nói ở nền, một bài toán khác: chỉ nghe người dùng. Vòng lặp lặp từ của PhoWhisper được viết lại một lần (mục 4, "Chống câu ma").
-3. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần.
-4. **Độ trễ tăng mạnh khi gọi Meet** (7–10 s): câu "ma" chiếm chỗ trong hàng đợi, và Chrome dùng chung CPU với Whisper.
-5. **Model dịch nhỏ yếu với tên riêng:** "Đại học Bách Khoa Hà Nội" bị dịch thành "University of Hanoi".
-6. **Mới có một cặp ngôn ngữ Việt → Anh**, chưa chọn được ngôn ngữ trên giao diện.
+1. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
+2. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
+3. **Cắt đoạn làm mất điểm dịch:** câu bị cắt giữa chừng khó dịch. Argos giảm từ 15,8 BLEU (cả bản ghi) xuống 13,0 (cắt đoạn, webrtc), Silero còn thấp hơn khoảng 0,7 vì cắt đoạn ngắn hơn (`results/mt_vi_en_restore.csv`, `results/mt_vi_en_seg_silero.csv`).
+4. **Nhận dạng vẫn còn sai** (WER 16,7% trên FLEURS), nhất là dấu thanh và tên riêng. `phowhisper-medium` tốt hơn (13,0%) nhưng chậm gần gấp đôi.
+5. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần. Tạm thời phải đeo tai nghe; chưa kiểm chứng lại.
+6. **Mới có một cặp ngôn ngữ Việt → Anh** trên giao diện.
 7. **TTS và dịch dự phòng dùng dịch vụ không chính thức, cần internet.**
-8. **Chưa có báo cáo đo đầy đủ:** WER trên bộ câu lớn, chất lượng dịch (BLEU/COMET), P95, độ ổn định. Mốc thời gian của từng bước đã có sẵn, chỉ chưa ghi ra file và tính toán.
+8. **25 câu tham chiếu dịch tự viết** (`eval/data/mt_custom_vi_en.tsv`) chưa được duyệt, nên kết quả trên bộ này chưa dùng để kết luận.
 
 ## 9. Hướng phát triển
 
@@ -416,10 +480,13 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [x] Truyền **câu mồi tiếng Việt** cho Whisper (`--asr-prompt`).
 - [x] Lọc câu theo `no_speech_prob` / `avg_logprob` / danh sách đen, thêm **Silero VAD** (mục 4, "Chống câu ma").
 - [x] Đo **WER** trên VIVOS/FLEURS (`eval/asr_bench.py`) và **chất lượng dịch** BLEU/chrF + độ trễ dịch trung bình/P95 (`eval/mt_bench.py`), ghi CSV.
-- [ ] Đo độ trễ trung bình và P95 của từng khâu trong app thật.
+- [x] Công cụ đo độ trễ từng khâu trong app thật (`--latency-log`, `eval/latency_report.py`).
+- [ ] Chạy đo thật theo `docs/manual_test.md` (CLI, Meet, môi trường ồn) và ghi số vào mục 6.
+- [x] Mặc định cấu hình Việt → Anh đã chọn qua bench: PhoWhisper-small, Silero + bộ lọc, vibert-capu, Argos.
 - [x] Thử model dịch tốt hơn cho tiếng Việt: NLLB-600M hơn Argos 3–6 BLEU nhưng chậm gấp khoảng 5 lần (mục 6). Có trong app qua `--translator nllb-600m`.
 - [x] Khôi phục chữ hoa và dấu câu trước khi dịch (mặc định `--restore auto`, mục 6): +1,6 đến +2,8 BLEU trong điều kiện giống app.
 - [ ] Giảm mất điểm do cắt đoạn: dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
+- [ ] Chỉ nghe người dùng (bỏ tiếng người nói ở nền).
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
 - [ ] Giảm độ trễ: phát TTS dần theo từng phần, chỉnh thời gian chờ im lặng, giảm beam size; thêm TTS offline (Piper).
 - [ ] Edge–Cloud: cho chọn chạy tại máy hay trên cloud/GPU cho từng khâu và đo so sánh.
@@ -439,24 +506,26 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ## 11. Cấu trúc thư mục
 
 ```
-├── src/audio_translator/   mã nguồn (~2.450 dòng)
+├── src/audio_translator/   mã nguồn
 │   ├── __main__.py         điểm vào: giao diện, hoặc CLI khi có --cli
 │   ├── gui.py, cli.py      tầng giao diện
-│   ├── orchestrator.py     tầng điều phối (M1)
+│   ├── orchestrator.py     tầng điều phối (M1); latency_log.py: CSV độ trễ từng đoạn
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  273 test (pytest)
+├── tests/                  288 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
 ├── eval/mt_oracle_ablation.py   mất điểm dịch do chữ hoa hay do dấu câu (biến thể oracle của câu nguồn)
+├── eval/latency_report.py   bảng TB / P95 / max từng khâu từ file --latency-log
 ├── eval/data/              tập câu tự viết cho bench dịch (tham chiếu cần duyệt)
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
 ├── scripts/convert_mt_model.py     convert NLLB-200 / M2M100 sang CTranslate2 (chạy một lần)
 ├── scripts/convert_capu_model.py   convert bộ khôi phục chữ hoa/dấu câu vibert-capu sang CTranslate2 (chạy một lần)
 ├── scripts/collect_hallucinations.py   thu thập câu ma từ nhiễu không trùng với bench
 ├── results/                CSV kết quả các bench
+├── docs/manual_test.md     kịch bản thử thật: CLI, Google Meet, môi trường ồn
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
 ├── README.md               (tài liệu này)

@@ -20,8 +20,19 @@ uv sync
 uv run audio-translator --cli --list-devices   # "BlackHole 2ch" should be listed
 ```
 
-The first start downloads the Whisper model (`medium` ≈ 1.5 GB by default; use
-`--model small` for a faster, less accurate start).
+The default ASR model is `phowhisper-small` (Vietnamese fine-tune of Whisper,
+FLEURS WER 16.7% vs 27.3% for `small`, `results/asr_fleurs_demand.csv`). Convert it once
+(torch/transformers are only installed for this command):
+
+```sh
+uv run --with transformers --with torch python scripts/convert_phowhisper.py small
+```
+
+If it is not converted, the app warns (red line in the GUI, WARNING in the CLI) with this
+command and runs Whisper `small` (downloaded on first use, ≈ 485 MB) for the session.
+
+Per-segment latency of a real session: `--latency-log PATH` (CLI and GUI), summarised by
+`uv run python eval/latency_report.py PATH`; manual test script: `docs/manual_test.md`.
 
 ## Models
 
@@ -32,9 +43,11 @@ Only multilingual Whisper models are offered (`.en` / `distil-*` are English-onl
 | `tiny` | 75 MB |
 | `base` | 145 MB |
 | `small` | 485 MB |
-| `medium` (default) | 1.5 GB |
+| `medium` | 1.5 GB |
 | `large-v3-turbo` | 1.6 GB |
 | `large-v3` | 3.1 GB |
+| `phowhisper-small` (default, converted locally) | 485 MB |
+| `phowhisper-medium` (converted locally) | 1.5 GB |
 
 ```sh
 uv run audio-translator --cli --list-models   # size + not-downloaded / downloaded per model

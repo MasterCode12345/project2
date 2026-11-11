@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from audio_translator import cli  # noqa: E402
 from audio_translator.models import (  # noqa: E402
-    ERROR, MODEL, RESULT, RUNNING, STARTING, STATUS, STOPPED, STOPPING, Event,
+    ERROR, MODEL, RESULT, RUNNING, STARTING, STATUS, STOPPED, STOPPING, WARNING, Event,
 )
 from audio_translator.model_manager import CATALOG, ModelInfo  # noqa: E402
 from audio_translator.tts import EdgeTTS  # noqa: E402
@@ -348,3 +348,14 @@ def test_gui_empty_model_list_shows_fixed_placeholder(qapp):
     assert not w.model_combo.isEnabled()
     w.on_event(Event(STATUS, "Stopped", data={"state": STOPPED}))
     assert not w.model_combo.isEnabled()
+
+
+def test_gui_shows_the_model_fallback_where_errors_show(qapp):
+    w, orch = _window(qapp)
+    w.on_event(Event(WARNING, "Model 'phowhisper-small' is not converted ...",
+                     data={"model_fallback": True, "model": "phowhisper-small", "fallback": "small",
+                           "command": "uv run ... scripts/convert_phowhisper.py small"}))
+    text = w.error_label.text()
+    assert "phowhisper-small" in text and "'small'" in text and "convert_phowhisper.py small" in text
+    w.on_event(Event(WARNING, "Overload: dropped oldest pending segment 3"))
+    assert w.error_label.text() == text  # other warnings stay in the log only

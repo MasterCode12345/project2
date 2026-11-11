@@ -20,6 +20,7 @@ from .capture import AudioCapture
 from .config import Settings
 from .denoise import NoiseSuppressor, from_settings as noise_suppressor_from_settings
 from .devices import DeviceInfo, resolve_device
+from .latency_log import DROPPED, PLAYED, LatencyLog
 from .model_manager import ModelInfo, ModelManager
 from .models import (
     ERROR,
@@ -123,6 +124,13 @@ class Orchestrator:
         self._ns: NoiseSuppressor | None = None  # M3a stage of the current session (None = off)
         self._in_dev: DeviceInfo | None = None
         self._out_dev: DeviceInfo | None = None
+        # --latency-log: per-session CSV writer (None = off), the session's configuration
+        # written on every row, per-segment audio facts, and segments already logged.
+        self._latlog: LatencyLog | None = None
+        self._lat_session: dict = {}
+        self._lat_seg: dict[tuple[int, int], tuple[float, bool]] = {}
+        self._lat_done: set[tuple[int, int]] = set()
+        self._lat_lock = threading.Lock()
 
         self._shutdown = threading.Event()
         self._workers: list[threading.Thread] = []
@@ -297,12 +305,15 @@ class Orchestrator:
             else:
                 # A selection still loading in the background is waited for (same load).
                 name = self._pending or self._selected
+                usable = self._usable_model(name)
+                fell_back = usable != name
+                name = usable
                 if not self._models.is_loaded(name):
                     self._emit(Event(STATUS, f"Loading ASR model '{name}'…", data={"state": STARTING}))
                 try:
                     rec = self._models.get(name, pin=True)
                 except Exception:
-                    if name == self._selected:
+                    if name == self._selected or fell_back:
                         raise
                     # Failed pending selection (its callback reports the error):
                     # fall back to the previous, still-selected model.
@@ -372,6 +383,7 @@ class Orchestrator:
                 stream_factory=self._in_factory,
                 clock=self.clock,
             )
+            self._open_latency_log()
             self._session = sid
             try:
                 self._output.start()
@@ -388,6 +400,23 @@ class Orchestrator:
                 f"Listening on '{in_dev.name}' → speaking into '{out_dev.name}'",
                 session_id=sid,
             )
+
+    def _usable_model(self, name: str) -> str:
+        """``name``, or ``Settings.asr_fallback_model`` with a warning when ``name`` is a local
+        model (PhoWhisper) that was never converted: the session runs instead of failing."""
+        from .asr import LOCAL_MODELS, convert_command, local_model_dir
+        from .model_manager import NOT_DOWNLOADED
+
+        fallback = self.settings.asr_fallback_model
+        if (name not in LOCAL_MODELS or not fallback or fallback == name
+                or self._models.status(name) != NOT_DOWNLOADED):
+            return name
+        self._emit(Event(WARNING, f"Model '{name}' is not converted ({local_model_dir(name)}); "
+                                  f"using '{fallback}' for this session. Convert it once with: "
+                                  f"{convert_command(name)}",
+                         data={"model_fallback": True, "model": name, "fallback": fallback,
+                               "command": convert_command(name)}))
+        return fallback
 
     def _prepare_translator(self) -> None:
         """Pick the MT backend for this session (runs in the session-start thread).
@@ -520,6 +549,7 @@ class Orchestrator:
         if self._playout:
             self._playout.clear()
         self._release_model()
+        self._close_latency_log()
         self._emit(Event(ERROR, msg))
         self._set_state(STOPPED, "Stopped")
 
@@ -543,6 +573,7 @@ class Orchestrator:
             self._segmenter = None
             self._ns = None
             self._release_model()
+            self._close_latency_log()
             if error:
                 self._emit(Event(ERROR, error, session_id=sid))
             stats = self.stats()
@@ -565,6 +596,66 @@ class Orchestrator:
                     n += 1
                     self.dropped_stale += 1
         return n
+
+    # ----------------------------------------------------------- latency log
+    def _open_latency_log(self) -> None:
+        """Open ``Settings.latency_log`` for this session (lock held); a file error only warns."""
+        self._close_latency_log()
+        s = self.settings
+        if not s.latency_log:
+            return
+        asr = self._asr
+        model = self._pinned or getattr(asr, "model_size", None) or type(asr).__name__
+        filt = getattr(asr, "segment_filter", None)
+        restore = "off" if self._restore is None else (
+            self._restorer_model[0] if self._restorer_model else s.restore)
+        self._lat_session = {
+            "asr_model": model,  # the model that really runs (a fallback, not the selection)
+            "vad": s.vad_backend if self._vad_factory is None else "injected",
+            "asr_filter": "on" if filt is not None else ("off" if hasattr(asr, "segment_filter") else ""),
+            "restore": restore,
+            "translator": s.translator if not self._translator_fixed else type(self._translator).__name__,
+        }
+        self._lat_seg.clear()
+        self._lat_done.clear()
+        try:
+            self._latlog = LatencyLog(s.latency_log)
+        except OSError as exc:
+            self._emit(Event(WARNING, f"Latency log disabled: cannot open {s.latency_log}: {exc}"))
+            return
+        self._emit(Event(INFO, f"Latency log: {self._latlog.path}", data={"latency_log": str(self._latlog.path)}))
+
+    def _close_latency_log(self) -> None:
+        log, self._latlog = self._latlog, None
+        if log is not None:
+            log.close()
+
+    def _log_latency(self, sid: int, seg_id: int, status: str, ts: dict, *, reason: str = "",
+                     detail: str = "", text_vi: str = "", text_en: str = "") -> None:
+        """One row per segment (first outcome wins); called from worker threads only."""
+        log = self._latlog
+        if log is None or sid != self._session:
+            return
+        with self._lat_lock:
+            if (sid, seg_id) in self._lat_done:
+                return
+            self._lat_done.add((sid, seg_id))
+            audio_s, forced = self._lat_seg.pop((sid, seg_id), (None, None))
+        try:
+            log.write(session_id=sid, segment_id=seg_id, status=status, timestamps=ts,
+                      session=self._lat_session, reason=reason, detail=detail, text_vi=text_vi,
+                      text_en=text_en, audio_s=audio_s, forced_cut=forced)
+        except (OSError, ValueError) as exc:  # disk full, closed file: never stop the session
+            self._latlog = None
+            log.close()
+            self._emit(Event(WARNING, f"Latency log disabled: write failed: {exc}"))
+
+    def _log_drop(self, item, reason: str, detail: str = "") -> None:
+        text_vi = getattr(item, "source_text", None) or getattr(item, "text", "") or ""
+        text_en = getattr(item, "text", "") if hasattr(item, "source_text") else ""
+        self._log_latency(item.session_id, item.segment_id, DROPPED, dict(getattr(item, "timestamps", {})),
+                          reason=reason, detail=detail, text_vi=text_vi if isinstance(text_vi, str) else "",
+                          text_en=text_en if isinstance(text_en, str) else "")
 
     # --------------------------------------------------------------- helpers
     def _set_state(self, state: str, message: str, session_id: int | None = None,
@@ -598,11 +689,14 @@ class Orchestrator:
             return False
         return True
 
-    def _skip_report(self, item, kind: str, message: str, data: dict | None = None) -> None:
+    def _skip_report(self, item, kind: str, message: str, data: dict | None = None, *,
+                     reason: str = "", detail: str = "") -> None:
         """Skip a failed/empty segment and report it — only if its session is current."""
         if not self._is_current(item):
             return
         self._skip(item.session_id, item.segment_id)
+        if reason:
+            self._log_drop(item, reason, detail)
         self._emit(Event(kind, message, item.session_id, item.segment_id, data=data or {}))
 
     def _skip(self, sid: int, seg_id: int) -> None:
@@ -627,6 +721,7 @@ class Orchestrator:
                     continue
                 self.dropped_overload += 1
                 self._skip(old.session_id, old.segment_id)
+                self._log_drop(old, "overload", "pipeline queue full; oldest pending segment dropped")
                 self._emit(Event(WARNING, f"Overload: dropped oldest pending segment {old.segment_id}",
                                  session_id=old.session_id, segment_id=old.segment_id))
 
@@ -690,6 +785,8 @@ class Orchestrator:
                     timestamps={"speech_start": utt.speech_start - lat, "speech_end": utt.speech_end - lat,
                                 "segmented": self.clock()},
                 )
+                if self._latlog is not None:
+                    self._lat_seg[(sid, seg_id)] = (len(utt.audio) / self.settings.capture_rate, utt.forced_cut)
                 self._put(self._seg_q, segment)
 
     def _asr_worker(self) -> None:
@@ -705,11 +802,17 @@ class Orchestrator:
             try:
                 text = asr.transcribe(seg.audio, seg.sample_rate).strip()
             except Exception as exc:
-                self._skip_report(seg, WARNING, f"Segment {seg.segment_id}: ASR failed: {exc}")
+                self._skip_report(seg, WARNING, f"Segment {seg.segment_id}: ASR failed: {exc}",
+                                  reason="asr_error", detail=str(exc))
                 continue
             ts["asr_end"] = self.clock()
             if not text:
-                self._skip_report(seg, INFO, f"Segment {seg.segment_id}: no speech recognised; skipped")
+                # ASR filter reasons (one ASR worker: read right after transcribe), e.g. a ghost sentence.
+                filtered = [d for d in getattr(asr, "dropped", None) or [] if d[0] != "repetition"]
+                seg.timestamps.update(ts)
+                self._skip_report(seg, INFO, f"Segment {seg.segment_id}: no speech recognised; skipped",
+                                  reason="no_speech",
+                                  detail="; ".join(f"{why}: {txt}" for why, txt in filtered))
                 continue
             if not self._is_current(seg):
                 continue
@@ -734,12 +837,15 @@ class Orchestrator:
             try:
                 en = (self._translator.translate(text) or "").strip()
             except Exception as exc:
+                tr.timestamps.update(ts)
                 self._skip_report(tr, WARNING, f"Segment {tr.segment_id}: translation failed: {exc}",
-                                  {"source_text": tr.text})
+                                  {"source_text": tr.text}, reason="mt_error", detail=str(exc))
                 continue
             ts["mt_end"] = self.clock()
             if not en:
-                self._skip_report(tr, INFO, f"Segment {tr.segment_id}: empty translation; skipped")
+                tr.timestamps.update(ts)
+                self._skip_report(tr, INFO, f"Segment {tr.segment_id}: empty translation; skipped",
+                                  reason="empty_translation")
                 continue
             if not self._is_current(tr):
                 continue
@@ -755,8 +861,10 @@ class Orchestrator:
             try:
                 audio, rate = self._synth.synthesize(tl.text)
             except Exception as exc:
+                tl.timestamps.update(ts)
                 self._skip_report(tl, WARNING, f"Segment {tl.segment_id}: speech synthesis failed: {exc}",
-                                  {"source_text": tl.source_text, "text": tl.text})
+                                  {"source_text": tl.source_text, "text": tl.text}, reason="tts_error",
+                                  detail=str(exc))
                 continue
             ts["tts_end"] = self.clock()
             clip = SpeechClip(tl.session_id, tl.segment_id, audio, rate, tl.source_text, tl.text, ts)
@@ -784,6 +892,8 @@ class Orchestrator:
             if clip.session_id != self._session:
                 return
             lat = clip.latency
+            self._log_latency(clip.session_id, clip.segment_id, PLAYED, dict(clip.timestamps),
+                              text_vi=clip.source_text, text_en=clip.text)
             lat_s = f"{lat:.2f}s" if lat is not None else "n/a"
             self._emit(Event(
                 RESULT,
@@ -795,6 +905,7 @@ class Orchestrator:
         elif kind == "notice":
             _, nkind, sid, seg_id, msg = item
             if sid == self._session:
+                self._log_latency(sid, seg_id, DROPPED, {}, reason=f"playout_{nkind}", detail=msg)
                 self._emit(Event(WARNING, msg, sid, seg_id, data={"notice": nkind}))
 
     def _watchdog(self) -> None:

@@ -25,8 +25,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--output", default="BlackHole", help="output device name (substring); default: BlackHole")
     p.add_argument("--list-models", action="store_true",
                    help="list Whisper models with size and download status, and exit")
-    p.add_argument("--model", default="medium", choices=list(CATALOG),
-                   help="Whisper model (default: medium; see --list-models)")
+    p.add_argument("--model", default=Settings().model_size, choices=list(CATALOG),
+                   help=f"Whisper model (default: {Settings().model_size}, falling back to "
+                        f"{Settings().asr_fallback_model} when not converted; see --list-models)")
     p.add_argument("--asr-prompt", default=None, metavar="TEXT",
                    help="Whisper initial prompt, e.g. a Vietnamese sentence with diacritics (default: none)")
     p.add_argument("--asr-filter", action=argparse.BooleanOptionalAction, default=Settings().asr_filter,
@@ -40,6 +41,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "converted model for the source language, else none), off, sent (capital + final "
                         "period), or vibert-capu (Vietnamese; scripts/convert_capu_model.py)")
     d = Settings()
+    p.add_argument("--latency-log", default=d.latency_log, metavar="PATH",
+                   help="append one CSV row per segment (stage timestamps and ms, end-to-end latency, "
+                        "texts, drop reason) to PATH; summarise with eval/latency_report.py (default: off)")
     p.add_argument("--vad", default=d.vad_backend, choices=list(VAD_BACKENDS),
                    help=f"voice activity detector (default: {d.vad_backend})")
     p.add_argument("--silero-threshold", type=_unit_float, default=d.silero_threshold,
@@ -132,7 +136,7 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
                         asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
                         vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
-                        restore=args.restore,
+                        restore=args.restore, latency_log=args.latency_log,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()
     failed = []
