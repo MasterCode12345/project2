@@ -6,6 +6,7 @@ thread through a ``Signal`` (queued connection) before touching any widget.
 
 from __future__ import annotations
 
+import argparse
 import sys
 import threading
 
@@ -223,6 +224,11 @@ class MainWindow(QMainWindow):
                 self._reset_model_combo()
         elif ev.kind in (WARNING, INFO):
             self.log.appendPlainText(f"{ev.kind}: {ev.message}")
+            if ev.data.get("model_fallback"):
+                # The selected model is missing: say so where errors show, not only in the log.
+                self.error_label.setText(
+                    f"Model '{ev.data.get('model')}' chưa được convert, đang dùng tạm "
+                    f"'{ev.data.get('fallback')}'. Convert một lần bằng: {ev.data.get('command')}")
 
     def _apply_state(self, state: str, keep_message: bool = False) -> None:
         self._state = state
@@ -242,8 +248,18 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 
+def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
+    """GUI options (``--latency-log PATH``); anything else is left for Qt."""
+    p = argparse.ArgumentParser(prog="audio-translator", add_help=True,
+                                description="Audio Translator GUI (use --cli for the command line)")
+    p.add_argument("--latency-log", default=None, metavar="PATH",
+                   help="append one CSV row per segment to PATH (see eval/latency_report.py)")
+    return p.parse_known_args(list(argv or []))
+
+
 def main(argv: list[str] | None = None) -> int:
-    app = QApplication.instance() or QApplication(sys.argv[:1] + list(argv or []))
-    win = MainWindow()
+    args, qt_args = parse_args(argv)
+    app = QApplication.instance() or QApplication(sys.argv[:1] + qt_args)
+    win = MainWindow(settings=Settings(latency_log=args.latency_log))
     win.show()
     return app.exec()

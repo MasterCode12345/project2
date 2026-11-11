@@ -49,7 +49,11 @@ class Settings:
     ns_vad_input: str = "denoised"  # "denoised" | "raw": what webrtcvad sees
 
     # M4 ASR
-    model_size: str = "medium"
+    # PhoWhisper-small: FLEURS WER 16.7% vs 27.3% for Whisper small (results/asr_fleurs_demand.csv).
+    # Converted once locally (scripts/convert_phowhisper.py); when it is missing the
+    # session warns and runs asr_fallback_model instead.
+    model_size: str = "phowhisper-small"
+    asr_fallback_model: str | None = "small"
     asr_device: str = "cpu"
     compute_type: str = "int8"
     beam_size: int = 5
@@ -86,6 +90,10 @@ class Settings:
 
     # Device liveness: a stream silent for this long is treated as removed.
     device_watchdog_s: float = 2.0
+
+    # Per-segment latency CSV (latency_log.py), appended from worker threads;
+    # None = off (nothing is opened or written).
+    latency_log: str | None = None
 
     @property
     def frame_samples(self) -> int:
