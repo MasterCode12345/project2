@@ -218,7 +218,9 @@ class Orchestrator:
         s = self.settings
         return WhisperASR(name, language=s.source_lang, device=s.asr_device,
                           compute_type=s.compute_type, beam_size=s.beam_size,
-                          initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s))
+                          initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s),
+                          max_tokens_per_s=s.asr_max_tokens_per_s, max_tokens_base=s.asr_max_tokens_base,
+                          temperatures=s.asr_temperatures)
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None

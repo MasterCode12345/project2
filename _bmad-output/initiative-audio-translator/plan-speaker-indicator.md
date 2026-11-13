@@ -231,7 +231,7 @@ Column order: the new columns go after `detail`. `eval/latency_report.py` adds t
 
 - [x] A: `health.py`, `Settings` thresholds, `Segmenter.open_s`, the ASR busy stamp, the monitor tick, `HEALTH` event, GUI light, CLI line, latency-log columns and report.
 - [x] A: tests (35 new; 323 pass).
-- [ ] B: `WhisperASR` options, `asr_bench.py` flags and columns, the token-rate check on the references, the six bench runs, and `results/stall_*.csv`.
+- [x] B: `WhisperASR` options (`asr_max_tokens_per_s`, `asr_max_tokens_base`, `asr_temperatures`; CLI `--asr-max-tokens-per-s`, `--asr-temperatures`; all off by default), `asr_bench.py` decode columns + `--segments-out`. [ ] the bench runs →, `asr_bench.py` flags and columns, the token-rate check on the references, the six bench runs, and `results/stall_*.csv`.
 - [x] Docs: `manual_test.md` (d), timestamped logs, README (Part A). Part B numbers: pending.
 
 ## Decisions (human, 2026-11-13)
@@ -246,6 +246,18 @@ Column order: the new columns go after `detail`. `eval/latency_report.py` adds t
 4. The 20 s log was lost; use the numbers the user copied, with the source stated.
 - Order of work: commit Part A first, then run the Part B benches.
 - `docs/manual_test.md`: no more `mv` overwrite. Every run writes a timestamped log, e.g. `~/gr2_manual/demo_meet_$(date +%Y%m%d_%H%M).csv`.
+
+## Part B: choice of the cap (2026-11-14, clean baselines, phowhisper-small, Silero + filter, seed 0)
+
+Clean runs with today's decoding (scratch per-segment TSVs, `--segments-out`):
+- **Loops happen on clean speech too.**
+  - VIVOS: 2/100 speech segments needed a fallback; the worst took 13–14 s for 3 s of audio.
+  - FLEURS: 13/244 segments needed a fallback; 8 of them had a first attempt at the 224-token limit. The worst was 38.2 s for 6.7 s of audio (6 attempts).
+  - Typically the T=0 attempt loops to 224 tokens and a later attempt gives the right short sentence. So a cap should keep the text and remove the dead time.
+- **Single-attempt token rates.** The highest on plausible output is **10.0 tok/s** (39 tokens / 3.9 s). The 5 rates above 10 (13.9–25 tok/s) are all garbage, e.g. "of. of. of…", or a real sentence followed by a long run of dots.
+- **Cap:** measured max × 1.5 = **15 tok/s**, base **32**. Base 16 would hit the dots-tail case once (96 tokens for 4.4 s). With 15+32, no single-attempt segment of these two sets would hit the cap. This was tuned on the same sets, which is stated as a limitation.
+  - For a 3 s segment an attempt stops at 77 tokens (about 2 s) instead of 224 (about 6 s).
+- **Runs:** 4 variants (base / cap15+32 / t0,0.2,0.4 / both) × {VIVOS × DEMAND, VIVOS × MUSAN at clean, 20, 10, 5, 0 dB; FLEURS clean}, run sequentially. Output: `results/stall_*.csv`.
 
 ## Implementation notes (Part A)
 

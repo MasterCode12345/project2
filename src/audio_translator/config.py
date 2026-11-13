@@ -70,6 +70,13 @@ class Settings:
     asr_max_no_speech_prob: float = 0.6
     asr_min_avg_logprob: float = -1.0
     asr_max_compression_ratio: float = 2.4
+    # Bounded decoding against stalls (opt-in; None = faster-whisper's own decoding, unchanged).
+    # A rejected attempt on unclear audio runs to 224 tokens (~6-7 s) and up to 6 temperatures
+    # are tried: one 3 s music clip took 22 s (plan-speaker-indicator.md). Being measured with
+    # eval/asr_bench.py (--max-tokens-per-s, --temperatures); default stays off until decided.
+    asr_max_tokens_per_s: float | None = None  # max_new_tokens = ceil(audio_s x this) + base (<= 224)
+    asr_max_tokens_base: int = 16
+    asr_temperatures: tuple[float, ...] | None = None  # e.g. (0.0, 0.2, 0.4); None = 0.0..1.0 step 0.2
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 

@@ -33,6 +33,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--asr-filter", action=argparse.BooleanOptionalAction, default=Settings().asr_filter,
                    help="drop Whisper segments with low confidence or a known Vietnamese hallucination, "
                         "and write decoding loops once (default: on)")
+    p.add_argument("--asr-max-tokens-per-s", type=float, default=None, metavar="N",
+                   help="experimental, default off: cap Whisper output at ceil(audio_s x N) + "
+                        f"{Settings().asr_max_tokens_base} tokens (bounds a decoding stall on unclear audio)")
+    p.add_argument("--asr-temperatures", default=None, metavar="T,T,...",
+                   type=lambda v: tuple(float(x) for x in v.split(",") if x.strip()),
+                   help="experimental, default off: Whisper temperature fallback ladder, e.g. 0,0.2,0.4 "
+                        "(default: faster-whisper's 0,0.2,...,1.0)")
     p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
                    help="translation backend: offline = Argos (default), google, or a converted multilingual "
                         "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")
@@ -143,6 +150,7 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
 
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
                         asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
+                        asr_max_tokens_per_s=args.asr_max_tokens_per_s, asr_temperatures=args.asr_temperatures,
                         vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
                         restore=args.restore, latency_log=args.latency_log,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)

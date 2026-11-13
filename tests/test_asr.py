@@ -301,3 +301,29 @@ def test_last_temperature_records_a_fallback_observation_only(seg_fw):
     seg_fw.segments = [seg("Một.")]  # no temperature attribute: no fallback
     a.transcribe(np.zeros(1600, np.int16), 16000)
     assert a.last_temperature == 0.0
+
+
+def test_bounded_decoding_is_off_by_default_and_passed_only_when_set(fake_fw):
+    s = Settings()
+    assert (s.asr_max_tokens_per_s, s.asr_temperatures) == (None, None)
+    a = WhisperASR("small")
+    a.transcribe(np.zeros(16000 * 3, np.int16), 16000)
+    kw = a._model.calls[0]
+    assert "max_new_tokens" not in kw and "temperature" not in kw  # faster-whisper's own decoding
+    b = WhisperASR("small", max_tokens_per_s=12, max_tokens_base=16, temperatures=(0.0, 0.2, 0.4))
+    b.transcribe(np.zeros(16000 * 3, np.int16), 16000)
+    kw = b._model.calls[0]
+    assert kw["max_new_tokens"] == 52 and kw["temperature"] == [0.0, 0.2, 0.4]
+    assert b.max_new_tokens(15.0) == 196 and b.max_new_tokens(30.0) == 224  # never above Whisper's limit
+    assert WhisperASR("small", temperatures=(0.0,)).decode_options(1.0) == {"temperature": [0.0]}
+
+
+def test_bounded_decoding_flags_reach_the_recognizer():
+    args = cli.build_parser().parse_args(["--asr-max-tokens-per-s", "12", "--asr-temperatures", "0,0.2,0.4"])
+    assert args.asr_max_tokens_per_s == 12 and args.asr_temperatures == (0.0, 0.2, 0.4)
+    args = cli.build_parser().parse_args([])
+    assert args.asr_max_tokens_per_s is None and args.asr_temperatures is None
+    from audio_translator.orchestrator import Orchestrator
+
+    rec = Orchestrator(Settings(asr_max_tokens_per_s=12, asr_temperatures=(0.0, 0.4)))._make_recognizer("small")
+    assert rec.max_tokens_per_s == 12 and rec.temperatures == (0.0, 0.4) and rec.max_tokens_base == 16

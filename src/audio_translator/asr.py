@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import unicodedata
 from dataclasses import dataclass, field
@@ -149,6 +150,10 @@ def filter_from_settings(settings) -> SegmentFilter | None:
     return SegmentFilter(s.asr_max_no_speech_prob, s.asr_min_avg_logprob, s.asr_max_compression_ratio)
 
 
+# Whisper's own decode limit per 30 s window (half the 448-token text context).
+MAX_NEW_TOKENS = 224
+
+
 class Recognizer(Protocol):
     def load(self) -> None: ...
 
@@ -166,6 +171,9 @@ class WhisperASR:
         beam_size: int = 5,
         initial_prompt: str | None = None,
         segment_filter: SegmentFilter | None = None,
+        max_tokens_per_s: float | None = None,
+        max_tokens_base: int = 16,
+        temperatures: tuple[float, ...] | None = None,
     ) -> None:
         self.model_size = model_size
         self.language = language
@@ -174,6 +182,11 @@ class WhisperASR:
         self.beam_size = beam_size
         self.initial_prompt = initial_prompt or None
         self.segment_filter = segment_filter  # None: keep every segment (previous behaviour)
+        # Bounded decoding (None = faster-whisper defaults): output-token cap per second of audio,
+        # and the temperature fallback ladder.
+        self.max_tokens_per_s = max_tokens_per_s
+        self.max_tokens_base = max_tokens_base
+        self.temperatures = tuple(temperatures) if temperatures else None
         self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last call; "repetition": shortened, kept
         self.last_temperature = 0.0  # highest decoding temperature of the last call (> 0: fallback used)
         self._model = None
@@ -192,6 +205,22 @@ class WhisperASR:
                     resolve_model(self.model_size), device=self.device, compute_type=self.compute_type
                 )
 
+    def max_new_tokens(self, audio_s: float) -> int | None:
+        """Output-token cap for ``audio_s`` seconds of audio (None = no cap)."""
+        if not self.max_tokens_per_s:
+            return None
+        return min(MAX_NEW_TOKENS, math.ceil(audio_s * self.max_tokens_per_s) + self.max_tokens_base)
+
+    def decode_options(self, audio_s: float) -> dict:
+        """Extra ``WhisperModel.transcribe`` options; empty when bounded decoding is off."""
+        kw: dict = {}
+        cap = self.max_new_tokens(audio_s)
+        if cap is not None:
+            kw["max_new_tokens"] = cap
+        if self.temperatures:
+            kw["temperature"] = list(self.temperatures)
+        return kw
+
     def transcribe_segments(self, audio: np.ndarray, sample_rate: int) -> list:
         """Raw faster-whisper segments (text, no_speech_prob, avg_logprob, compression_ratio, …)."""
         if sample_rate != 16000:
@@ -205,6 +234,7 @@ class WhisperASR:
             vad_filter=False,  # M3 already segmented
             condition_on_previous_text=False,
             initial_prompt=self.initial_prompt,
+            **self.decode_options(pcm.size / sample_rate),
         )
         segments = list(segments)
         self.last_temperature = max((getattr(x, "temperature", 0.0) or 0.0 for x in segments), default=0.0)

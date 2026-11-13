@@ -58,9 +58,18 @@ DEFAULT_PROMPT = "Xin chào, sau đây là đoạn hội thoại bằng tiếng 
 PROMPT_MODES = ("off", "on")
 VAD_NAMES = ("webrtc", "silero")
 FILTER_MODES = ("off", "on")
-COLUMNS = ["corpus", "noise", "model", "prompt", "vad", "filter", "snr_db", "n_utts", "wer", "cer",
+COLUMNS = ["corpus", "noise", "model", "prompt", "vad", "filter", "decode", "snr_db", "n_utts", "wer", "cer",
            "asr_ms_mean", "asr_ms_p95", "asr_rtf", "load_s", "vad_extra_segs", "vad_false_triggers",
-           "ghost_texts"]
+           "ghost_texts", "asr_ms_max", "noise_segs", "noise_asr_ms_mean", "noise_asr_ms_p95", "noise_asr_ms_max",
+           "fallback_segs", "noise_fallback_segs", "noise_redecodes", "cap_hits", "max_tok_per_s"]
+# Decoding columns (bounded decoding, plan-speaker-indicator.md), from DecodeProbe (one entry per
+# CTranslate2 generate call = one decoding attempt): ``decode`` = the variant label;
+# ``asr_ms_max`` over scored speech segments; ``noise_*`` = ASR time over every segment of the
+# noise-only clips (where stalls happen); ``fallback_segs`` / ``noise_fallback_segs`` = segments
+# that needed more than one attempt (temperature fallback); ``noise_redecodes`` = extra attempts on
+# noise; ``cap_hits`` = scored speech segments with an attempt that reached its token limit (the cap,
+# or Whisper's 224 without one: a cut-off sentence when it is real speech); ``max_tok_per_s`` =
+# generated tokens of the last attempt per second of audio, maximum over scored speech segments.
 
 
 # ------------------------------------------------------------------ corpora
@@ -89,8 +98,52 @@ def load_fleurs(root: Path, limit: int | None) -> list[tuple[np.ndarray, str]]:
 
 
 # --------------------------------------------------------------------- timing
+class DecodeProbe:
+    """Stands in for ``WhisperModel.model`` (CTranslate2) and records every ``generate`` call:
+    (seconds, temperature, generated tokens, token limit). Observation only."""
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+        self.calls: list[tuple[float, float, int, int]] = []
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+    def generate(self, *args, **kw):
+        from audio_translator.asr import MAX_NEW_TOKENS
+
+        t0 = time.perf_counter()
+        out = self._inner.generate(*args, **kw)
+        prompts = args[1] if len(args) > 1 else kw.get("prompts", [[]])
+        limit = min(kw.get("max_length", 448) - len(prompts[0]), MAX_NEW_TOKENS)
+        n = len(out[0].sequences_ids[0]) if out and out[0].sequences_ids else 0
+        self.calls.append((time.perf_counter() - t0, float(kw.get("sampling_temperature", 0.0) or 0.0), n, limit))
+        return out
+
+
+def install_decode_probe(asr) -> DecodeProbe | None:
+    """After ``asr.load()``: record each decoding attempt; ``asr.last_decode`` = attempts of the
+    last ``transcribe_segments`` call. None for recognizers without a CTranslate2 model (toys)."""
+    model = getattr(getattr(asr, "_model", None), "model", None)
+    if model is None or not hasattr(model, "generate"):
+        return None
+    probe = DecodeProbe(model)
+    asr._model.model = probe
+    real = asr.transcribe_segments
+
+    def probed(audio, sample_rate):
+        probe.calls.clear()
+        segs = real(audio, sample_rate)
+        asr.last_decode = list(probe.calls)
+        return segs
+
+    asr.transcribe_segments = probed
+    asr.last_decode = None
+    return probe
+
+
 class TimedASR:
-    """Wraps a recognizer and records (seconds, audio seconds) per transcribe call.
+    """Wraps a recognizer and records (seconds, audio seconds, decoding attempts) per transcribe call.
 
     When the recognizer's segments come from ``memoize_segments``, the time is
     that of the real Whisper call (a replay costs nothing).
@@ -103,10 +156,13 @@ class TimedASR:
     def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:
         if hasattr(self.asr, "last_call_s"):
             self.asr.last_call_s = None
+        if hasattr(self.asr, "last_decode"):
+            self.asr.last_decode = None
         t0 = time.perf_counter()
         text = self.asr.transcribe(audio, sample_rate)
         secs = getattr(self.asr, "last_call_s", None)
-        self.calls.append((time.perf_counter() - t0 if secs is None else secs, audio.size / sample_rate))
+        self.calls.append((time.perf_counter() - t0 if secs is None else secs, audio.size / sample_rate,
+                           getattr(self.asr, "last_decode", None) or []))
         return text
 
 
@@ -129,8 +185,10 @@ def memoize_segments(asr) -> dict | None:
         if key not in memo:
             t0 = time.perf_counter()
             segs = real(audio, sample_rate)
-            memo[key] = (segs, time.perf_counter() - t0)
-        segs, asr.last_call_s = memo[key]
+            memo[key] = (segs, time.perf_counter() - t0, getattr(asr, "last_decode", None))
+        segs, asr.last_call_s, decode = memo[key]
+        if decode is not None:
+            asr.last_decode = decode
         return segs
 
     asr.transcribe_segments = cached
@@ -157,15 +215,48 @@ def latency_stats(calls: list[tuple[float, float]]) -> tuple[float, float, float
     return float(secs.mean() * 1000), float(np.percentile(secs, 95) * 1000), float(secs.sum() / audio) if audio else 0.0
 
 
+SEG_COLUMNS = ["decode", "snr_db", "clip", "kind", "audio_s", "asr_ms", "attempts", "text", "ref"]
+
+
+def _seg_row(snr, k: int, kind: str, call: tuple, text: str, ref: str) -> dict:
+    att = call[2] if len(call) > 2 else []
+    return {"snr_db": "clean" if snr is None else f"{snr:g}", "clip": k, "kind": kind, "audio_s": f"{call[1]:.2f}",
+            "asr_ms": f"{call[0] * 1000:.0f}",
+            "attempts": " ".join(f"t{t:g}:{n}/{lim}:{s * 1000:.0f}ms" for s, t, n, lim in att),
+            "text": text.strip(), "ref": ref}
+
+
+def decode_stats(speech: list[tuple], noise: list[tuple]) -> dict:
+    """Bounded-decoding columns from TimedASR calls (seconds, audio seconds, attempts)."""
+    def attempts(c):
+        return c[2] if len(c) > 2 else []
+
+    noise_ms = np.array([c[0] * 1000 for c in noise]) if noise else np.zeros(0)
+    rates = [att[-1][2] / c[1] for c in speech if (att := attempts(c)) and c[1] > 0]
+    return {
+        "asr_ms_max": f"{max((c[0] for c in speech), default=0.0) * 1000:.0f}",
+        "noise_segs": len(noise),
+        "noise_asr_ms_mean": f"{noise_ms.mean() if noise_ms.size else 0.0:.0f}",
+        "noise_asr_ms_p95": f"{np.percentile(noise_ms, 95) if noise_ms.size else 0.0:.0f}",
+        "noise_asr_ms_max": f"{noise_ms.max() if noise_ms.size else 0.0:.0f}",
+        "fallback_segs": sum(len(attempts(c)) > 1 for c in speech),
+        "noise_fallback_segs": sum(len(attempts(c)) > 1 for c in noise),
+        "noise_redecodes": sum(max(0, len(attempts(c)) - 1) for c in noise),
+        "cap_hits": sum(any(n >= lim for _s, _t, n, lim in attempts(c)) for c in speech),
+        "max_tok_per_s": f"{max(rates, default=0.0):.2f}",
+    }
+
+
 # ---------------------------------------------------------------------- bench
 def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_name: str, model: str,
                 prompt: str | None, snrs, seed: int, load_s: float, emit: Callable[[dict], None],
-                vad_name: str = "webrtc", segment_filter=None) -> None:
+                vad_name: str = "webrtc", segment_filter=None, decode: str = "base",
+                seg_log: Callable[[dict], None] | None = None) -> None:
     asr.initial_prompt = prompt
     asr.segment_filter = segment_filter
     for snr in snrs:
         rng = np.random.default_rng(seed)  # identical clips for every model and prompt
-        refs, hyps, scored = [], [], []
+        refs, hyps, scored, noise_calls = [], [], [], []
         extra = false_triggers = ghosts = 0
         for k, (speech, ref) in enumerate(utts):
             clip = db.build_clip(speech, noises[k % len(noises)], snr, rng)
@@ -174,13 +265,21 @@ def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_nam
             r = db.run_pipeline(clip.noisy, None, make_vad(), timed)
             refs.append(db.normalize_vi(ref))
             hyps.append(db.normalize_vi(r.text_in(clip.speech_s)))
-            for (a, b, _), call in zip(r.segments, timed.calls):
+            for (a, b, text), call in zip(r.segments, timed.calls):
                 if db.overlaps((a, b), clip.speech_s):
                     scored.append(call)
                 else:
                     extra += 1
+                if seg_log is not None:
+                    seg_log(_seg_row(snr, k, "speech" if db.overlaps((a, b), clip.speech_s) else "extra",
+                                     call, text, ref))
             seed_decoder(seed + k)
-            noise_run = db.run_pipeline(clip.noise_only, None, make_vad(), asr)
+            timed_noise = TimedASR(asr)
+            noise_run = db.run_pipeline(clip.noise_only, None, make_vad(), timed_noise)
+            noise_calls += timed_noise.calls
+            if seg_log is not None:
+                for (_a, _b, text), call in zip(noise_run.segments, timed_noise.calls):
+                    seg_log(_seg_row(snr, k, "noise", call, text, ""))
             for a, b, text in noise_run.segments:
                 if db.overlaps((a, b), clip.noise_window_s):
                     false_triggers += 1
@@ -189,16 +288,17 @@ def bench_model(utts, noises, asr, make_vad: Callable, *, corpus: str, noise_nam
         mean_ms, p95_ms, rtf = latency_stats(scored)
         emit({"corpus": corpus, "noise": noise_name if snr is not None else "-", "model": model,
               "prompt": "on" if prompt else "off", "vad": vad_name,
-              "filter": "on" if segment_filter is not None else "off", "snr_db": "clean" if snr is None else f"{snr:g}",
+              "filter": "on" if segment_filter is not None else "off", "decode": decode, "snr_db": "clean" if snr is None else f"{snr:g}",
               "n_utts": len(utts), "wer": f"{wer:.4f}", "cer": f"{cer:.4f}", "asr_ms_mean": f"{mean_ms:.0f}",
               "asr_ms_p95": f"{p95_ms:.0f}", "asr_rtf": f"{rtf:.3f}", "load_s": f"{load_s:.1f}",
-              "vad_extra_segs": extra, "vad_false_triggers": false_triggers, "ghost_texts": ghosts})
+              "vad_extra_segs": extra, "vad_false_triggers": false_triggers, "ghost_texts": ghosts,
+              **decode_stats(scored, noise_calls)})
 
 
 def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make_vad: Callable, *,
         corpus: str, noise_name: str, prompts: list[str | None], snrs, seed: int,
         emit: Callable[[dict], None], log=print, vads: tuple[str, ...] = ("webrtc",),
-        filters: tuple = (None,)) -> int:
+        filters: tuple = (None,), decode: str = "base", seg_log: Callable[[dict], None] | None = None) -> int:
     """``make_vad(name)`` builds a fresh VAD; ``filters`` holds SegmentFilter or None (= off)."""
     """Benchmark each model in turn (one resident at a time); returns the number of models measured."""
     done = 0
@@ -211,6 +311,7 @@ def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make
             log(f"skipping model '{model}': {exc}")
             continue
         load_s = time.perf_counter() - t0
+        install_decode_probe(asr)
         memo = memoize_segments(asr)
         for prompt in prompts:
             for vad_name in vads:
@@ -219,7 +320,8 @@ def run(utts, noises, models: list[str], make_asr: Callable[[str], object], make
                 for seg_filter in filters:
                     bench_model(utts, noises, asr, lambda v=vad_name: make_vad(v), corpus=corpus,
                                 noise_name=noise_name, model=model, prompt=prompt, snrs=snrs, seed=seed,
-                                load_s=load_s, emit=emit, vad_name=vad_name, segment_filter=seg_filter)
+                                load_s=load_s, emit=emit, vad_name=vad_name, segment_filter=seg_filter,
+                                decode=decode, seg_log=seg_log)
         done += 1
         del asr
         gc.collect()  # free the model before loading the next one (8 GB machine)
@@ -243,6 +345,16 @@ def _snrs(text: str) -> list[float | None]:
     return out
 
 
+def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None) -> str:
+    """``base`` (faster-whisper defaults), ``cap12+16``, ``t0/0.2/0.4`` or both joined by ``,``."""
+    parts = []
+    if per_s:
+        parts.append(f"cap{per_s:g}+{base}")
+    if temps:
+        parts.append("t" + "/".join(f"{t:g}" for t in temps))
+    return ",".join(parts) or "base"
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="ASR bench: WER/CER and latency vs model, prompt and SNR.")
     p.add_argument("--smoke", action="store_true", help="synthetic signals + toy ASR, fully offline")
@@ -264,6 +376,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--beam-size", type=int, default=5)
     p.add_argument("--vad-aggressiveness", type=int, default=2)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--max-tokens-per-s", type=float, default=None,
+                   help="bounded decoding: cap output at ceil(audio_s x N) + --max-tokens-base tokens (default: off)")
+    p.add_argument("--max-tokens-base", type=int, default=16)
+    p.add_argument("--temperatures", default=None,
+                   help="bounded decoding: temperature ladder, e.g. 0,0.2,0.4 (default: faster-whisper's 6)")
+    p.add_argument("--decode-label", default=None, help="value of the decode column (default: derived)")
+    p.add_argument("--segments-out", type=Path, default=None,
+                   help="also write one TSV row per ASR segment: time, decoding attempts, text, reference")
     p.add_argument("--out", type=Path, default=Path("asr_bench.csv"), help="CSV output path")
     return p
 
@@ -291,6 +411,8 @@ def main(argv: list[str] | None = None) -> int:
 
     filters = tuple(SegmentFilter() if f == "on" else None for f in filter_modes)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
+    temps = tuple(float(t) for t in args.temperatures.split(",") if t.strip()) if args.temperatures else None
+    decode = args.decode_label or decode_label(args.max_tokens_per_s, args.max_tokens_base, temps)
     if args.smoke:
         utts, noises = db.smoke_data(args.seed)
         corpus, noise_name = "smoke", "smoke"
@@ -322,7 +444,8 @@ def main(argv: list[str] | None = None) -> int:
         from audio_translator.asr import WhisperASR
 
         def make_asr(name):
-            return WhisperASR(name, language="vi", beam_size=args.beam_size)
+            return WhisperASR(name, language="vi", beam_size=args.beam_size, max_tokens_per_s=args.max_tokens_per_s,
+                              max_tokens_base=args.max_tokens_base, temperatures=temps)
 
         def make_vad(name):
             return webrtc_vad(args.vad_aggressiveness) if name == "webrtc" else silero_vad(args.silero_threshold)
@@ -343,9 +466,23 @@ def main(argv: list[str] | None = None) -> int:
             rows += 1
             print("  ".join(f"{c}={row[c]}" for c in COLUMNS), flush=True)
 
-        done = run(utts, noises, models, make_asr, make_vad, corpus=corpus, noise_name=noise_name,
-                   prompts=prompts, snrs=args.snrs, seed=args.seed, emit=emit,
-                   log=lambda s: print(s, flush=True), vads=vads, filters=filters)
+        seg_f = open(args.segments_out, "w", newline="", encoding="utf-8") if args.segments_out else None
+        seg_w = csv.DictWriter(seg_f, fieldnames=SEG_COLUMNS, delimiter="\t") if seg_f else None
+        if seg_w:
+            seg_w.writeheader()
+
+        def seg_log(row: dict) -> None:
+            seg_w.writerow({"decode": decode, **row})
+            seg_f.flush()
+
+        try:
+            done = run(utts, noises, models, make_asr, make_vad, corpus=corpus, noise_name=noise_name,
+                       prompts=prompts, snrs=args.snrs, seed=args.seed, emit=emit,
+                       log=lambda s: print(s, flush=True), vads=vads, filters=filters, decode=decode,
+                       seg_log=seg_log if seg_w else None)
+        finally:
+            if seg_f:
+                seg_f.close()
     if done == 0:
         print("error: no model could be loaded", file=sys.stderr)
         return 1

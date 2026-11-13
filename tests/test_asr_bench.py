@@ -256,3 +256,59 @@ def test_filter_modes_share_one_whisper_call_per_segment_and_keep_its_time():
     for off, on in (rows[:2], rows[2:]):
         assert off["asr_ms_mean"] == on["asr_ms_mean"] and float(off["asr_ms_mean"]) >= 2
         assert int(off["ghost_texts"]) > 0 and on["ghost_texts"] == 0  # no_speech_prob 0.9 > 0.6
+
+
+def test_decode_label():
+    assert ab.decode_label(None, 16, None) == "base"
+    assert ab.decode_label(12, 16, None) == "cap12+16"
+    assert ab.decode_label(None, 16, (0.0, 0.2, 0.4)) == "t0/0.2/0.4"
+    assert ab.decode_label(12.5, 8, (0.0, 0.4)) == "cap12.5+8,t0/0.4"
+
+
+def test_decode_probe_records_each_attempt_and_its_limit():
+    import types
+
+    class CT2:
+        def __init__(self):
+            self.n = iter([224, 30])
+
+        def generate(self, features, prompts, **kw):
+            return [types.SimpleNamespace(sequences_ids=[list(range(next(self.n)))])]
+
+        other = "kept"
+
+    class Rec:
+        def __init__(self):
+            self._model = types.SimpleNamespace(model=CT2())
+
+        def transcribe_segments(self, audio, sr):
+            self._model.model.generate(None, [[1, 2, 3]], max_length=448)
+            self._model.model.generate(None, [[1, 2, 3]], max_length=55, sampling_temperature=0.2)
+            return ["seg"]
+
+    r = Rec()
+    probe = ab.install_decode_probe(r)
+    assert r._model.model.other == "kept"  # everything else passes through
+    assert r.transcribe_segments(None, 16000) == ["seg"]
+    assert [(t, n, lim) for _s, t, n, lim in r.last_decode] == [(0.0, 224, 224), (0.2, 30, 52)]
+    assert probe.calls == r.last_decode
+    assert ab.install_decode_probe(object()) is None
+
+
+def test_decode_stats_columns():
+    speech = [(1.0, 2.0, [(1.0, 0.0, 20, 224)]), (3.0, 3.0, [(1.0, 0.0, 52, 52), (2.0, 0.2, 30, 52)])]
+    noise = [(0.5, 1.0, [(0.5, 0.0, 5, 224)]), (6.0, 3.0, [(2, 0, 224, 224), (2, .2, 224, 224), (2, .4, 9, 224)])]
+    d = ab.decode_stats(speech, noise)
+    assert d["asr_ms_max"] == "3000" and d["noise_segs"] == 2 and d["noise_asr_ms_max"] == "6000"
+    assert (d["fallback_segs"], d["noise_fallback_segs"], d["noise_redecodes"], d["cap_hits"]) == (1, 1, 2, 1)
+    assert d["max_tok_per_s"] == "10.00"  # last attempt: 20 tok / 2 s, 30 tok / 3 s
+    assert ab.decode_stats([(1.0, 1.0)], [])["fallback_segs"] == 0  # toy recognizer: no attempts recorded
+
+
+def test_segments_out_writes_one_row_per_asr_segment(tmp_path):
+    out, segs = tmp_path / "s.csv", tmp_path / "segs.tsv"
+    assert ab.main(["--smoke", "--snrs", "clean,5", "--prompt-modes", "off", "--out", str(out),
+                    "--segments-out", str(segs)]) == 0
+    rows = list(csv.DictReader(open(segs, encoding="utf-8"), delimiter="\t"))
+    assert list(rows[0]) == ab.SEG_COLUMNS and {r["kind"] for r in rows} >= {"speech"}
+    assert {r["decode"] for r in rows} == {"base"} and {r["snr_db"] for r in rows} == {"clean", "5"}
