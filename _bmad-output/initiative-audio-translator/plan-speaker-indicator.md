@@ -231,7 +231,7 @@ Column order: the new columns go after `detail`. `eval/latency_report.py` adds t
 
 - [x] A: `health.py`, `Settings` thresholds, `Segmenter.open_s`, the ASR busy stamp, the monitor tick, `HEALTH` event, GUI light, CLI line, latency-log columns and report.
 - [x] A: tests (35 new; 323 pass).
-- [x] B: `WhisperASR` options (`asr_max_tokens_per_s`, `asr_max_tokens_base`, `asr_temperatures`; CLI `--asr-max-tokens-per-s`, `--asr-temperatures`; all off by default), `asr_bench.py` decode columns + `--segments-out`. [ ] the bench runs →, `asr_bench.py` flags and columns, the token-rate check on the references, the six bench runs, and `results/stall_*.csv`.
+- [x] B: `WhisperASR` options (`asr_max_tokens_per_s`, `asr_max_tokens_base`, `asr_temperatures`; CLI `--asr-max-tokens-per-s`, `--asr-temperatures`; all off by default), `asr_bench.py` decode columns + `--segments-out`. [x] the bench runs → `results/stall_*.csv` (below). **Default unchanged (off): no variant passes the rule.**, `asr_bench.py` flags and columns, the token-rate check on the references, the six bench runs, and `results/stall_*.csv`.
 - [x] Docs: `manual_test.md` (d), timestamped logs, README (Part A). Part B numbers: pending.
 
 ## Decisions (human, 2026-11-13)
@@ -258,6 +258,50 @@ Clean runs with today's decoding (scratch per-segment TSVs, `--segments-out`):
 - **Cap:** measured max × 1.5 = **15 tok/s**, base **32**. Base 16 would hit the dots-tail case once (96 tokens for 4.4 s). With 15+32, no single-attempt segment of these two sets would hit the cap. This was tuned on the same sets, which is stated as a limitation.
   - For a 3 s segment an attempt stops at 77 tokens (about 2 s) instead of 224 (about 6 s).
 - **Runs:** 4 variants (base / cap15+32 / t0,0.2,0.4 / both) × {VIVOS × DEMAND, VIVOS × MUSAN at clean, 20, 10, 5, 0 dB; FLEURS clean}, run sequentially. Output: `results/stall_*.csv`.
+
+## Part B: results (2026-11-14, `results/stall_vivos_demand.csv`, `results/stall_vivos_musan.csv`, `results/stall_fleurs_clean.csv`)
+
+Configuration: phowhisper-small, Silero + filter, 100 VIVOS utterances (FLEURS: 244 segments of 100 sentences), seed 0, run sequentially on the same machine. WER in points; ASR in ms on scored speech segments; "noise" = every segment of the noise-only clips.
+
+| Set, SNR | WER base / cap / temps / both | ASR max (speech) base → cap | ASR max (noise) base → cap | Noise re-decodes base → cap |
+|---|---|---|---|---|
+| DEMAND clean | 5.73 / 6.85 / 5.73 / 6.85 | 14 352 → 1 798 | – | – |
+| DEMAND 20 | 6.85 / 7.77 / 6.85 / 7.77 | 20 711 → 1 812 | 27 519 → 3 155 | 9 → 5 |
+| DEMAND 10 | 7.16 / 7.98 / 6.95 / 7.98 | 21 322 → 1 561 | 23 180 → 1 887 | 18 → 0 |
+| DEMAND 5 | 8.69 / 9.30 / 8.69 / 9.30 | 10 576 → 1 629 | 29 914 → 1 893 | 10 → 0 |
+| DEMAND 0 | 11.76 / 13.70 / 14.21 / 13.70 | 23 590 → 2 034 | 19 936 → 1 862 | 14 → 0 |
+| MUSAN clean | 5.73 / 6.85 / 5.73 / 6.85 | 13 410 → 1 528 | – | – |
+| MUSAN 20 | 5.93 / 5.93 / 6.85 / 5.93 | 21 520 → 1 544 | – | – |
+| MUSAN 10 | 6.75 / 6.65 / 6.75 / 6.65 | 11 114 → 1 641 | 1 182 → 1 174 | 0 → 0 |
+| MUSAN 5 | 7.87 / 8.08 / 7.87 / 8.08 | 6 858 → 1 551 | 5 409 → 1 525 | 3 → 1 |
+| MUSAN 0 | 14.83 / 14.31 / 15.13 / 14.31 | 21 431 → 1 645 | 7 385 → 2 523 | 10 → 6 |
+| FLEURS clean | 15.65 / 15.06 / 16.37 / 15.06 | 34 436 → 2 874 | – | – |
+
+Speech ASR P95 with the cap: 1.4–1.5 s everywhere (base 1.4–7.9 s; FLEURS 3.96 → 2.04 s). `cap_hits` (an attempt reaching its limit on real speech) is **0** for cap and both at every SNR, and for FLEURS; the base had 0–8 segments at Whisper's 224 limit. Speech fallbacks base 1–13 → cap 0–1.
+
+**Findings:**
+1. **The stall is real and common, also on clean speech.** With today's decoding, every set has a speech segment that takes 10–34 s, and noise segments of 20–30 s (DEMAND).
+2. **The cap removes it.** Max ASR drops to about 1.5–3 s everywhere, P95 drops, and noise re-decodes drop to 0–6.
+3. **The cap also changes the T=0 beam-search result,** even where no attempt reaches the cap: 28/500 DEMAND and 16/500 MUSAN clip × SNR transcripts differ from the base.
+   - In 20 and 15 of them, the capped output gains a tail of dots or a stray "a." / "a sĩ la hối…" partial repeat, which fallback no longer catches.
+   - This makes WER worse: **+1.12 on clean VIVOS**, +0.6 to +1.9 on DEMAND, up to +0.21 on MUSAN.
+   - It also helps elsewhere: MUSAN 0 dB −0.52, FLEURS −0.59. Some looping base outputs become correct, e.g. "tôi không nợ lần cô bé thất vọng".
+   - The cause of the tail inside CTranslate2's beam search was not investigated.
+4. **Temperatures only** (0, 0.2, 0.4) barely bounds anything (speech max still 8.8–19.8 s, because the T=0 attempt still runs to 224 tokens). WER is up to +2.45 worse (DEMAND 0 dB).
+5. **Both** ≈ cap: with the cap, fallbacks almost never happen.
+
+**Decision rule** (WER ≤ +0.5 at every SNR of both noises, and max/P95 clearly lower): **no variant passes.**
+- cap / both fail on WER: clean +1.12, DEMAND every SNR.
+- temps fails on both counts.
+
+The default stays off, as agreed. The human decides.
+
+**Limitations:** one model, one seed, 100 utterances. A WER gap of 1 point is about 10 words. Clip-level differences are listed in the scratch per-segment TSVs, which are not committed.
+
+**Possible next steps** (not done):
+- (a) Cap plus stripping trailing dot runs and lone "a." in the ASR filter; this would need a re-measurement.
+- (b) Cap only the fallback attempts (T > 0). faster-whisper has no option for it, so it would need its own fallback loop.
+- (c) Keep decoding as is and rely on the indicator, which already warns the speaker at 3 s / 6 s.
 
 ## Implementation notes (Part A)
 

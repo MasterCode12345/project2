@@ -350,7 +350,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 323 passed
+uv run --group eval pytest -q     # 329 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -367,6 +367,9 @@ Máy dùng để đo: MacBook Pro (Apple Silicon, 8 GB RAM), chạy bằng CPU (
 | WER câu thật khi có nhiễu, PhoWhisper, webrtc → Silero + lọc | sạch 6,9 → 5,6; tệ hơn nhiều nhất +1,2 điểm (DEMAND 5 dB); tốt hơn nhiều nhất −5,8 (MUSAN 5 dB) | `results/guard2_vivos_*.csv` |
 | Dịch, như app (cắt đoạn, chữ PhoWhisper), Argos, BLEU / chrF | không khôi phục 12,35 / 43,4 → **vibert-capu 15,15 / 45,5** | `results/mt_vi_en_seg_silero.csv` |
 | Độ trễ dịch mỗi đoạn, Argos + vibert-capu, TB / P95 | 95 / 215 ms; khôi phục thêm 23 / 47 ms | `results/mt_vi_en_seg_silero.csv` |
+
+| Nhận dạng bị kẹt (cấu hình gốc), PhoWhisper + Silero + lọc | đoạn giọng thật lâu nhất 10–34 s ở mọi bộ (kể cả sạch); đoạn chỉ có nhiễu tới 20–30 s (DEMAND) | `results/stall_*.csv` |
+| Thử giới hạn token 15/s + 32 (mặc định **tắt**) | lâu nhất còn 1,5–3 s, P95 ~1,5 s; nhưng WER tệ hơn: sạch +1,12, DEMAND +0,6 đến +1,9; MUSAN 0 dB −0,52, FLEURS −0,59 | `results/stall_*.csv` |
 
 Chi tiết từng bench nằm ở mục 4 ("Chống câu ma") và mục 6.2.
 
@@ -490,7 +493,10 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
    - Nguồn: số do người dùng chép lại; file log gốc đã bị ghi đè nên mất. Từ đó kịch bản thử đặt tên log theo ngày giờ.
    - Nguyên nhân đã tái hiện được với đoạn nhạc 3 s (22,2 s): faster-whisper giải mã lại tối đa 6 lần (temperature 0 → 1,0), và mỗi lần bị loại lại chạy tới 224 token, khoảng 6–7 s.
    - Bộ lọc câu ma không chặn được vì `no_speech_prob` ≈ 0.
-   - Hiện có đèn báo để người nói dừng lại. Cách giới hạn (trần token theo độ dài audio, rút dãy temperature) đang được đo bằng bench; mặc định vẫn tắt.
+   - Bench (`results/stall_*.csv`) cho thấy kẹt xảy ra cả trên giọng **sạch**: đoạn lâu nhất 10–34 s ở mọi bộ.
+   - Giới hạn token 15/s + 32 hết kẹt (lâu nhất 1,5–3 s), nhưng làm đổi kết quả beam search: thêm đuôi "a." hoặc chuỗi dấu chấm, nên WER sạch tệ hơn 1,12 điểm. Chỉ rút dãy temperature thì gần như không giới hạn được.
+   - Chưa biến thể nào đạt tiêu chí "WER không tệ hơn quá 0,5 điểm", nên **mặc định vẫn tắt**. Thử bằng `--asr-max-tokens-per-s 15` và `--asr-temperatures 0,0.2,0.4`.
+   - Đèn báo cảnh báo người nói khi nhận dạng quá 3 s / 6 s.
 2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
 3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
 4. **Cắt đoạn làm mất điểm dịch:** câu bị cắt giữa chừng khó dịch. Argos giảm từ 15,8 BLEU (cả bản ghi) xuống 13,0 (cắt đoạn, webrtc), Silero còn thấp hơn khoảng 0,7 vì cắt đoạn ngắn hơn (`results/mt_vi_en_restore.csv`, `results/mt_vi_en_seg_silero.csv`).
@@ -514,7 +520,8 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [x] Thử model dịch tốt hơn cho tiếng Việt: NLLB-600M hơn Argos 3–6 BLEU nhưng chậm gấp khoảng 5 lần (mục 6). Có trong app qua `--translator nllb-600m`.
 - [x] Khôi phục chữ hoa và dấu câu trước khi dịch (mặc định `--restore auto`, mục 6): +1,6 đến +2,8 BLEU trong điều kiện giống app.
 - [x] Đèn báo cho người nói (xanh / vàng / đỏ), chỉ quan sát (mục 4, "Đèn báo cho người nói").
-- [ ] Chống kẹt nhận dạng 20 s: đo trần token và dãy temperature ngắn hơn bằng bench, rồi quyết định có bật mặc định hay không.
+- [x] Đo chống kẹt nhận dạng: trần token và dãy temperature ngắn (`results/stall_*.csv`). Chưa đạt tiêu chí WER nên mặc định vẫn tắt.
+- [ ] Chống kẹt mà không làm đổi chữ: bỏ đuôi "a." / dấu chấm sau trần token, hoặc chỉ giới hạn các lượt giải mã lại.
 - [ ] Giảm mất điểm do cắt đoạn: dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
 - [ ] Chỉ nghe người dùng (bỏ tiếng người nói ở nền).
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
@@ -543,7 +550,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  323 test (pytest)
+├── tests/                  329 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
