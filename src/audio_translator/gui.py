@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QPlainTextEdit,
@@ -25,8 +26,8 @@ from PySide6.QtWidgets import (
 
 from .asr import LOCAL_MODELS
 from .config import Settings
-from .models import (ERROR, IDLE, INFO, MODEL, RESULT, RUNNING, STARTING, STATUS, STOPPED, STOPPING, WARNING,
-                     Event)
+from .models import (ERROR, HEALTH, IDLE, INFO, MODEL, RESULT, RUNNING, STARTING, STATUS, STOPPED, STOPPING,
+                     WARNING, Event)
 
 DEFAULT_INPUT = "(System default)"
 NO_OUTPUT = "(choose output device)"
@@ -50,6 +51,15 @@ def model_item_text(info) -> str:
     else:
         status = _MODEL_STATUS.get(info.status, info.status)
     return f"{info.name} — {status}" + (" ✓" if info.selected else "")
+
+
+# Speaker indicator: colour + icon + words (never colour alone). "off" = no session.
+LIGHT = {
+    "green": ("#2e7d32", "✓", "XANH"),
+    "yellow": ("#f9a825", "⚠", "VÀNG"),
+    "red": ("#c62828", "✋", "ĐỎ"),
+    "off": ("#9e9e9e", "–", ""),
+}
 
 
 class EventBridge(QObject):
@@ -110,6 +120,16 @@ class MainWindow(QMainWindow):
             self.model_combo.addItem(FIXED_MODEL, "")
         self.button = QPushButton("Start")
         self.button.clicked.connect(self.on_button)
+        self.light = QLabel()
+        self.light.setFixedSize(56, 56)
+        self.light.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.light_text = QLabel()
+        self.light_text.setWordWrap(True)
+        self.light_text.setStyleSheet("font-size: 16pt; font-weight: bold;")
+        self.light_others = QLabel()
+        self.light_others.setWordWrap(True)
+        self.light_others.setStyleSheet("color: #616161;")
+        self.light_level = "off"
         self.status_label = QLabel("Stopped")
         self.error_label = QLabel("")
         self.error_label.setStyleSheet("color: #c62828;")
@@ -126,6 +146,13 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addLayout(form)
         layout.addWidget(self.button)
+        light_row = QHBoxLayout()
+        light_row.addWidget(self.light)
+        light_texts = QVBoxLayout()
+        light_texts.addWidget(self.light_text)
+        light_texts.addWidget(self.light_others)
+        light_row.addLayout(light_texts, 1)
+        layout.addLayout(light_row)
         layout.addWidget(self.status_label)
         layout.addWidget(self.error_label)
         layout.addWidget(self.log, 1)
@@ -198,6 +225,9 @@ class MainWindow(QMainWindow):
             state = ev.data.get("state")
             if state:
                 self._apply_state(state, keep_message=True)
+        elif ev.kind == HEALTH:
+            if ev.session_id is not None and ev.session_id == getattr(self.orch, "current_session", ev.session_id):
+                self.set_light(ev.data.get("level", "off"), ev.data.get("reason", ""), ev.data.get("others") or [])
         elif ev.kind == RESULT:
             lat = ev.data.get("latency")
             lat_s = f"{lat:.2f} s" if lat is not None else "n/a"
@@ -230,7 +260,23 @@ class MainWindow(QMainWindow):
                     f"Model '{ev.data.get('model')}' chưa được convert, đang dùng tạm "
                     f"'{ev.data.get('fallback')}'. Convert một lần bằng: {ev.data.get('command')}")
 
+    def set_light(self, level: str, reason: str = "", others: list[str] | None = None) -> None:
+        color, icon, word = LIGHT.get(level, LIGHT["off"])
+        self.light_level = level if level in LIGHT else "off"
+        self.light.setText(icon)
+        self.light.setStyleSheet(f"background-color: {color}; color: white; border-radius: 28px; "
+                                 "font-size: 22pt; font-weight: bold;")
+        self.light.setToolTip(word)
+        self.light_text.setText(f"{word}: {reason}" if word and reason else (reason or "Chưa chạy"))
+        others = others or []
+        self.light_others.setText(("Cũng: " + "; ".join(others)) if others else "")
+        tip = "\n".join([reason, *others]) if reason else ""
+        self.light_text.setToolTip(tip)
+        self.light_others.setToolTip(tip)
+
     def _apply_state(self, state: str, keep_message: bool = False) -> None:
+        if state != RUNNING:
+            self.set_light("off")
         self._state = state
         running_like = state in (STARTING, RUNNING)
         self.button.setText("Stop" if running_like else "Start")

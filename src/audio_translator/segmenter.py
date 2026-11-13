@@ -136,6 +136,12 @@ class Segmenter:
     def triggered(self) -> bool:
         return self._triggered
 
+    @property
+    def open_s(self) -> float:
+        """Audio length of the utterance being collected (0 when idle). Read-only; safe to
+        read from another thread (a ``len`` of the frame list)."""
+        return len(self._frames) * self.frame_ms / 1000.0 if self._triggered else 0.0
+
     def _emit(self, speech_end: float, forced: bool) -> Utterance:
         audio = np.concatenate(self._frames) if self._frames else np.zeros(0, np.int16)
         utt = Utterance(audio.astype(np.int16, copy=False), self._start_t, speech_end, forced)

@@ -287,3 +287,17 @@ def test_filter_writes_a_decoding_loop_once_and_records_it(seg_fw):
     assert a.dropped == [("repetition", loop.strip())]
     b = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL, collapse_loops=False))
     assert b.transcribe(np.zeros(1600, np.int16), 16000) == loop.strip()
+
+
+def test_last_temperature_records_a_fallback_observation_only(seg_fw):
+    s1, s2 = seg("Xin chào."), seg("Tạm biệt.")
+    s1.temperature, s2.temperature = 0.0, 0.4
+    seg_fw.segments = [s1, s2]
+    a = WhisperASR("small")
+    assert a.last_temperature == 0.0
+    assert a.transcribe(np.zeros(1600, np.int16), 16000) == "Xin chào. Tạm biệt."
+    assert a.last_temperature == 0.4
+    assert "temperature" not in a._model.calls[0]  # decoding options unchanged
+    seg_fw.segments = [seg("Một.")]  # no temperature attribute: no fallback
+    a.transcribe(np.zeros(1600, np.int16), 16000)
+    assert a.last_temperature == 0.0

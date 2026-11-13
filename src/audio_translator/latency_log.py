@@ -34,7 +34,10 @@ DURATIONS = [
     ("playout_wait_ms", "first_audio_out", ("tts_end",)),
     ("e2e_ms", "first_audio_out", ("speech_end",)),
 ]
-COLUMNS = (["wall_time", "session_id", "segment_id", "status", "reason", "detail", *SESSION_FIELDS,
+# health_max / health_reason: highest speaker-indicator level shown between the segment's
+# speech_start and its outcome (health.py), and that level's reason.
+COLUMNS = (["wall_time", "session_id", "segment_id", "status", "reason", "detail", "health_max", "health_reason",
+            *SESSION_FIELDS,
             "forced_cut", "audio_s", "n_words_vi", "n_words_en", *STAMPS, *(d[0] for d in DURATIONS),
             "text_vi", "text_en"])
 
@@ -65,10 +68,12 @@ class LatencyLog:
 
     def write(self, *, session_id: int, segment_id: int, status: str, timestamps: dict[str, float],
               session: dict, reason: str = "", detail: str = "", text_vi: str = "", text_en: str = "",
-              audio_s: float | None = None, forced_cut: bool | None = None) -> None:
+              audio_s: float | None = None, forced_cut: bool | None = None, health_max: str = "",
+              health_reason: str = "") -> None:
         ts = timestamps or {}
         row = {"wall_time": datetime.now().isoformat(timespec="milliseconds"), "session_id": session_id,
                "segment_id": segment_id, "status": status, "reason": reason, "detail": detail,
+               "health_max": health_max, "health_reason": health_reason,
                **{k: session.get(k, "") for k in SESSION_FIELDS},
                "forced_cut": "" if forced_cut is None else int(bool(forced_cut)),
                "audio_s": "" if audio_s is None else f"{audio_s:.3f}",

@@ -175,6 +175,7 @@ class WhisperASR:
         self.initial_prompt = initial_prompt or None
         self.segment_filter = segment_filter  # None: keep every segment (previous behaviour)
         self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last call; "repetition": shortened, kept
+        self.last_temperature = 0.0  # highest decoding temperature of the last call (> 0: fallback used)
         self._model = None
         self._lock = threading.Lock()
 
@@ -205,7 +206,9 @@ class WhisperASR:
             condition_on_previous_text=False,
             initial_prompt=self.initial_prompt,
         )
-        return list(segments)
+        segments = list(segments)
+        self.last_temperature = max((getattr(x, "temperature", 0.0) or 0.0 for x in segments), default=0.0)
+        return segments
 
     def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:
         kept, self.dropped = [], []

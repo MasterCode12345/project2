@@ -11,7 +11,7 @@ from .asr import LOCAL_MODELS, convert_command
 from .config import Settings
 from .denoise import NS_MODES
 from .model_manager import CATALOG, NOT_DOWNLOADED
-from .models import ERROR, RESULT, STATUS, STOPPED, Event
+from .models import ERROR, HEALTH, RESULT, STATUS, STOPPED, Event
 from .restore import APP_RESTORERS
 from .segmenter import VAD_BACKENDS
 from .translate import MT_MODELS
@@ -114,6 +114,9 @@ def print_models(selected: str | None = None, manager=None, out=None) -> int:
     return 0
 
 
+LIGHT_WORDS = {"green": "XANH", "yellow": "VÀNG", "red": "ĐỎ"}
+
+
 def format_event(ev: Event) -> str:
     if ev.kind == RESULT:
         lat = ev.data.get("latency")
@@ -121,6 +124,11 @@ def format_event(ev: Event) -> str:
         return (f"[seg {ev.segment_id}] VI: {ev.data.get('source_text', '')}\n"
                 f"          EN: {ev.data.get('text', '')}\n"
                 f"          latency (first_audio_out - speech_end): {lat_s}")
+    if ev.kind == HEALTH:
+        d = ev.data
+        line = f"[đèn] {LIGHT_WORDS.get(d.get('level'), d.get('level'))}: {d.get('reason', '')}"
+        others = d.get("others") or []
+        return line + (f"  (cũng: {'; '.join(others)})" if others else "")
     return f"[{ev.kind}] {ev.message}"
 
 
@@ -142,6 +150,8 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     failed = []
 
     def on_event(ev: Event) -> None:
+        if ev.kind == HEALTH and not ev.data.get("changed", True):
+            return  # the light did not change (live numbers only): print on changes only
         print(format_event(ev), flush=True)
         if ev.kind == ERROR:
             failed.append(ev.message)

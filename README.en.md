@@ -34,6 +34,8 @@ command and runs Whisper `small` (downloaded on first use, ≈ 485 MB) for the s
 Per-segment latency of a real session: `--latency-log PATH` (CLI and GUI), summarised by
 `uv run python eval/latency_report.py PATH`; manual test script: `docs/manual_test.md`.
 
+Speaker indicator (green / yellow / red, observation only): it shows the highest of three signals: utterance length (yellow ≥ 8 s, red ≥ 12 s), ASR backlog (yellow with ≥ 1 segment queued or ASR > 3 s; red with ≥ 2 queued or ASR > 6 s), and an unclear last segment (filtered, ASR time abnormal for its length, or a temperature fallback). The GUI shows a coloured disc with an icon and text; the CLI prints a line only when the level changes; `--latency-log` adds the columns `health_max` and `health_reason`. The thresholds live in `Settings.indicator_*`.
+
 ## Models
 
 Only multilingual Whisper models are offered (`.en` / `distil-*` are English-only):

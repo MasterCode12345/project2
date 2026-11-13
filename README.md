@@ -38,7 +38,8 @@ Cấu hình mặc định hiện nay (`src/audio_translator/config.py`):
 Zoom / Meet / Discord chọn "BlackHole 2ch" làm micro ──▶ 🎧 người nghe
 
 [M1] Giao diện PySide6 / CLI + bộ điều phối: Start/Stop, phiên, luồng, hàng đợi, sự kiện,
-     ghi độ trễ từng đoạn ra CSV khi có --latency-log
+     ghi độ trễ từng đoạn ra CSV khi có --latency-log,
+     đèn báo cho người nói 🟢🟡🔴 (độ dài câu, mức dồn hàng, câu vừa rồi có rõ không)
 ```
 
 - **Độ trễ đầu cuối** = `first_audio_out − speech_end`, tính từ lúc kết thúc câu nói đến lúc âm thanh đầu tiên vào micro ảo. Con số này gồm cả 600 ms chờ im lặng để biết câu đã kết thúc.
@@ -49,7 +50,7 @@ Zoom / Meet / Discord chọn "BlackHole 2ch" làm micro ──▶ 🎧 người 
 
 | Module | File | Cách làm |
 |---|---|---|
-| M1 Giao diện / điều phối | `gui.py`, `cli.py`, `orchestrator.py`, `latency_log.py` | Start/Stop; chọn micro, đầu ra và model; mỗi lần Start là một phiên mới. Giao diện chỉ giao tiếp với orchestrator qua sự kiện. Log độ trễ (tùy chọn) được ghi từ luồng worker, không bao giờ từ callback âm thanh |
+| M1 Giao diện / điều phối | `gui.py`, `cli.py`, `orchestrator.py`, `latency_log.py`, `health.py` | Start/Stop; chọn micro, đầu ra và model; mỗi lần Start là một phiên mới. Giao diện chỉ giao tiếp với orchestrator qua sự kiện. Log độ trễ (tùy chọn) được ghi từ luồng worker, không bao giờ từ callback âm thanh. Đèn báo (sự kiện `HEALTH`) được tính trên luồng monitor, tối đa 10 lần/giây, chỉ quan sát |
 | M2 Thu âm | `capture.py` | sounddevice (PortAudio). Callback chỉ chép khung âm thanh, gắn mốc thời gian rồi đẩy vào hàng đợi |
 | M3a Lọc nhiễu (tắt) | `denoise.py` | log-MMSE + observation adding + cổng SNR; chưa bật vì bench chưa thấy lợi (mục 4) |
 | M3 VAD / phân đoạn | `segmenter.py` | **Silero VAD** v6 (ONNX có sẵn trong faster-whisper, chạy streaming), hoặc webrtcvad (`--vad webrtc`). Giữ 300 ms trước khi bắt đầu nói, chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
@@ -117,12 +118,33 @@ uv run audio-translator --cli [--model phowhisper-small] [--input "Tên micro"] 
 File được ghi từ luồng worker, không bao giờ từ callback âm thanh. Nếu không ghi được file thì app báo một lần, phiên vẫn chạy tiếp. Cờ này dùng được với cả CLI lẫn giao diện:
 
 ```sh
-uv run audio-translator --cli --latency-log ~/gr2_manual/latency_cli.csv
-uv run audio-translator --latency-log ~/gr2_manual/latency_meet.csv          # giao diện
-uv run python eval/latency_report.py ~/gr2_manual/latency_cli.csv [--markdown]   # TB / P50 / P95 / max từng khâu + số đoạn bị bỏ
+LOG=~/gr2_manual/latency_cli_$(date +%Y%m%d_%H%M).csv     # mỗi lần chạy một file mới, không ghi đè
+uv run audio-translator --cli --latency-log "$LOG"
+uv run audio-translator --latency-log "$LOG"                 # giao diện
+uv run python eval/latency_report.py "$LOG" [--markdown]     # TB / P50 / P95 / max từng khâu + số đoạn bị bỏ + mức đèn
 ```
 
 Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch bản 10 câu chuẩn bị sẵn): [docs/manual_test.md](docs/manual_test.md). File log chứa nguyên văn lời nói, nên để **ngoài repo**.
+
+### Đèn báo cho người nói
+
+Theo góp ý của giảng viên, app có một đèn **xanh / vàng / đỏ** để người nói biết lúc nào nên ngắt nghỉ, nói chậm lại, hoặc nói lại. Mục đích là để cuộc hội thoại không bị lỗi hay mất thông tin.
+
+- Đèn **chỉ quan sát**: không thay đổi cách app cắt câu, nhận dạng, dịch hay phát.
+- Đèn hiện mức cao nhất trong ba tín hiệu. Nếu nhiều tín hiệu cùng mức, lý do chính được chọn theo thứ tự dồn hàng > câu dài > chất lượng. Các lý do khác hiện ở dòng nhỏ bên dưới và trong tooltip.
+
+| Tín hiệu | Vàng | Đỏ | Vì sao chọn ngưỡng này |
+|---|---|---|---|
+| Câu đang nói dài | ≥ 8 s: "Câu dài, hãy ngắt nghỉ" | ≥ 12 s: "Dừng lại một chút" | Câu thật đã đo: P90 6,6 s, dài nhất 7,4 s. Ở 12 s còn 3 s trước khi app tự cắt ở 15 s, và lần cắt đó có thể rơi vào giữa một từ |
+| Hệ thống bị dồn | ≥ 1 câu chờ nhận dạng, hoặc nhận dạng > 3 s | ≥ 2 câu chờ, hoặc > 6 s | Nhận dạng thường mất khoảng 1,2 s (P95 khi gọi Meet 1,8 s); mọi lần nhận dạng > 5,7 s trong thử nghiệm đều là bị kẹt |
+| Câu vừa xong không rõ (giữ 4 s) | bị bộ lọc chặn; nhận dạng ≥ 1,5 s **và** ≥ 1,5 lần độ dài câu; hoặc phải giải mã lại (temperature > 0) | – | Các đoạn bình thường trong log thật có tỉ lệ < 0,71. Giải mã lại: 0/15 câu VIVOS, so với 11/40 đoạn nhạc/nhiễu |
+
+- Đèn lên mức ngay lập tức, nhưng chỉ hạ mức sau khi mức thấp hơn giữ được 1 s, để không nhấp nháy.
+- Giao diện: một đèn tròn có màu, biểu tượng (✓ ⚠ ✋) và dòng chữ, nên không chỉ dựa vào màu. Khi chưa chạy, đèn màu xám.
+- CLI: in một dòng `[đèn] VÀNG: …`, chỉ khi đèn đổi mức.
+- `--latency-log` ghi thêm hai cột `health_max` và `health_reason`: mức đèn cao nhất trong lúc xử lý đoạn đó và lý do.
+- Mọi ngưỡng nằm trong `Settings` (`indicator_*`). Lý do chọn từng ngưỡng ở `_bmad-output/initiative-audio-translator/plan-speaker-indicator.md`.
+- Kịch bản thử: mục (d) của [docs/manual_test.md](docs/manual_test.md).
 
 **Dùng trong ứng dụng chat:** vào phần cài đặt âm thanh của Zoom / Meet / Discord và chọn **BlackHole 2ch** làm micro. Âm thanh đã dịch chỉ đi vào BlackHole, không bao giờ phát ra loa.
 
@@ -328,9 +350,9 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 288 passed
+uv run --group eval pytest -q     # 323 passed
 ```
-Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
+Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
 ## 6. Kết quả đo
 
@@ -463,14 +485,20 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
 
 ## 8. Vấn đề đang gặp (cần góp ý)
 
-1. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
-2. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
-3. **Cắt đoạn làm mất điểm dịch:** câu bị cắt giữa chừng khó dịch. Argos giảm từ 15,8 BLEU (cả bản ghi) xuống 13,0 (cắt đoạn, webrtc), Silero còn thấp hơn khoảng 0,7 vì cắt đoạn ngắn hơn (`results/mt_vi_en_restore.csv`, `results/mt_vi_en_seg_silero.csv`).
-4. **Nhận dạng vẫn còn sai** (WER 16,7% trên FLEURS), nhất là dấu thanh và tên riêng. `phowhisper-medium` tốt hơn (13,0%) nhưng chậm gần gấp đôi.
-5. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần. Tạm thời phải đeo tai nghe; chưa kiểm chứng lại.
-6. **Mới có một cặp ngôn ngữ Việt → Anh** trên giao diện.
-7. **TTS và dịch dự phòng dùng dịch vụ không chính thức, cần internet.**
-8. **25 câu tham chiếu dịch tự viết** (`eval/data/mt_custom_vi_en.tsv`) chưa được duyệt, nên kết quả trên bộ này chưa dùng để kết luận.
+1. **Nhận dạng có lúc bị kẹt khoảng 20 s.**
+   - Trong một phiên Meet (12/11), một đoạn tạo ra chữ vô nghĩa ("vơ sơ đê a tha nói.") mất 20 031 ms nhận dạng. Các câu sau phải chờ, e2e lên tới 22 s.
+   - Nguồn: số do người dùng chép lại; file log gốc đã bị ghi đè nên mất. Từ đó kịch bản thử đặt tên log theo ngày giờ.
+   - Nguyên nhân đã tái hiện được với đoạn nhạc 3 s (22,2 s): faster-whisper giải mã lại tối đa 6 lần (temperature 0 → 1,0), và mỗi lần bị loại lại chạy tới 224 token, khoảng 6–7 s.
+   - Bộ lọc câu ma không chặn được vì `no_speech_prob` ≈ 0.
+   - Hiện có đèn báo để người nói dừng lại. Cách giới hạn (trần token theo độ dài audio, rút dãy temperature) đang được đo bằng bench; mặc định vẫn tắt.
+2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
+3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
+4. **Cắt đoạn làm mất điểm dịch:** câu bị cắt giữa chừng khó dịch. Argos giảm từ 15,8 BLEU (cả bản ghi) xuống 13,0 (cắt đoạn, webrtc), Silero còn thấp hơn khoảng 0,7 vì cắt đoạn ngắn hơn (`results/mt_vi_en_restore.csv`, `results/mt_vi_en_seg_silero.csv`).
+5. **Nhận dạng vẫn còn sai** (WER 16,7% trên FLEURS), nhất là dấu thanh và tên riêng. `phowhisper-medium` tốt hơn (13,0%) nhưng chậm gần gấp đôi.
+6. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần. Tạm thời phải đeo tai nghe; chưa kiểm chứng lại.
+7. **Mới có một cặp ngôn ngữ Việt → Anh** trên giao diện.
+8. **TTS và dịch dự phòng dùng dịch vụ không chính thức, cần internet.**
+9. **25 câu tham chiếu dịch tự viết** (`eval/data/mt_custom_vi_en.tsv`) chưa được duyệt, nên kết quả trên bộ này chưa dùng để kết luận.
 
 ## 9. Hướng phát triển
 
@@ -485,6 +513,8 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [x] Mặc định cấu hình Việt → Anh đã chọn qua bench: PhoWhisper-small, Silero + bộ lọc, vibert-capu, Argos.
 - [x] Thử model dịch tốt hơn cho tiếng Việt: NLLB-600M hơn Argos 3–6 BLEU nhưng chậm gấp khoảng 5 lần (mục 6). Có trong app qua `--translator nllb-600m`.
 - [x] Khôi phục chữ hoa và dấu câu trước khi dịch (mặc định `--restore auto`, mục 6): +1,6 đến +2,8 BLEU trong điều kiện giống app.
+- [x] Đèn báo cho người nói (xanh / vàng / đỏ), chỉ quan sát (mục 4, "Đèn báo cho người nói").
+- [ ] Chống kẹt nhận dạng 20 s: đo trần token và dãy temperature ngắn hơn bằng bench, rồi quyết định có bật mặc định hay không.
 - [ ] Giảm mất điểm do cắt đoạn: dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
 - [ ] Chỉ nghe người dùng (bỏ tiếng người nói ở nền).
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
@@ -509,11 +539,11 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ├── src/audio_translator/   mã nguồn
 │   ├── __main__.py         điểm vào: giao diện, hoặc CLI khi có --cli
 │   ├── gui.py, cli.py      tầng giao diện
-│   ├── orchestrator.py     tầng điều phối (M1); latency_log.py: CSV độ trễ từng đoạn
+│   ├── orchestrator.py     tầng điều phối (M1); latency_log.py: CSV độ trễ từng đoạn; health.py: đèn báo cho người nói
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  288 test (pytest)
+├── tests/                  323 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
@@ -525,7 +555,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ├── scripts/convert_capu_model.py   convert bộ khôi phục chữ hoa/dấu câu vibert-capu sang CTranslate2 (chạy một lần)
 ├── scripts/collect_hallucinations.py   thu thập câu ma từ nhiễu không trùng với bench
 ├── results/                CSV kết quả các bench
-├── docs/manual_test.md     kịch bản thử thật: CLI, Google Meet, môi trường ồn
+├── docs/manual_test.md     kịch bản thử thật: CLI, Google Meet, môi trường ồn, đèn báo
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
 ├── README.md               (tài liệu này)

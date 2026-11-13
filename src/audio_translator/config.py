@@ -91,6 +91,27 @@ class Settings:
     # Device liveness: a stream silent for this long is treated as removed.
     device_watchdog_s: float = 2.0
 
+    # Speaker indicator (health.py; observation only, the pipeline is unchanged).
+    # Thresholds from the real logs and the stall probe (plan-speaker-indicator.md):
+    # length: spoken sentences so far P90 6.6 s, max 7.4 s -> yellow at 8 s; red at 12 s
+    #   leaves 3 s before the forced cut at max_segment_s (15 s), which can cut a word.
+    indicator_long_warn_s: float = 8.0
+    indicator_long_stop_s: float = 12.0
+    # backlog: segments waiting for ASR, or ASR time of the current segment (real ASR P50
+    # ~1.2 s, Meet P95 1.8 s; every decode > 5.7 s in the probe was a stall).
+    indicator_queue_warn: int = 1
+    indicator_queue_stop: int = 2
+    indicator_asr_warn_s: float = 3.0
+    indicator_asr_stop_s: float = 6.0
+    # quality: last segment filtered, or ASR >= min_asr_s AND >= ratio x audio length
+    # (normal real segments < 0.71), or a temperature fallback was needed; yellow for hold_s.
+    indicator_unclear_min_asr_s: float = 1.5
+    indicator_unclear_ratio: float = 1.5
+    indicator_fallback: bool = True
+    indicator_unclear_hold_s: float = 4.0
+    indicator_down_hold_s: float = 1.0  # a lower level shows only after holding this long
+    indicator_rate_hz: float = 10.0  # max evaluations per second (monitor thread)
+
     # Per-segment latency CSV (latency_log.py), appended from worker threads;
     # None = off (nothing is opened or written).
     latency_log: str | None = None
