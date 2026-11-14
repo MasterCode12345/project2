@@ -148,6 +148,7 @@ Mục đích: kiểm tra đèn **xanh / vàng / đỏ** có báo đúng lúc kh�
 |---|---|---|
 | Câu đang nói dài | ≥ 8 s: "Câu dài, hãy ngắt nghỉ" | ≥ 12 s: "Dừng lại một chút" (app tự cắt ở 15 s) |
 | Hệ thống bị dồn | ≥ 1 câu chờ nhận dạng, hoặc nhận dạng > 3 s: "Đang xử lý, nói chậm lại" | ≥ 2 câu chờ, hoặc nhận dạng > 6 s: "Dừng nói, chờ hệ thống bắt kịp" |
+| Bản dịch phải chờ phát | câu dịch mới phải chờ câu đang phát > 4 s: "Đang phát bản dịch, chờ một chút" | > 8 s |
 | Câu vừa xong không rõ (giữ 4 s) | bị bộ lọc chặn; nhận dạng ≥ 1,5 s **và** ≥ 1,5 lần độ dài câu; hoặc phải giải mã lại: "Câu vừa rồi nghe không rõ, hãy nói lại" | – |
 
 Đèn lên mức ngay lập tức, nhưng chỉ hạ mức sau khi mức thấp hơn giữ được 1 s.
@@ -169,8 +170,9 @@ Dùng phòng yên tĩnh và đeo tai nghe. Có thể không cần gọi Meet. B�
 
    Ghi lại đèn đổi màu lúc nào, so với lúc bạn bắt đầu nói.
 2. **Nói liên tục nhiều câu.** Đọc nhanh 5 câu của (a), mỗi câu chỉ nghỉ khoảng nửa giây. Kỳ vọng: **vàng** "Đang xử lý…" khi có câu chờ, có thể **đỏ** nếu chờ từ 2 câu. Dừng lại thì đèn về xanh sau khi hệ thống xử lý xong.
-3. **Âm thanh không rõ.** Gần micro: lẩm bẩm không thành lời, ho, gõ bàn, hoặc mở một đoạn nhạc có lời khoảng 5 giây. Kỳ vọng: **vàng** "Câu vừa rồi nghe không rõ…" trong khoảng 4 s; hoặc đỏ "Dừng nói…" nếu nhận dạng bị kẹt lâu.
-4. Bấm **Stop**: đèn chuyển xám "–". Bấm Start lại: đèn bắt đầu từ xanh.
+3. **Chờ phát.** Nói liền 2–3 câu dài, mỗi câu khoảng 8–10 s, rồi ngay sau đó một câu ngắn ("Cảm ơn bạn."). Bản dịch của câu dài sẽ phát lâu. Kỳ vọng: khi câu ngắn đã dịch xong nhưng còn phải chờ, đèn chuyển **vàng** (chờ > 4 s) hoặc **đỏ** (chờ > 8 s) "Đang phát bản dịch, chờ một chút", và về xanh khi câu ngắn bắt đầu phát. Một câu dài đứng một mình thì đèn không đổi màu vì chờ phát, vì không có câu nào phải chờ.
+4. **Âm thanh không rõ.** Gần micro: lẩm bẩm không thành lời, ho, gõ bàn, hoặc mở một đoạn nhạc có lời khoảng 5 giây. Kỳ vọng: **vàng** "Câu vừa rồi nghe không rõ…" trong khoảng 4 s; hoặc đỏ "Dừng nói…" nếu nhận dạng bị kẹt lâu.
+5. Bấm **Stop**: đèn chuyển xám "–". Bấm Start lại: đèn bắt đầu từ xanh.
 
 Sau đó chạy `uv run python eval/latency_report.py "$LOG"`. Cuối báo cáo có số đoạn theo mức đèn cao nhất.
 
@@ -214,8 +216,9 @@ Nguồn nhiễu ở (c): <...>
 |---|---|---|---|
 | 1. Câu rất dài | vàng ~8 s, đỏ ~12 s, cắt ở 15 s | | |
 | 2. Nói liên tục | vàng/đỏ "Đang xử lý…", về xanh khi dừng | | |
-| 3. Âm không rõ | vàng "nghe không rõ" ~4 s | | |
-| 4. Stop / Start | xám, rồi xanh | | |
+| 3. Chờ phát | vàng/đỏ "Đang phát bản dịch…" khi câu ngắn chờ | | |
+| 4. Âm không rõ | vàng "nghe không rõ" ~4 s | | |
+| 5. Stop / Start | xám, rồi xanh | | |
 - Đèn có lúc nào nhấp nháy khó chịu không? <...>
 - Chữ trên đèn có đọc kịp khi đang nói không? <...>
 

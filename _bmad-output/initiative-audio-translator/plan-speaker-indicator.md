@@ -303,6 +303,22 @@ The default stays off, as agreed. The human decides.
 - (b) Cap only the fallback attempts (T > 0). faster-whisper has no option for it, so it would need its own fallback loop.
 - (c) Keep decoding as is and rely on the indicator, which already warns the speaker at 3 s / 6 s.
 
+## Follow-up 1 (human, 2026-11-14): playout wait in the backlog signal
+
+- **Evidence.** Real log `~/gr2_manual/latency_cap_20261114_1403.csv` (6 segments).
+  - After translations of 30 and 34 words (spoken sentences of 10–15 s), the next segments waited to be played: segment 2 4 071 ms, segment 6 6 436 ms, segment 5 7 767 ms. e2e reached 7.1–10.4 s.
+  - The other three segments waited about 0 (5–17 ms).
+  - The light was green for segments 2, 5 and 6, because only the ASR queue was watched.
+- **Signal.** `Playout.wait_s` = the seconds the **newest translation that has not started** must still wait: the rest of the clip playing plus every clip queued ahead of it. It is 0 when nothing waits.
+  - The human's definition was "the ready audio not yet played, plus the rest of the clip playing". Read literally, it would also count the newest clip itself, so a single long translation playing alone (segment 1: 30 words, about 10 s) would turn red while nothing waits. That contradicts "normal sentences stay green".
+  - The measured quantity is therefore the wait of the newest one. On the log's values it gives 4.07 / 6.44 / 7.77 s → yellow, and the others → green.
+  - Read on the monitor thread (≤ 10 Hz) under the playout lock, O(queued clips ≤ 8).
+- **Thresholds.** Yellow > `indicator_playout_warn_s = 4.0`, red > `indicator_playout_stop_s = 8.0`. Reason: "Đang phát bản dịch, chờ một chút" (with "chờ X s").
+  - The same smoothing applies: up immediately, down after 1 s.
+  - Priority: ASR backlog > playout > length > quality.
+- **Fix found by the tests.** A segment that the idle ASR worker picks up at once is no longer counted as waiting. Before, it could flash the light yellow for the 1 s down-hold after a normal sentence. `asr_waiting` = queue size while ASR is busy, else queue size − 1.
+- **Tests:** thresholds on the log values; `wait_s` with long, queued and out-of-order clips; an orchestrator run where a long translation alone stays green and the next one turns yellow. `docs/manual_test.md` (d) step 3.
+
 ## Implementation notes (Part A)
 
 - `health.py`: `assess` (pure), `unclear_reason`, `HealthTracker` (quality hold, down-hold, 60 s history used for `health_max`).

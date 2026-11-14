@@ -197,6 +197,18 @@ class Playout:
 
     # -- introspection ---------------------------------------------------------
     @property
+    def wait_s(self) -> float:
+        """Seconds the newest translation that has not started yet must still wait: the rest of
+        the clip playing plus every clip queued ahead of it (0 when nothing waits). Read by the
+        speaker indicator; O(queued clips) under the lock, at most 10 times a second."""
+        with self._lock:
+            clips = list(self._ready) + [self._pending[k] for k in sorted(self._pending)]
+            if len(clips) < 2 or clips[-1].pos > 0:
+                return 0.0
+            ahead = sum(c.pcm.shape[0] - c.pos for c in clips[:-1])
+        return ahead / self.device_rate
+
+    @property
     def pending_count(self) -> int:
         with self._lock:
             return len(self._pending) + len(self._ready)

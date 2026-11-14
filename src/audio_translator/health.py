@@ -21,14 +21,16 @@ from dataclasses import dataclass
 GREEN, YELLOW, RED = "green", "yellow", "red"
 RANK = {GREEN: 0, YELLOW: 1, RED: 2}
 LEVELS = (GREEN, YELLOW, RED)
-BACKLOG, LENGTH, QUALITY = "backlog", "length", "quality"
-PRIORITY = (BACKLOG, LENGTH, QUALITY)
+BACKLOG, PLAYOUT, LENGTH, QUALITY = "backlog", "playout", "length", "quality"
+PRIORITY = (BACKLOG, PLAYOUT, LENGTH, QUALITY)  # playout is part of the backlog, ranked after ASR
 
 MESSAGES = {
     (LENGTH, YELLOW): "Câu dài, hãy ngắt nghỉ",
     (LENGTH, RED): "Dừng lại một chút",
     (BACKLOG, YELLOW): "Đang xử lý, nói chậm lại",
     (BACKLOG, RED): "Dừng nói, chờ hệ thống bắt kịp",
+    (PLAYOUT, YELLOW): "Đang phát bản dịch, chờ một chút",
+    (PLAYOUT, RED): "Đang phát bản dịch, chờ một chút",
     (QUALITY, YELLOW): "Câu vừa rồi nghe không rõ, hãy nói lại",
 }
 OK_MESSAGE = "Đang nghe, nói bình thường"
@@ -40,6 +42,7 @@ class Metrics:
     asr_waiting: int = 0  # segments queued for ASR
     asr_busy_s: float = 0.0  # how long the segment in ASR has been processed (0 when idle)
     unclear: str = ""  # why the last segment looked unclear, while its hold lasts ("" = no)
+    playout_wait_s: float = 0.0  # how long the newest ready translation still waits to be played
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,14 @@ def assess(m: Metrics, s) -> list[Reason]:
         if m.asr_busy_s > s.indicator_asr_warn_s:
             parts.append(f"nhận dạng {_fmt_s(m.asr_busy_s)}")
         out.append(Reason(BACKLOG, lvl, MESSAGES[(BACKLOG, lvl)], ", ".join(parts)))
+    if m.playout_wait_s > s.indicator_playout_stop_s:
+        lvl = RED
+    elif m.playout_wait_s > s.indicator_playout_warn_s:
+        lvl = YELLOW
+    else:
+        lvl = GREEN
+    if lvl != GREEN:
+        out.append(Reason(PLAYOUT, lvl, MESSAGES[(PLAYOUT, lvl)], f"chờ {_fmt_s(m.playout_wait_s)}"))
     if m.open_s >= s.indicator_long_stop_s:
         out.append(Reason(LENGTH, RED, MESSAGES[(LENGTH, RED)], f"câu {_fmt_s(m.open_s)}"))
     elif m.open_s >= s.indicator_long_warn_s:
@@ -119,7 +130,8 @@ class Health:
             "reason": m.text if m else OK_MESSAGE,
             "others": [r.text for r in self.reasons[1:]],
             "metrics": {"open_s": round(self.metrics.open_s, 2), "asr_waiting": self.metrics.asr_waiting,
-                        "asr_busy_s": round(self.metrics.asr_busy_s, 2), "unclear": self.metrics.unclear},
+                        "asr_busy_s": round(self.metrics.asr_busy_s, 2), "unclear": self.metrics.unclear,
+                        "playout_wait_s": round(self.metrics.playout_wait_s, 2)},
         }
 
 

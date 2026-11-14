@@ -137,12 +137,13 @@ Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch b
 Theo góp ý của giảng viên, app có một đèn **xanh / vàng / đỏ** để người nói biết lúc nào nên ngắt nghỉ, nói chậm lại, hoặc nói lại. Mục đích là để cuộc hội thoại không bị lỗi hay mất thông tin.
 
 - Đèn **chỉ quan sát**: không thay đổi cách app cắt câu, nhận dạng, dịch hay phát.
-- Đèn hiện mức cao nhất trong ba tín hiệu. Nếu nhiều tín hiệu cùng mức, lý do chính được chọn theo thứ tự dồn hàng > câu dài > chất lượng. Các lý do khác hiện ở dòng nhỏ bên dưới và trong tooltip.
+- Đèn hiện mức cao nhất trong ba tín hiệu. Nếu nhiều tín hiệu cùng mức, lý do chính được chọn theo thứ tự dồn hàng nhận dạng > chờ phát > câu dài > chất lượng. Các lý do khác hiện ở dòng nhỏ bên dưới và trong tooltip.
 
 | Tín hiệu | Vàng | Đỏ | Vì sao chọn ngưỡng này |
 |---|---|---|---|
 | Câu đang nói dài | ≥ 8 s: "Câu dài, hãy ngắt nghỉ" | ≥ 12 s: "Dừng lại một chút" | Câu thật đã đo: P90 6,6 s, dài nhất 7,4 s. Ở 12 s còn 3 s trước khi app tự cắt ở 15 s, và lần cắt đó có thể rơi vào giữa một từ |
 | Hệ thống bị dồn | ≥ 1 câu chờ nhận dạng, hoặc nhận dạng > 3 s | ≥ 2 câu chờ, hoặc > 6 s | Nhận dạng thường mất khoảng 1,2 s (P95 khi gọi Meet 1,8 s); mọi lần nhận dạng > 5,7 s trong thử nghiệm đều là bị kẹt |
+| Bản dịch phải chờ phát | câu dịch mới phải chờ câu đang phát > 4 s: "Đang phát bản dịch, chờ một chút" | > 8 s | Log thật 14/11: sau các câu dài 10–15 s, câu sau phải chờ phát 4,1 / 6,4 / 7,8 s; các câu khác chờ khoảng 0 |
 | Câu vừa xong không rõ (giữ 4 s) | bị bộ lọc chặn; nhận dạng ≥ 1,5 s **và** ≥ 1,5 lần độ dài câu; hoặc phải giải mã lại (temperature > 0) | – | Các đoạn bình thường trong log thật có tỉ lệ < 0,71. Giải mã lại: 0/15 câu VIVOS, so với 11/40 đoạn nhạc/nhiễu |
 
 - Đèn lên mức ngay lập tức, nhưng chỉ hạ mức sau khi mức thấp hơn giữ được 1 s, để không nhấp nháy.
@@ -356,7 +357,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 331 passed
+uv run --group eval pytest -q     # 341 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -556,7 +557,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  331 test (pytest)
+├── tests/                  341 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu

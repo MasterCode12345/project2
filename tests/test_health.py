@@ -362,3 +362,67 @@ def test_latency_log_records_the_decoding_in_use(harness, tmp_path):
     h.say(utterance(15))
     (r,) = wait_rows(p, 1)
     assert r["asr_decode"] == "cap15+32"
+
+
+# ------------------------------------------------------------ playout wait
+@pytest.mark.parametrize("wait,want", [(0.0, GREEN), (4.0, GREEN), (4.07, YELLOW), (6.44, YELLOW),
+                                       (7.77, YELLOW), (8.0, YELLOW), (8.01, RED)])
+def test_playout_wait_thresholds_with_the_real_log_values(wait, want):
+    # 2026-11-14 13:58 log: segments 2, 6, 5 waited 4.07, 6.44, 7.77 s behind long translations
+    r = assess(Metrics(playout_wait_s=wait), S)
+    assert (r[0].level if r else GREEN) == want
+    if r:
+        assert r[0].signal == "playout" and r[0].text.startswith("Đang phát bản dịch, chờ một chút (chờ ")
+
+
+def test_playout_ranks_after_asr_backlog_and_before_length():
+    r = assess(Metrics(asr_waiting=1, playout_wait_s=5, open_s=9), S)
+    assert [x.signal for x in r] == [BACKLOG, "playout", LENGTH]
+
+
+def test_playout_wait_s_counts_what_is_ahead_of_the_newest_waiting_clip():
+    import numpy as np
+
+    from audio_translator.models import SpeechClip
+    from audio_translator.playout import Playout
+
+    p = Playout(1000, 1)
+    p.start_session(1)
+    clip = lambda i, s: SpeechClip(1, i, np.full(int(1000 * s), 0.1, np.float32), 1000)  # noqa: E731
+    assert p.wait_s == 0.0
+    p.submit(clip(1, 10.0))  # a long translation alone: nothing waits
+    assert p.wait_s == 0.0
+    p.read(2230)  # 2.23 s played
+    assert p.wait_s == 0.0
+    p.submit(clip(2, 1.5))  # the next one waits for the rest of clip 1
+    assert p.wait_s == pytest.approx(7.77)
+    p.submit(clip(4, 2.0))  # out of order (3 missing): waits behind 1 and 2
+    assert p.wait_s == pytest.approx(9.27)
+    p.read(7770)  # clip 1 done, clip 2 starts: clip 4 still waits
+    assert p.wait_s == pytest.approx(1.5)
+    p.clear()
+    assert p.wait_s == 0.0
+
+
+def test_long_translations_turn_the_light_on_while_the_next_one_waits(harness):
+    import numpy as np
+
+    from conftest import FakeTTS
+
+    class LongTTS(FakeTTS):
+        def synthesize(self, text):
+            super().synthesize(text)
+            secs = 6.0 if "dài" in text else 0.3
+            return np.full(int(24000 * secs), 0.5, dtype=np.float32), 24000
+
+    h = harness(settings=fast(indicator_playout_warn_s=0.5, indicator_playout_stop_s=10.0),
+                asr=FakeASR(responses=["câu dài", "ngắn"]), tts=LongTTS())
+    h.start()
+    h.say(utterance(10))
+    h.log.wait_for(lambda e: e.kind == RESULT)
+    assert {e.data["level"] for e in lights(h)} == {GREEN}  # one long translation alone: green
+    h.say(utterance(10))
+    ev = h.log.wait_for(lambda e: e.kind == HEALTH and e.data["signal"] == "playout")
+    assert ev.data["level"] == YELLOW and ev.data["reason"].startswith("Đang phát bản dịch, chờ một chút")
+    h.log.wait_for(lambda e: e.kind == RESULT and e.data["source_text"] == "ngắn", timeout=10)
+    green_after(h, ev)

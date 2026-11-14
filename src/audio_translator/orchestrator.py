@@ -961,8 +961,14 @@ class Orchestrator:
         self._health_session(sid, now)
         seg = self._segmenter
         busy = self._asr_busy
-        m = Metrics(open_s=seg.open_s if seg is not None else 0.0, asr_waiting=self._seg_q.qsize(),
-                    asr_busy_s=now - busy[1] if busy is not None and busy[0] == sid else 0.0)
+        playout = self._playout
+        busy_now = busy is not None and busy[0] == sid
+        queued = self._seg_q.qsize()
+        # A segment queued while the ASR worker is idle is picked up at once: it does not wait.
+        waiting = queued if busy_now else max(0, queued - 1)
+        m = Metrics(open_s=seg.open_s if seg is not None else 0.0, asr_waiting=waiting,
+                    asr_busy_s=now - busy[1] if busy_now else 0.0,
+                    playout_wait_s=playout.wait_s if playout is not None else 0.0)
         h = self._health.update(now, m)
         key = h.key
         if key == self._health_key and (h.level == GREEN or now - self._health_emit_t < 1.0):

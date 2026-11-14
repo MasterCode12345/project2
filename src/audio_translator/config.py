@@ -110,6 +110,10 @@ class Settings:
     indicator_queue_stop: int = 2
     indicator_asr_warn_s: float = 3.0
     indicator_asr_stop_s: float = 6.0
+    # playout: how long the newest ready translation waits behind the one playing (real log
+    # 2026-11-14 13:58: long sentences made the next ones wait 4.1, 6.4 and 7.8 s; 0 otherwise).
+    indicator_playout_warn_s: float = 4.0
+    indicator_playout_stop_s: float = 8.0
     # quality: last segment filtered, or ASR >= min_asr_s AND >= ratio x audio length
     # (normal real segments < 0.71), or a temperature fallback was needed; yellow for hold_s.
     indicator_unclear_min_asr_s: float = 1.5
