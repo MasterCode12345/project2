@@ -1,0 +1,7 @@
+# Junk tokens PhoWhisper sometimes writes, removed by the ASR filter (--asr-filter,
+# Settings.asr_drop_junk) when they stand alone as a word (any case, any position;
+# "junk" or "unknown" are never touched). One token per line; after a TAB, the evidence.
+# Add a token only after checking it never occurs in the VIVOS/FLEURS references and that
+# WER does not get worse (plan-speaker-indicator.md follow-up 2, plan-polish.md).
+unk	# 3 real-test segments, 3/1166 bench segments (0-5 dB); WER never worse (DEMAND 0 dB 11.76 -> 11.66)
+ofc	# 1 real-test segment, 1/244 FLEURS clean segments, 1/1389 cached lines; WER never worse (FLEURS 15.65 -> 15.62)

@@ -55,13 +55,35 @@ def normalize_text(text: str) -> str:
     return " ".join(text.split())
 
 
-_UNK = re.compile(r"(?<!\w)unk(?!\w)", re.IGNORECASE)
+JUNK_TOKENS_PATH = Path(__file__).with_name("junk_tokens_vi.txt")
 
 
-def strip_unk(text: str) -> str:
-    """Drop the stand-alone word "unk" (any case, any position), which PhoWhisper sometimes writes
-    at the start of an utterance; "" when no word is left. Words containing it ("junk") stay."""
-    out = re.sub(r"\s+", " ", _UNK.sub(" ", text)).strip()
+def load_junk_tokens(path: Path = JUNK_TOKENS_PATH) -> tuple[str, ...]:
+    """Tokens, one per line (``token<TAB># evidence``); ``#`` lines are comments."""
+    tokens = []
+    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        tok = line.split("\t", 1)[0].split("#", 1)[0].strip().lower()
+        if not tok:
+            continue
+        if not re.fullmatch(r"\w+", tok):
+            raise ValueError(f"{path}:{n}: a junk token is one word: {tok!r}")
+        tokens.append(tok)
+    return tuple(tokens)
+
+
+JUNK_TOKENS = load_junk_tokens()
+
+
+def strip_junk(text: str, tokens: tuple[str, ...] = JUNK_TOKENS) -> str:
+    """Drop junk tokens (``junk_tokens_vi.txt``: "unk", "ofc", …) that stand alone as a word, in any
+    case and position; "" when no word is left. Words containing one ("junk", "unknown") stay."""
+    if not tokens:
+        return text
+    pat = re.compile(r"(?<!\w)(?:" + "|".join(map(re.escape, tokens)) + r")(?!\w)", re.IGNORECASE)
+    out = pat.sub(" ", text)
+    if out == text:
+        return text
+    out = re.sub(r"\s+", " ", out).strip()
     out = re.sub(r"\s+([.,!?;:])", r"\1", out)
     return out if re.search(r"\w", out) else ""
 
@@ -133,7 +155,8 @@ class SegmentFilter:
     max_compression_ratio: float = 2.4
     blacklist: tuple[str, ...] = field(default_factory=load_blacklist)
     collapse_loops: bool = True
-    drop_unk: bool = True  # strip_unk: never in VIVOS/FLEURS references; WER never worse (plan)
+    drop_junk: bool = True  # strip_junk: junk_tokens_vi.txt, never in the references; WER never worse
+    junk_tokens: tuple[str, ...] = field(default_factory=lambda: JUNK_TOKENS)
 
     def reason(self, seg) -> str | None:
         """Why ``seg`` would be dropped, or None to keep it."""
@@ -156,12 +179,12 @@ class SegmentFilter:
         return self.cleaned(text)[0]
 
     def cleaned(self, text: str) -> tuple[str, list[str]]:
-        """``clean`` plus what changed: "unk" (word removed), "repetition" (loop written once)."""
+        """``clean`` plus what changed: "junk" (junk token removed), "repetition" (loop written once)."""
         why = []
-        if self.drop_unk:
-            t = strip_unk(text)
+        if self.drop_junk:
+            t = strip_junk(text, self.junk_tokens)
             if t != text:
-                why.append("unk")
+                why.append("junk")
                 text = t
         if self.collapse_loops:
             t = collapse_repeats(text)
@@ -176,7 +199,7 @@ def filter_from_settings(settings) -> SegmentFilter | None:
     if not s.asr_filter:
         return None
     return SegmentFilter(s.asr_max_no_speech_prob, s.asr_min_avg_logprob, s.asr_max_compression_ratio,
-                         drop_unk=s.asr_drop_unk)
+                         drop_junk=s.asr_drop_junk)
 
 
 # Whisper's own decode limit per 30 s window (half the 448-token text context).

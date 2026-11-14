@@ -22,7 +22,7 @@ Cấu hình mặc định hiện nay (`src/audio_translator/config.py`):
                   ▼
 [M4] ASR – PhoWhisper-small (faster-whisper, CPU int8)                   mốc asr_start / asr_end
      + bộ lọc câu ma: no_speech_prob / avg_logprob / compression_ratio,
-       danh sách đen, viết vòng lặp lặp từ một lần, bỏ từ "unk" đứng riêng
+       danh sách đen, viết vòng lặp lặp từ một lần, bỏ token rác "unk"/"ofc" đứng riêng
      (chưa convert PhoWhisper → cảnh báo và dùng tạm Whisper small)
                   ▼
 [M4b] Khôi phục chữ hoa + dấu câu – vibert-capu (nếu đã convert)          mốc restored
@@ -385,7 +385,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 375 passed
+uv run --group eval pytest -q     # 381 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện (hai chế độ, đồng bộ, khóa cài đặt, không còn chữ tiếng Anh) và CLI.
 
@@ -517,7 +517,12 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
 - ✅ **Mất thiết bị hay lỗi mạng chỉ bị báo lỗi**, ứng dụng không sập.
 - ✅ **Nhận dạng tiếng Việt tốt hơn:** mặc định PhoWhisper-small, WER trên FLEURS giảm từ 27,3% (`small`) xuống 16,7% (`results/asr_fleurs_demand.csv`). Chưa convert thì app dùng tạm `small` và báo rõ.
 - ✅ **Câu "ma" khi có nhiễu:** Silero VAD và bộ lọc ASR (danh sách đen, ngưỡng độ tin cậy, viết vòng lặp một lần), bật mặc định. Trên 100 clip chỉ có nhiễu, số câu ma giảm từ 96–141 xuống 0–26 (`results/guard*_vivos_*.csv`).
-- ✅ **Chữ "unk" lạ ở đầu câu:** PhoWhisper đôi khi viết thêm từ "unk". Đếm được 3 lần trong log thật, 3/1166 đoạn bench ở 0–5 dB, 3/1389 dòng `results/mt_asr_cache_vi.tsv`; tham chiếu VIVOS/FLEURS không có từ này. Bộ lọc ASR giờ bỏ "unk" khi nó đứng riêng. Tính lại WER từ transcript đã lưu: không ô nào tệ hơn, DEMAND 0 dB 11,76 → 11,66% (`results/stall_vivos_*.csv`, cấu hình gốc).
+- ✅ **Token rác "unk", "ofc":** PhoWhisper đôi khi viết thêm những từ này. Bộ lọc ASR bỏ chúng khi chúng đứng riêng thành một từ.
+  - Danh sách nằm ở `src/audio_translator/junk_tokens_vi.txt`, kèm bằng chứng cho từng từ. Muốn thêm từ mới thì sửa file này, không cần sửa code.
+  - "unk": 3 lần trong log thật, 3/1166 đoạn bench.
+  - "ofc": 1 lần trong log thật, 1/244 đoạn FLEURS.
+  - Tham chiếu VIVOS/FLEURS không chứa hai từ này.
+  - Tính lại WER từ transcript đã lưu thì không ô nào tệ hơn: DEMAND 0 dB 11,76 → 11,66; FLEURS 15,65 → 15,62 (`results/stall_*.csv`, cấu hình gốc).
 - ✅ **Dịch kém vì chữ ASR không có dấu câu:** khôi phục chữ hoa và dấu câu bằng vibert-capu trước khi dịch, +2,8 BLEU với Argos trong điều kiện giống app (`results/mt_vi_en_restore.csv`).
 - ✅ **Bench đo được, chạy lại ra đúng số:** WER/CER, BLEU/chrF, độ trễ từng khâu bench, seed cố định (kể cả seed của bộ giải mã CTranslate2).
 - ✅ **Công cụ đo độ trễ trong app thật:** `--latency-log` và `eval/latency_report.py`.
@@ -586,7 +591,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  375 test (pytest)
+├── tests/                  381 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu

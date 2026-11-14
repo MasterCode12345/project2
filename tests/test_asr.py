@@ -338,18 +338,18 @@ def test_bounded_decoding_flags_reach_the_recognizer():
     ("junk food unknown chunk", "junk food unknown chunk"),  # whole word only
     ("xin chào", "xin chào"),
 ])
-def test_strip_unk(text, want):
-    assert asr_mod.strip_unk(text) == want
+def test_strip_junk_unk(text, want):
+    assert asr_mod.strip_junk(text) == want
 
 
 def test_filter_drops_unk_and_reports_it_without_a_ghost_reason(seg_fw):
     seg_fw.segments = [seg("unk yêu bạn nhất trên đời."), seg("unk")]
     a = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL))
     assert a.transcribe(np.zeros(1600, np.int16), 16000) == "yêu bạn nhất trên đời."
-    assert [w for w, _ in a.dropped] == ["unk", "unk"]
-    assert filter_from_settings(Settings()).drop_unk is True
-    assert filter_from_settings(Settings(asr_drop_unk=False)).drop_unk is False
-    b = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL, drop_unk=False))
+    assert [w for w, _ in a.dropped] == ["junk", "junk"]
+    assert filter_from_settings(Settings()).drop_junk is True
+    assert filter_from_settings(Settings(asr_drop_junk=False)).drop_junk is False
+    b = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL, drop_junk=False))
     assert b.transcribe(np.zeros(1600, np.int16), 16000) == "unk yêu bạn nhất trên đời. unk"
     assert WhisperASR("small").transcribe(np.zeros(1600, np.int16), 16000).startswith("unk")  # filter off
 
@@ -362,7 +362,7 @@ def test_an_unk_only_segment_is_not_a_ghost_on_the_light(harness):
     class UnkASR(FakeASR):
         def transcribe(self, audio, sample_rate):
             super().transcribe(audio, sample_rate)
-            self.dropped = [("unk", "unk")]
+            self.dropped = [("junk", "unk")]
             return ""
 
     h = harness(settings=Settings(indicator_rate_hz=100.0), asr=UnkASR())
@@ -372,3 +372,25 @@ def test_an_unk_only_segment_is_not_a_ghost_on_the_light(harness):
     import time
     time.sleep(0.2)
     assert not [e for e in h.log.of(HEALTH) if e.data["signal"] == QUALITY] and ev
+
+
+@pytest.mark.parametrize("text,want", [
+    ("cảm ơn bạn. ofc thật sự thông thoáng", "cảm ơn bạn. thật sự thông thoáng"),  # real test 2026-11-14
+    ("ba mươi mốt dặm. OFC ba mươi mốt dặm.", "ba mươi mốt dặm. ba mươi mốt dặm."),  # FLEURS bench
+    ("unk bao giờ phẩy. ofc đâu phẩy.", "bao giờ phẩy. đâu phẩy."),
+    ("ofc", ""), ("office ofcourse", "office ofcourse"),
+])
+def test_strip_junk_ofc(text, want):
+    assert asr_mod.strip_junk(text) == want
+
+
+def test_junk_tokens_come_from_one_list(tmp_path):
+    assert asr_mod.JUNK_TOKENS == ("unk", "ofc")
+    p = tmp_path / "junk.txt"
+    p.write_text("# comment\nunk\t# why\nXyz\n\n", encoding="utf-8")
+    assert asr_mod.load_junk_tokens(p) == ("unk", "xyz")
+    assert asr_mod.strip_junk("xyz a unk b", ("unk", "xyz")) == "a b"
+    p.write_text("two words\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        asr_mod.load_junk_tokens(p)
+    assert SegmentFilter(blacklist=BL, junk_tokens=("abc",)).clean("abc xin chào") == "xin chào"
