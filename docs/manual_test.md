@@ -182,12 +182,12 @@ Mục đích: xem chống kẹt có làm hết các lần nhận dạng 10–20 
 
 ```sh
 LOG=~/gr2_manual/latency_antistall_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
-uv run audio-translator --asr-anti-stall c3a --latency-log "$LOG"
+uv run audio-translator --asr-anti-stall c4a --latency-log "$LOG"
 ```
 
-- Cờ `--asr-anti-stall` (`off` / `c3a` / `c3b`) dùng được cả với giao diện lẫn `--cli`.
+- Cờ `--asr-anti-stall` (`off` / `c4a` / `c4b`) dùng được cả với giao diện lẫn `--cli`.
 - Đọc lại 10 câu của (a), rồi chạy `uv run python eval/latency_report.py "$LOG"`.
-- Dòng `config:` phải ghi `asr_decode=fb15+32,t0min100,budget4s,reject:t0trunc`. Nếu ghi `base` thì chống kẹt chưa được bật.
+- Dòng `config:` phải ghi `asr_decode=cap20+32,budget4s,reject:trunc`. Nếu ghi `base` thì chống kẹt chưa được bật.
 
 ## (f) Chế độ thu gọn trong cuộc gọi Meet
 

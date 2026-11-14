@@ -34,8 +34,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="drop Whisper segments with low confidence or a known Vietnamese hallucination, "
                         "and write decoding loops once (default: on)")
     p.add_argument("--asr-anti-stall", default="off", choices=list(ANTI_STALL_PRESETS),
-                   help="experimental, default off: bounded decoding against ASR stalls (c3a: retry a truncated "
-                        "temperature-0 attempt; c3b: also retry a looping one); see plan-asr-anti-stall.md")
+                   help="experimental, default off: bounded decoding against ASR stalls (c4a: real-token cap, a "
+                        "truncated attempt is retried; c4b: also a looping temperature-0 one); see plan-asr-anti-stall.md")
     p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
                    help="translation backend: offline = Argos (default), google, or a converted multilingual "
                         "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")

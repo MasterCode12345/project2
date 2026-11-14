@@ -313,7 +313,10 @@ def test_bounded_decoding_is_off_by_default_and_passed_only_when_set(fake_fw):
     b = WhisperASR("small", max_tokens_per_s=12, max_tokens_base=16, temperatures=(0.0, 0.2, 0.4))
     b.transcribe(np.zeros(16000 * 3, np.int16), 16000)
     kw = b._model.calls[0]
-    assert kw["max_new_tokens"] == 52 and kw["temperature"] == [0.0, 0.2, 0.4]
+    # the cap is applied in real tokens through DecodeLimiter, never as faster-whisper's max_new_tokens
+    # (CTranslate2 would give about half of it: plan-asr-anti-stall.md, C4)
+    assert "max_new_tokens" not in kw and kw["temperature"] == [0.0, 0.2, 0.4]
+    assert b.uses_limiter and b.attempt_limits(3.0) == (52, 52)
     assert b.max_new_tokens(15.0) == 196 and b.max_new_tokens(30.0) == 224  # never above Whisper's limit
     assert WhisperASR("small", temperatures=(0.0,)).decode_options(1.0) == {"temperature": [0.0]}
 
@@ -425,12 +428,18 @@ def test_limiter_caps_only_the_attempts_it_is_told_to():
     lim.begin(None, 52, None)  # (C): temperature 0 untouched, fallbacks capped
     lim.generate(None, [[1, 2, 3]], max_length=448)
     lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)
-    assert inner.max_lengths == [448, 55]
-    assert [(t, n, cap) for _s, t, n, cap in lim.calls] == [(0.0, 224, 224), (0.2, 27, 27)]  # real limit: 55 // 2
+    assert inner.max_lengths == [448, 105]  # 52 real tokens -> max_length 2 * 52 + 1 (3-token prompt)
+    assert [(t, n, cap) for _s, t, n, cap in lim.calls] == [(0.0, 224, 224), (0.2, 30, 52)]
     lim.begin(100, 52, None)  # (C+): temperature 0 gets a wide limit
     lim.generate(None, [[1, 2, 3]], max_length=448)
-    assert inner.max_lengths[-1] == 103 and lim.calls[0][2:] == (20, 51)
-    assert asr_mod.real_token_limit(23) == 11 and asr_mod.real_token_limit(448) == 224  # measured
+    assert inner.max_lengths[-1] == 201 and lim.calls[0][2:] == (20, 100)
+    # measured on phowhisper-small (plan-asr-anti-stall.md C4): //2 with the 3-token prompt,
+    # max_length - prompt + 1 with an initial-prompt context of 28 tokens
+    assert asr_mod.real_token_limit(23) == 11 and asr_mod.real_token_limit(448) == 224
+    assert asr_mod.real_token_limit(36, 28) == 9 and asr_mod.real_token_limit(48, 28) == 21
+    for n in (1, 10, 52, 100, 224):
+        assert asr_mod.real_token_limit(asr_mod.max_length_for(n)) == n
+        assert asr_mod.real_token_limit(asr_mod.max_length_for(n, 28), 28) == n
 
 
 def test_budget_replays_the_last_real_result_and_never_invents_one():
@@ -513,11 +522,12 @@ def test_anti_stall_is_off_by_default_and_wired_through(fake_fw):
     from audio_translator.config import ANTI_STALL_PRESETS
 
     assert cli.build_parser().parse_args([]).asr_anti_stall == "off" and ANTI_STALL_PRESETS["off"] == {}
-    args = cli.build_parser().parse_args(["--asr-anti-stall", "c3b"])
-    s3 = Settings(**ANTI_STALL_PRESETS[args.asr_anti_stall])
-    assert (s3.asr_fallback_max_tokens_per_s, s3.asr_first_min_tokens, s3.asr_decode_budget_s,
-            s3.asr_reject_truncated_t0, s3.asr_reject_loop_t0, s3.asr_cap_tail_strip) == (15, 100, 4, True, True, False)
-    assert not Settings(**ANTI_STALL_PRESETS["c3a"]).asr_reject_loop_t0
+    args = cli.build_parser().parse_args(["--asr-anti-stall", "c4b"])
+    s4 = Settings(**ANTI_STALL_PRESETS[args.asr_anti_stall])
+    assert (s4.asr_max_tokens_per_s, s4.asr_max_tokens_base, s4.asr_decode_budget_s, s4.asr_reject_truncated_all,
+            s4.asr_reject_loop_t0, s4.asr_cap_tail_strip) == (20, 32, 4, True, True, False)
+    assert not Settings(**ANTI_STALL_PRESETS["c4a"]).asr_reject_loop_t0
+    assert set(ANTI_STALL_PRESETS) == {"off", "c4a", "c4b"}  # C3 (rejected) has no app preset
     for flag in ("--asr-fallback-max-tokens-per-s", "--asr-first-min-tokens", "--asr-decode-budget-s",
                  "--asr-cap-tail-strip"):  # rejected configurations: no app flag
         with pytest.raises(SystemExit):
@@ -533,8 +543,8 @@ def test_anti_stall_is_off_by_default_and_wired_through(fake_fw):
     pytest.importorskip("PySide6")
     from audio_translator.gui import parse_args
 
-    g, _ = parse_args(["--asr-anti-stall", "c3a"])
-    assert g.asr_anti_stall == "c3a"
+    g, _ = parse_args(["--asr-anti-stall", "c4a"])
+    assert g.asr_anti_stall == "c4a"
 
 
 class _ScoredRes:
@@ -565,7 +575,7 @@ def test_has_loop_tail(text, loop):
 def test_t0_rules_reject_without_touching_the_tokens():
     from audio_translator.asr import DecodeLimiter
 
-    trunc = _ScoredRes(list(range(51)))  # stopped at the real limit of max_length 103
+    trunc = _ScoredRes(list(range(100)))  # stopped at its real limit (100 tokens)
     lim = DecodeLimiter(_ScoredCT2([trunc, _ScoredRes([1, 2, 3])]))
     lim.reject_truncated_t0 = True
     lim.begin(100, 52, None)
@@ -587,9 +597,87 @@ def test_t0_rules_reject_without_touching_the_tokens():
 
 def test_a_rejected_t0_is_never_chosen_over_a_real_retry():
     """faster-whisper's 'all failed' choice: max average log-prob (score * len / (len + 1))."""
-    from audio_translator.asr import _Rejected
+    from audio_translator.asr import _mark_failed
 
-    rej = _Rejected(_ScoredRes(list(range(51)), score=-0.1))
+    rej = _mark_failed(_ScoredRes(list(range(51)), score=-0.1))
     bad_retry = _ScoredRes(list(range(30)), score=-3.0)
     avg = lambda r: r.scores[0] * len(r.sequences_ids[0]) / (len(r.sequences_ids[0]) + 1)  # noqa: E731
     assert avg(rej) < -1.0 and max([rej, bad_retry], key=avg) is bad_retry
+
+
+def test_c4_rejects_a_truncated_attempt_of_any_temperature_and_keeps_order():
+    from audio_translator.asr import DecodeLimiter
+
+    outs = [_ScoredRes(list(range(52)), score=-0.3), _ScoredRes(list(range(52)), score=-0.1),
+            _ScoredRes(list(range(20)), score=-0.2)]
+    lim = DecodeLimiter(_ScoredCT2(outs))
+    lim.reject_truncated_all = True
+    lim.begin(52, 52, None)
+    a = lim.generate(None, [[1, 2, 3]], max_length=448)  # T=0 truncated
+    b = lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)  # retry truncated too
+    c = lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.4)  # ended by itself
+    avg = lambda r: r.scores[0] * len(r.sequences_ids[0]) / (len(r.sequences_ids[0]) + 1)  # noqa: E731
+    assert avg(a[0]) < -999 and avg(b[0]) < -999 and avg(c[0]) == pytest.approx(-0.2 * 20 / 21)
+    assert avg(b[0]) > avg(a[0])  # order between marked attempts kept: the best real one stays best
+    assert avg(b[0]) + 1000 == pytest.approx(-0.1 * 52 / 53)  # reversible
+    assert lim.truncated == [True, True, False] and not lim.all_truncated and lim.rejected == 2
+    assert max([a[0], b[0], c[0]], key=avg) is c[0]  # a truncated attempt is never chosen over another
+
+
+@pytest.mark.parametrize("text,want", [
+    ("nhạc sĩ la hối với ca khúc xuân và tuổi trẻ. a sĩ la hối với ca khúc xuân và tuổi trẻ. a sĩ la",
+     "nhạc sĩ la hối với ca khúc xuân và tuổi trẻ."),
+    ("trừ khi bạn biết tôn trọng bản thân mình. a...................", "trừ khi bạn biết tôn trọng bản thân mình."),
+    ("xin chào bạn", "xin chào bạn"),
+])
+def test_trim_truncated_tail(text, want):
+    assert asr_mod.trim_truncated_tail(text) == want
+
+
+def test_all_truncated_restores_the_log_prob_and_trims(monkeypatch):
+    class Model:
+        def __init__(self, *a, **k):
+            self.ct2 = self.model = _ScoredCT2([])
+
+        def transcribe(self, audio, **kw):
+            self.ct2.outs = [_ScoredRes(list(range(77)), score=-0.2), _ScoredRes(list(range(77)), score=-0.3)]
+            r0 = self.model.generate(None, [[1, 2, 3]], max_length=448)
+            r1 = self.model.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)
+            best = max([r0[0], r1[0]], key=lambda r: r.scores[0])
+            avg = best.scores[0] * 77 / 78
+            return iter([types.SimpleNamespace(text="đã già. a sĩ la hối với đã già. a sĩ la hối với", avg_logprob=avg,
+                                               no_speech_prob=0.1, compression_ratio=1.0, temperature=0.2)]), None
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=Model))
+    a = WhisperASR("small", max_tokens_per_s=20, max_tokens_base=17, reject_truncated_all=True)  # 3 s -> 77 tokens
+    segs = a.transcribe_segments(np.zeros(48000, np.int16), 16000)
+    assert a.last_all_truncated and segs[0].avg_logprob == pytest.approx(-0.2 * 77 / 78)
+    assert segs[0].text == "đã già. a sĩ la hối với"
+    assert a.decode == "cap20+17,reject:trunc"
+
+
+def test_real_model_generates_exactly_the_configured_tokens():
+    """The configured limit is the number of tokens the model really generates (phowhisper-small)."""
+    import glob
+    import wave
+    from pathlib import Path
+
+    if not (asr_mod.local_model_dir("phowhisper-small") / "model.bin").exists():
+        pytest.skip("phowhisper-small not converted on this machine")
+    waves = sorted(glob.glob(str(Path("~/data/vivos/test/waves/*/*.wav").expanduser())))
+    if not waves:
+        pytest.skip("VIVOS test set not present")
+    pytest.importorskip("faster_whisper")
+    path = max(waves[:200], key=lambda p: wave.open(p).getnframes())
+    with wave.open(path) as w:
+        audio = np.frombuffer(w.readframes(w.getnframes()), np.int16)
+    a = WhisperASR("phowhisper-small", reject_truncated_all=False, decode_budget_s=999.0)
+    a.load()
+    for n in (6, 12, 20):
+        for prompt in (None, "Xin chào, sau đây là đoạn hội thoại bằng tiếng Việt."):
+            a.initial_prompt = prompt
+            a.first_min_tokens = None
+            a.attempt_limits = lambda audio_s, _n=n: (_n, _n)
+            a.transcribe_segments(audio, 16000)
+            t, generated, limit = a.limiter.calls[0][1:]
+            assert (t, generated, limit) == (0.0, n, n), (prompt, n)

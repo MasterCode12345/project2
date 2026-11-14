@@ -91,6 +91,9 @@ class Settings:
     # or whose text loops (b: dot run or a repeated 4-word group). Off until the bench decides.
     asr_reject_truncated_t0: bool = False
     asr_reject_loop_t0: bool = False
+    # C4: no attempt (any temperature) that stopped at its token limit is accepted while another
+    # exists; limits are real tokens (asr.max_length_for). Off until the bench decides.
+    asr_reject_truncated_all: bool = False
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 
@@ -151,8 +154,10 @@ class Settings:
 # Settings fields and eval/asr_bench.py flags so the bench can be reproduced.
 ANTI_STALL_PRESETS: dict[str, dict] = {
     "off": {},
-    "c3a": dict(asr_fallback_max_tokens_per_s=15.0, asr_first_min_tokens=100, asr_decode_budget_s=4.0,
-                asr_reject_truncated_t0=True),
-    "c3b": dict(asr_fallback_max_tokens_per_s=15.0, asr_first_min_tokens=100, asr_decode_budget_s=4.0,
-                asr_reject_truncated_t0=True, asr_reject_loop_t0=True),
+    # every attempt capped at 20 real tokens/s + 32 (no normal (A) segment of VIVOS/FLEURS clean
+    # reaches it, >= 25 % headroom), a truncated attempt is never accepted, 4 s budget.
+    "c4a": dict(asr_max_tokens_per_s=20.0, asr_max_tokens_base=32, asr_decode_budget_s=4.0,
+                asr_reject_truncated_all=True),
+    "c4b": dict(asr_max_tokens_per_s=20.0, asr_max_tokens_base=32, asr_decode_budget_s=4.0,
+                asr_reject_truncated_all=True, asr_reject_loop_t0=True),
 }

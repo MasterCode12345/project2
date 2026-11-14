@@ -398,8 +398,8 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="initial noise suppression (can be changed in Cài đặt while stopped)")
     p.add_argument("--asr-anti-stall", default="off", choices=list(ANTI_STALL_PRESETS),
-                   help="experimental, default off: bounded decoding against ASR stalls (c3a: retry a truncated "
-                        "temperature-0 attempt; c3b: also retry a looping one); see plan-asr-anti-stall.md")
+                   help="experimental, default off: bounded decoding against ASR stalls (c4a: real-token cap, a "
+                        "truncated attempt is retried; c4b: also a looping temperature-0 one); see plan-asr-anti-stall.md")
     args, rest = p.parse_known_args(list(argv or []))
     from .cli import build_parser
 
