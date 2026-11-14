@@ -58,7 +58,7 @@ Cuối bảng là các đoạn bị bỏ, kèm lý do:
 - `mt_error`, `tts_error`: lỗi dịch, lỗi TTS (thường do mạng).
 - `overload`, `playout_*`: quá tải hoặc phát trễ.
 
-Sau đó là số đoạn theo **mức đèn cao nhất** trong lúc xử lý (cột `health_max`, `health_reason` của file CSV), xem kịch bản (d).
+Sau đó là số đoạn theo **mức đèn cao nhất** trong lúc xử lý (cột `health_max`, `health_reason` của file CSV), xem kịch bản (d). Cột `health_reasons` ghi **mọi** lý do đèn đã báo trong lúc xử lý từng đoạn, theo thứ tự thời gian.
 
 ---
 
