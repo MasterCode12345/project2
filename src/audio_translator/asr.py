@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 import threading
 import unicodedata
 from dataclasses import dataclass, field
@@ -52,6 +53,17 @@ def normalize_text(text: str) -> str:
     text = unicodedata.normalize("NFC", text).lower()
     text = "".join(ch if unicodedata.category(ch)[0] not in "PS" else " " for ch in text)
     return " ".join(text.split())
+
+
+_UNK = re.compile(r"(?<!\w)unk(?!\w)", re.IGNORECASE)
+
+
+def strip_unk(text: str) -> str:
+    """Drop the stand-alone word "unk" (any case, any position), which PhoWhisper sometimes writes
+    at the start of an utterance; "" when no word is left. Words containing it ("junk") stay."""
+    out = re.sub(r"\s+", " ", _UNK.sub(" ", text)).strip()
+    out = re.sub(r"\s+([.,!?;:])", r"\1", out)
+    return out if re.search(r"\w", out) else ""
 
 
 def _min_repeats(n: int) -> int:
@@ -121,6 +133,7 @@ class SegmentFilter:
     max_compression_ratio: float = 2.4
     blacklist: tuple[str, ...] = field(default_factory=load_blacklist)
     collapse_loops: bool = True
+    drop_unk: bool = True  # strip_unk: never in VIVOS/FLEURS references; WER never worse (plan)
 
     def reason(self, seg) -> str | None:
         """Why ``seg`` would be dropped, or None to keep it."""
@@ -140,14 +153,30 @@ class SegmentFilter:
 
     def clean(self, text: str) -> str:
         """Text of a kept segment, with decoding loops written once."""
-        return collapse_repeats(text) if self.collapse_loops else text
+        return self.cleaned(text)[0]
+
+    def cleaned(self, text: str) -> tuple[str, list[str]]:
+        """``clean`` plus what changed: "unk" (word removed), "repetition" (loop written once)."""
+        why = []
+        if self.drop_unk:
+            t = strip_unk(text)
+            if t != text:
+                why.append("unk")
+                text = t
+        if self.collapse_loops:
+            t = collapse_repeats(text)
+            if t != text:
+                why.append("repetition")
+                text = t
+        return text, why
 
 
 def filter_from_settings(settings) -> SegmentFilter | None:
     s = settings
     if not s.asr_filter:
         return None
-    return SegmentFilter(s.asr_max_no_speech_prob, s.asr_min_avg_logprob, s.asr_max_compression_ratio)
+    return SegmentFilter(s.asr_max_no_speech_prob, s.asr_min_avg_logprob, s.asr_max_compression_ratio,
+                         drop_unk=s.asr_drop_unk)
 
 
 # Whisper's own decode limit per 30 s window (half the 448-token text context).
@@ -262,11 +291,11 @@ class WhisperASR:
             text = seg.text.strip()
             if why is None:
                 if self.segment_filter is not None:
-                    clean = self.segment_filter.clean(text)
-                    if clean != text:
-                        self.dropped.append(("repetition", text))
+                    clean, changed = self.segment_filter.cleaned(text)
+                    self.dropped += [(why_c, text) for why_c in changed]
                     text = clean
-                kept.append(text)
+                if text:
+                    kept.append(text)
             else:
                 self.dropped.append((why, text))
         return " ".join(kept).strip()

@@ -327,3 +327,48 @@ def test_bounded_decoding_flags_reach_the_recognizer():
 
     rec = Orchestrator(Settings(asr_max_tokens_per_s=12, asr_temperatures=(0.0, 0.4)))._make_recognizer("small")
     assert rec.max_tokens_per_s == 12 and rec.temperatures == (0.0, 0.4) and rec.max_tokens_base == 32
+
+
+@pytest.mark.parametrize("text,want", [
+    ("unk họp này có ý nghĩa rất quan trọng.", "họp này có ý nghĩa rất quan trọng."),
+    ("UNK muốn biết", "muốn biết"),
+    ("ở louis unk.", "ở louis."),
+    ("tin nhắn. unk bao giờ", "tin nhắn. bao giờ"),
+    ("unk", ""), ("unk.", ""), ("unk unk", ""),
+    ("junk food unknown chunk", "junk food unknown chunk"),  # whole word only
+    ("xin chào", "xin chào"),
+])
+def test_strip_unk(text, want):
+    assert asr_mod.strip_unk(text) == want
+
+
+def test_filter_drops_unk_and_reports_it_without_a_ghost_reason(seg_fw):
+    seg_fw.segments = [seg("unk yêu bạn nhất trên đời."), seg("unk")]
+    a = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL))
+    assert a.transcribe(np.zeros(1600, np.int16), 16000) == "yêu bạn nhất trên đời."
+    assert [w for w, _ in a.dropped] == ["unk", "unk"]
+    assert filter_from_settings(Settings()).drop_unk is True
+    assert filter_from_settings(Settings(asr_drop_unk=False)).drop_unk is False
+    b = WhisperASR("small", segment_filter=SegmentFilter(blacklist=BL, drop_unk=False))
+    assert b.transcribe(np.zeros(1600, np.int16), 16000) == "unk yêu bạn nhất trên đời. unk"
+    assert WhisperASR("small").transcribe(np.zeros(1600, np.int16), 16000).startswith("unk")  # filter off
+
+
+def test_an_unk_only_segment_is_not_a_ghost_on_the_light(harness):
+    from audio_translator.health import QUALITY
+    from audio_translator.models import HEALTH, INFO
+    from conftest import FakeASR, utterance
+
+    class UnkASR(FakeASR):
+        def transcribe(self, audio, sample_rate):
+            super().transcribe(audio, sample_rate)
+            self.dropped = [("unk", "unk")]
+            return ""
+
+    h = harness(settings=Settings(indicator_rate_hz=100.0), asr=UnkASR())
+    h.start()
+    h.say(utterance(10))
+    ev = h.log.wait_for(lambda e: e.kind == INFO and "no speech" in e.message)
+    import time
+    time.sleep(0.2)
+    assert not [e for e in h.log.of(HEALTH) if e.data["signal"] == QUALITY] and ev

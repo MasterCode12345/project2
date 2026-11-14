@@ -319,6 +319,25 @@ The default stays off, as agreed. The human decides.
 - **Fix found by the tests.** A segment that the idle ASR worker picks up at once is no longer counted as waiting. Before, it could flash the light yellow for the 1 s down-hold after a normal sentence. `asr_waiting` = queue size while ASR is busy, else queue size − 1.
 - **Tests:** thresholds on the log values; `wait_s` with long, queued and out-of-order clips; an orchestrator run where a long translation alone stays green and the next one turns yellow. `docs/manual_test.md` (d) step 3.
 
+## Follow-up 2 (human, 2026-11-14): drop the stray "unk"
+
+**Counts.** "unk" was matched as a stand-alone word, ignoring case.
+- References: VIVOS `prompts.txt` 0, FLEURS `test.tsv` 0.
+- Cached ASR text:
+  - `results/mt_asr_cache_vi.tsv`: 3 of 1 389 lines;
+  - stall bench per-segment output: DEMAND 2 of 632 segments, MUSAN 1 of 534, all at 0–5 dB; clean VIVOS 0 of 100, FLEURS 0 of 244.
+- Real logs: 3 segments, always at the start of an utterance: `latency_cli.csv`, `latency_light_20261114_1358.csv`, `latency_cap_20261114_1403.csv`.
+- "unk" is an ordinary token in PhoWhisper's vocabulary.
+
+**WER before → after.** Recomputed from the cached per-segment transcripts (base decoding) with the bench's own normalisation; the recomputation reproduces the CSV WER exactly.
+- Every cell is unchanged except DEMAND 0 dB: 11.76 → 11.66.
+- The MUSAN 5 dB hit replaces a real word, so removing it turns a substitution into a deletion; WER is unchanged.
+- **Never worse, so the filter is on by default** (`asr_drop_unk = True`, part of `--asr-filter`).
+
+**Implementation.**
+- `asr.strip_unk`: whole word, any case, any position. "" when no word is left; "junk" and "unknown" are kept.
+- `SegmentFilter.cleaned` reports "unk" / "repetition". Neither is a ghost reason for the latency log or the light.
+
 ## Implementation notes (Part A)
 
 - `health.py`: `assess` (pure), `unclear_reason`, `HealthTracker` (quality hold, down-hold, 60 s history used for `health_max`).

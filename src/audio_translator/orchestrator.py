@@ -827,7 +827,7 @@ class Orchestrator:
             ts["asr_end"] = self.clock()
             self._asr_busy = None
             # ASR filter reasons (one ASR worker: read right after transcribe), e.g. a ghost sentence.
-            filtered = [d for d in getattr(asr, "dropped", None) or [] if d[0] != "repetition"]
+            filtered = [d for d in getattr(asr, "dropped", None) or [] if d[0] not in ("repetition", "unk")]
             why = unclear_reason(self.settings, filtered=bool(filtered), asr_s=ts["asr_end"] - ts["asr_start"],
                                  audio_s=len(seg.audio) / seg.sample_rate if seg.sample_rate else 0.0,
                                  fallback=(getattr(asr, "last_temperature", 0.0) or 0.0) > 0)

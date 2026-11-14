@@ -70,6 +70,9 @@ class Settings:
     asr_max_no_speech_prob: float = 0.6
     asr_min_avg_logprob: float = -1.0
     asr_max_compression_ratio: float = 2.4
+    # Drop the stand-alone word "unk" PhoWhisper sometimes writes at an utterance start (3 of the
+    # real-test segments, 3/1166 bench segments; never in the references; WER never worse).
+    asr_drop_unk: bool = True
     # Bounded decoding against stalls (opt-in; None = faster-whisper's own decoding, unchanged).
     # A rejected attempt on unclear audio runs to 224 tokens (~6-7 s) and up to 6 temperatures
     # are tried: one 3 s music clip took 22 s (plan-speaker-indicator.md). Being measured with
