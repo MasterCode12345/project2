@@ -77,6 +77,8 @@ TRANSLATORS = [
     ("m2m100-418m", "M2M100-418M (offline, cần convert một lần)"),
     ("google", "Google (cần mạng)"),
 ]
+# Short names for messages ("… vì Argos chưa sẵn sàng").
+TRANSLATOR_SHORT = {"offline": "Argos", "nllb-600m": "NLLB-600M", "m2m100-418m": "M2M100-418M", "google": "Google"}
 # Noise suppression dropdown: (Settings.ns_mode value, label).
 NOISE = [("off", "Tắt"), ("logmmse", "logMMSE (thử nghiệm)")]
 

@@ -28,8 +28,8 @@ from PySide6.QtWidgets import (
 
 from .asr import LOCAL_MODELS
 from .config import Settings
-from .gui_strings import (MODEL_NOT_CONVERTED, MODEL_NOT_DOWNLOADED, MODEL_STATUS, NOISE, TRANSLATORS, VI,
-                          error_headline, is_google_fallback, model_event_text, status_text)
+from .gui_strings import (MODEL_NOT_CONVERTED, MODEL_NOT_DOWNLOADED, MODEL_STATUS, NOISE, TRANSLATOR_SHORT,
+                          TRANSLATORS, VI, error_headline, is_google_fallback, model_event_text, status_text)
 from .gui_widgets import Banner, CollapsibleSection, CompactWindow, LightWidget, TranscriptView
 from .models import (ERROR, HEALTH, IDLE, INFO, MODEL, RESULT, RUNNING, STARTING, STATUS, STOPPED, STOPPING,
                      WARNING, Event)
@@ -338,7 +338,8 @@ class MainWindow(QMainWindow):
                     model=ev.data.get("model"), fallback=ev.data.get("fallback"), command=ev.data.get("command")),
                     ev.message)
             elif ev.kind == WARNING and is_google_fallback(ev.message):
-                label = self.translator_combo.currentText().split(" (")[0]
+                value = self.translator_combo.currentData()
+                label = TRANSLATOR_SHORT.get(value, self.translator_combo.currentText())
                 self.warn_banner.show_message(VI["mt_google"].format(translator=label), ev.message)
 
     def set_light(self, level: str, reason: str = "", others: list[str] | None = None) -> None:

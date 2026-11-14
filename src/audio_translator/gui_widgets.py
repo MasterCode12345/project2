@@ -8,7 +8,7 @@ from __future__ import annotations
 import statistics
 from typing import Callable
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QFontMetrics, QGuiApplication
 from PySide6.QtWidgets import (
     QApplication,
@@ -56,11 +56,11 @@ class LightWidget(QWidget):
         texts.setContentsMargins(0, 0, 0, 0)
         texts.addWidget(self.text)
         texts.addWidget(self.others)
-        texts.addStretch(1)
         row = QHBoxLayout(self)
         row.setContentsMargins(0, 0, 0, 0)
-        row.addWidget(self.disc)
+        row.addWidget(self.disc, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addLayout(texts, 1)
+        row.setAlignment(texts, Qt.AlignmentFlag.AlignVCenter)
         self.level = "off"
         self.set_light("off")
 
@@ -141,14 +141,9 @@ class TranscriptView(QWidget):
         follow = self.at_bottom()
         block = _SentenceBlock(vi, en, latency)
         item = QListWidgetItem()
-        width = max(self.list.viewport().width(), 200)
-        block.setFixedWidth(width)
-        block.adjustSize()
-        item.setSizeHint(block.sizeHint())
-        block.setMinimumWidth(0)
-        block.setMaximumWidth(16777215)
         self.list.addItem(item)
         self.list.setItemWidget(item, block)
+        self._fit(item, block)
         self.sentences.append((vi, en, latency))
         while self.list.count() > MAX_SENTENCES:
             old = self.list.takeItem(0)
@@ -159,6 +154,18 @@ class TranscriptView(QWidget):
         self._update_stats()
         if follow:
             self.list.scrollToBottom()
+
+    def _fit(self, item: QListWidgetItem, block: QWidget) -> None:
+        """Item height for the current width (word-wrapped labels need height-for-width)."""
+        width = max(self.list.viewport().width(), 200)
+        h = block.layout().heightForWidth(width)
+        item.setSizeHint(QSize(width, h if h > 0 else block.sizeHint().height()))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        super().resizeEvent(event)
+        for i in range(self.list.count()):
+            item = self.list.item(i)
+            self._fit(item, self.list.itemWidget(item))
 
     def new_session(self) -> None:
         """Statistics are per session; the sentences stay on screen."""
@@ -265,7 +272,7 @@ class CompactWindow(QWidget):
     i.e. when the user clicks into Meet/Zoom. Closing it expands back to the main window.
     """
 
-    EN_WIDTH = 250
+    EN_WIDTH = 180
 
     def __init__(self, on_button: Callable[[], None], on_expand: Callable[[], None]) -> None:
         super().__init__(None, Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
