@@ -2,7 +2,7 @@
 title: 'GUI redesign for real Zoom/Meet calls: full mode + always-on-top compact mode, Vietnamese strings'
 type: 'feature'
 created: '2026-11-14'
-status: 'approved — in progress'
+status: 'done (branch pushed, not merged)'
 baseline_revision: '59f0cdd'
 branch: 'feat/gui-redesign'
 route: 'full'
@@ -211,6 +211,19 @@ Every existing test must pass: `uv run --group eval pytest -q`.
    - **Quitting:** Cmd+Q while compact (main hidden) still calls `orch.shutdown()` through `QApplication.aboutToQuit`. Shutdown is idempotent and tested.
    - **First position:** the compact window first opens at the **top-right** of the screen, away from the Meet/Zoom controls at the bottom.
 5. **Implementation note (macOS):** the compact window must **not** use `Qt.Tool`. On macOS a tool window hides when the app is not active, i.e. as soon as the user clicks into Meet. It uses `Qt.Window | Qt.WindowStaysOnTopHint` only.
+
+## Implementation notes
+
+- Commits:
+  - `1994639`: full mode, strings, widgets; existing tests updated to the Vietnamese texts with the same meaning;
+  - `73feba3`: compact mode, sizing, 20 new tests;
+  - a third commit with the docs.
+- Found while testing:
+  - **Window type.** The compact window is `Qt.Window | WindowStaysOnTopHint`, not `Qt.Tool`. The test checks `windowType() == Window`.
+  - **Closing the compact window.** The close is *accepted* and the main window is shown, so a Cmd+Q that closes every window is never blocked.
+  - **Segfault in the test fixture.** The new test file segfaulted when Python's GC destroyed the windows of earlier tests. The fixture now shuts down, hides and `deleteLater()`s its windows explicitly; the full suite passes repeatedly.
+  - **Sentence-block height.** Blocks use height-for-width and are re-fitted on resize. An offscreen render showed an over-tall block before the fix.
+- 375 tests pass (was 355).
 
 ## Questions for you (answered above)
 
