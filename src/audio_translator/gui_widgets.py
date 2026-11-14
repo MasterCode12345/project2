@@ -273,6 +273,8 @@ class CompactWindow(QWidget):
     """
 
     EN_WIDTH = 180
+    TOP_OFFSET = 80  # below Chrome's toolbar and its "⋮" menu (real Meet test, 2026-11-14)
+    RIGHT_MARGIN = 16
 
     def __init__(self, on_button: Callable[[], None], on_expand: Callable[[], None]) -> None:
         super().__init__(None, Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
@@ -305,7 +307,8 @@ class CompactWindow(QWidget):
         self.en.setToolTip(en)
 
     def place_top_right(self) -> None:
-        """First show: top-right of the screen, away from the call controls at the bottom."""
+        """First show: top-right, TOP_OFFSET below the top edge (clear of the browser toolbar), away
+        from the call controls at the bottom."""
         if self._placed:
             return
         self._placed = True
@@ -313,7 +316,7 @@ class CompactWindow(QWidget):
         if screen is None:
             return
         g = screen.availableGeometry()
-        self.move(g.x() + g.width() - self.width() - 16, g.y() + 16)
+        self.move(g.x() + g.width() - self.width() - self.RIGHT_MARGIN, g.y() + self.TOP_OFFSET)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt API)
         # Never lose the app: closing the small window shows the main one again. The close is

@@ -103,7 +103,9 @@ def test_compact_window_first_opens_top_right(make):
     w.to_compact()
     g = (w.compact.screen() or QApplication.primaryScreen()).availableGeometry()
     pos = w.compact.pos()
-    assert pos.x() + w.compact.width() >= g.x() + g.width() - 40 and pos.y() <= g.y() + 40
+    assert w.compact.TOP_OFFSET == 80
+    assert pos.x() + w.compact.width() == g.x() + g.width() - 16  # flush right (16 px margin)
+    assert pos.y() == g.y() + 80  # below the browser toolbar and its "⋮" menu
     w.compact.move(g.x() + 10, g.y() + 200)  # the user moves it: kept next time
     w.to_full()
     w.to_compact()
