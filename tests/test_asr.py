@@ -326,4 +326,4 @@ def test_bounded_decoding_flags_reach_the_recognizer():
     from audio_translator.orchestrator import Orchestrator
 
     rec = Orchestrator(Settings(asr_max_tokens_per_s=12, asr_temperatures=(0.0, 0.4)))._make_recognizer("small")
-    assert rec.max_tokens_per_s == 12 and rec.temperatures == (0.0, 0.4) and rec.max_tokens_base == 16
+    assert rec.max_tokens_per_s == 12 and rec.temperatures == (0.0, 0.4) and rec.max_tokens_base == 32

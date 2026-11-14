@@ -182,7 +182,7 @@ class WhisperASR:
         initial_prompt: str | None = None,
         segment_filter: SegmentFilter | None = None,
         max_tokens_per_s: float | None = None,
-        max_tokens_base: int = 16,
+        max_tokens_base: int = 32,
         temperatures: tuple[float, ...] | None = None,
     ) -> None:
         self.model_size = model_size

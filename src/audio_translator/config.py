@@ -75,7 +75,7 @@ class Settings:
     # are tried: one 3 s music clip took 22 s (plan-speaker-indicator.md). Being measured with
     # eval/asr_bench.py (--max-tokens-per-s, --temperatures); default stays off until decided.
     asr_max_tokens_per_s: float | None = None  # max_new_tokens = ceil(audio_s x this) + base (<= 224)
-    asr_max_tokens_base: int = 16
+    asr_max_tokens_base: int = 32  # bench choice with 15 tok/s (plan-speaker-indicator.md)
     asr_temperatures: tuple[float, ...] | None = None  # e.g. (0.0, 0.2, 0.4); None = 0.0..1.0 step 0.2
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
