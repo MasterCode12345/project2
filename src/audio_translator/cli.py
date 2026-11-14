@@ -40,6 +40,15 @@ def build_parser() -> argparse.ArgumentParser:
                    type=lambda v: tuple(float(x) for x in v.split(",") if x.strip()),
                    help="experimental, default off: Whisper temperature fallback ladder, e.g. 0,0.2,0.4 "
                         "(default: faster-whisper's 0,0.2,...,1.0)")
+    p.add_argument("--asr-fallback-max-tokens-per-s", type=float, default=None, metavar="N",
+                   help="experimental, default off: cap only the fallback (temperature > 0) attempts at "
+                        "ceil(audio_s x N) + 32 tokens")
+    p.add_argument("--asr-first-min-tokens", type=int, default=None, metavar="N",
+                   help="experimental, default off: give the temperature-0 attempt a wide limit of at least N tokens")
+    p.add_argument("--asr-decode-budget-s", type=float, default=None, metavar="S",
+                   help="experimental, default off: no more fallback attempts once a segment took S seconds")
+    p.add_argument("--asr-cap-tail-strip", action="store_true",
+                   help="experimental, default off: strip a junk tail when a capped attempt reached its limit")
     p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
                    help="translation backend: offline = Argos (default), google, or a converted multilingual "
                         "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")
@@ -151,6 +160,9 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
                         asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
                         asr_max_tokens_per_s=args.asr_max_tokens_per_s, asr_temperatures=args.asr_temperatures,
+                        asr_fallback_max_tokens_per_s=args.asr_fallback_max_tokens_per_s,
+                        asr_first_min_tokens=args.asr_first_min_tokens, asr_decode_budget_s=args.asr_decode_budget_s,
+                        asr_cap_tail_strip=args.asr_cap_tail_strip,
                         vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
                         restore=args.restore, latency_log=args.latency_log,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)

@@ -80,6 +80,13 @@ class Settings:
     asr_max_tokens_per_s: float | None = None  # max_new_tokens = ceil(audio_s x this) + base (<= 224)
     asr_max_tokens_base: int = 32  # bench choice with 15 tok/s (plan-speaker-indicator.md)
     asr_temperatures: tuple[float, ...] | None = None  # e.g. (0.0, 0.2, 0.4); None = 0.0..1.0 step 0.2
+    # Anti-stall per decoding attempt (asr.DecodeLimiter; plan-asr-anti-stall.md). All off until
+    # the bench decides: cap only the fallback attempts (C), a wide limit for temperature 0 (C+),
+    # a time budget per segment after which no more retries run (C2), tail strip for the cap (B).
+    asr_fallback_max_tokens_per_s: float | None = None
+    asr_first_min_tokens: int | None = None
+    asr_decode_budget_s: float | None = None
+    asr_cap_tail_strip: bool = False
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 

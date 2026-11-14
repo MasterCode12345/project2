@@ -204,15 +204,101 @@ def filter_from_settings(settings) -> SegmentFilter | None:
 
 # Whisper's own decode limit per 30 s window (half the 448-token text context).
 MAX_NEW_TOKENS = 224
+_TAIL_DOTS = re.compile(r"\.{2,}\s*$")
+_TAIL_A = re.compile(r"(?:\s+a\.?)+\s*$", re.IGNORECASE)
 
 
-def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None) -> str:
-    """``base`` (faster-whisper defaults), ``cap15+32``, ``t0/0.2/0.4`` or both joined by ``,``."""
+def strip_cap_tail(text: str) -> str:
+    """Drop the junk tail a token-capped decode can leave: a trailing run of dots (-> one dot) and
+    trailing stand-alone "a"/"a." tokens. Only used when the attempt reached its token limit."""
+    out = _TAIL_DOTS.sub(".", text.rstrip())
+    while True:
+        new = _TAIL_A.sub("", out).rstrip()
+        new = _TAIL_DOTS.sub(".", new)
+        if new == out:
+            break
+        out = new
+    return out if re.search(r"\w", out) else text
+
+
+class DecodeLimiter:
+    """Stands in for ``WhisperModel.model`` (CTranslate2) to bound each decoding attempt.
+
+    faster-whisper decodes a segment with up to 6 attempts (temperature 0, then sampling at
+    0.2 … 1.0) and has a single ``max_new_tokens`` for all of them; that single limit changes
+    the temperature-0 beam result (plan-asr-anti-stall.md). Per call this wrapper can:
+
+    * lower ``max_length`` of the temperature-0 attempt (``t0_tokens``) and of the fallback
+      attempts (``fallback_tokens``) separately (None = untouched);
+    * stop decoding once ``budget_s`` has passed since the segment's first attempt: a fallback
+      call then returns the previous **real** result again, so faster-whisper sees it fail its
+      checks, runs out of temperatures at no cost and picks the best real attempt. No synthetic
+      or empty result is ever produced.
+
+    ``calls`` records (seconds, temperature, generated tokens, token limit) per real attempt.
+    """
+
+    def __init__(self, inner, clock=None) -> None:
+        import time
+
+        self._inner = inner
+        self._clock = clock or time.monotonic
+        self.t0_tokens: int | None = None
+        self.fallback_tokens: int | None = None
+        self.budget_s: float | None = None
+        self.calls: list[tuple[float, float, int, int]] = []
+        self.budget_skips = 0
+        self._start: float | None = None
+        self._last = None
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+    def begin(self, t0_tokens: int | None, fallback_tokens: int | None, budget_s: float | None) -> None:
+        """Before each segment."""
+        self.t0_tokens, self.fallback_tokens, self.budget_s = t0_tokens, fallback_tokens, budget_s
+        self.calls, self.budget_skips, self._start, self._last = [], 0, None, None
+
+    def generate(self, *args, **kw):
+        temp = float(kw.get("sampling_temperature", 0.0) or 0.0)
+        now = self._clock()
+        if (temp > 0 and self.budget_s is not None and self._start is not None and self._last is not None
+                and now - self._start > self.budget_s):
+            self.budget_skips += 1
+            return self._last
+        if self._start is None:
+            self._start = now
+        prompts = args[1] if len(args) > 1 else kw.get("prompts", [[]])
+        limit = self.fallback_tokens if temp > 0 else self.t0_tokens
+        if limit is not None:
+            kw["max_length"] = min(kw.get("max_length", 448), len(prompts[0]) + limit)
+        out = self._inner.generate(*args, **kw)
+        n = len(out[0].sequences_ids[0]) if out and out[0].sequences_ids else 0
+        cap = min(kw.get("max_length", 448) - len(prompts[0]), MAX_NEW_TOKENS)
+        self.calls.append((self._clock() - now, temp, n, cap))
+        self._last = out
+        return out
+
+
+def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None, *,
+                 fallback_per_s: float | None = None, first_min: int | None = None,
+                 budget_s: float | None = None, tail: bool = False) -> str:
+    """``base`` (faster-whisper defaults), else the parts in use joined by ``,``: ``cap15+32``
+    (every attempt), ``t0/0.2/0.4``, ``fb15+32`` (fallback attempts only), ``t0min100``,
+    ``budget4s``, ``tail``."""
     parts = []
     if per_s:
         parts.append(f"cap{per_s:g}+{base}")
     if temps:
         parts.append("t" + "/".join(f"{t:g}" for t in temps))
+    if fallback_per_s:
+        parts.append(f"fb{fallback_per_s:g}+{base}")
+    if first_min:
+        parts.append(f"t0min{first_min}")
+    if budget_s:
+        parts.append(f"budget{budget_s:g}s")
+    if tail:
+        parts.append("tail")
     return ",".join(parts) or "base"
 
 
@@ -236,6 +322,10 @@ class WhisperASR:
         max_tokens_per_s: float | None = None,
         max_tokens_base: int = 32,
         temperatures: tuple[float, ...] | None = None,
+        fallback_max_tokens_per_s: float | None = None,
+        first_min_tokens: int | None = None,
+        decode_budget_s: float | None = None,
+        cap_tail_strip: bool = False,
     ) -> None:
         self.model_size = model_size
         self.language = language
@@ -249,6 +339,15 @@ class WhisperASR:
         self.max_tokens_per_s = max_tokens_per_s
         self.max_tokens_base = max_tokens_base
         self.temperatures = tuple(temperatures) if temperatures else None
+        # Anti-stall per attempt (DecodeLimiter; None/False = off): cap only the fallback attempts
+        # (C); also give the temperature-0 attempt a wide limit >= first_min_tokens (C+); stop
+        # retrying after decode_budget_s per segment (C2); strip a junk tail when a capped
+        # attempt reached its limit (B).
+        self.fallback_max_tokens_per_s = fallback_max_tokens_per_s
+        self.first_min_tokens = first_min_tokens
+        self.decode_budget_s = decode_budget_s
+        self.cap_tail_strip = cap_tail_strip
+        self.last_hit_limit = False  # the last real attempt of the last call reached its token limit
         self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last call; "repetition": shortened, kept
         self.last_temperature = 0.0  # highest decoding temperature of the last call (> 0: fallback used)
         self._model = None
@@ -266,11 +365,36 @@ class WhisperASR:
                 self._model = WhisperModel(
                     resolve_model(self.model_size), device=self.device, compute_type=self.compute_type
                 )
+                if self.uses_limiter:
+                    self._model.model = DecodeLimiter(self._model.model)
+
+    @property
+    def uses_limiter(self) -> bool:
+        return bool(self.fallback_max_tokens_per_s or self.first_min_tokens or self.decode_budget_s
+                    or self.cap_tail_strip)
+
+    @property
+    def limiter(self) -> "DecodeLimiter | None":
+        m = getattr(self._model, "model", None) if self._model is not None else None
+        return m if isinstance(m, DecodeLimiter) else None
+
+    def attempt_limits(self, audio_s: float) -> tuple[int | None, int | None]:
+        """(temperature-0 limit, fallback limit) in tokens for ``audio_s`` of audio; None = none."""
+        fb = None
+        if self.fallback_max_tokens_per_s:
+            fb = min(MAX_NEW_TOKENS, math.ceil(audio_s * self.fallback_max_tokens_per_s) + self.max_tokens_base)
+        t0 = None
+        if self.first_min_tokens:
+            per_s = self.fallback_max_tokens_per_s or self.max_tokens_per_s or 0
+            t0 = min(MAX_NEW_TOKENS, max(self.first_min_tokens, math.ceil(audio_s * per_s) + self.max_tokens_base))
+        return t0, fb
 
     @property
     def decode(self) -> str:
         """Label of the decoding options in use (``base`` = faster-whisper defaults)."""
-        return decode_label(self.max_tokens_per_s, self.max_tokens_base, self.temperatures)
+        return decode_label(self.max_tokens_per_s, self.max_tokens_base, self.temperatures,
+                            fallback_per_s=self.fallback_max_tokens_per_s, first_min=self.first_min_tokens,
+                            budget_s=self.decode_budget_s, tail=self.cap_tail_strip)
 
     def max_new_tokens(self, audio_s: float) -> int | None:
         """Output-token cap for ``audio_s`` seconds of audio (None = no cap)."""
@@ -294,6 +418,9 @@ class WhisperASR:
             raise ValueError("WhisperASR expects 16 kHz audio")
         self.load()
         pcm = audio.astype(np.float32) / 32768.0 if audio.dtype == np.int16 else audio.astype(np.float32)
+        lim = self.limiter
+        if lim is not None:
+            lim.begin(*self.attempt_limits(pcm.size / sample_rate), self.decode_budget_s)
         segments, _info = self._model.transcribe(
             pcm,
             language=self.language,
@@ -305,6 +432,13 @@ class WhisperASR:
         )
         segments = list(segments)
         self.last_temperature = max((getattr(x, "temperature", 0.0) or 0.0 for x in segments), default=0.0)
+        self.last_hit_limit = bool(lim is not None and lim.calls and lim.calls[-1][2] >= lim.calls[-1][3])
+        if self.cap_tail_strip and self.last_hit_limit:
+            for seg in segments:  # B: only when the attempt really reached its limit
+                try:
+                    seg.text = strip_cap_tail(seg.text)
+                except AttributeError:  # immutable segment tuple
+                    pass
         return segments
 
     def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:

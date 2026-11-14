@@ -220,7 +220,10 @@ class Orchestrator:
                           compute_type=s.compute_type, beam_size=s.beam_size,
                           initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s),
                           max_tokens_per_s=s.asr_max_tokens_per_s, max_tokens_base=s.asr_max_tokens_base,
-                          temperatures=s.asr_temperatures)
+                          temperatures=s.asr_temperatures,
+                          fallback_max_tokens_per_s=s.asr_fallback_max_tokens_per_s,
+                          first_min_tokens=s.asr_first_min_tokens, decode_budget_s=s.asr_decode_budget_s,
+                          cap_tail_strip=s.asr_cap_tail_strip)
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None

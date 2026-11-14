@@ -394,3 +394,132 @@ def test_junk_tokens_come_from_one_list(tmp_path):
     with pytest.raises(ValueError):
         asr_mod.load_junk_tokens(p)
     assert SegmentFilter(blacklist=BL, junk_tokens=("abc",)).clean("abc xin chào") == "xin chào"
+
+
+# ------------------------------------------------------------ anti-stall (plan-asr-anti-stall.md)
+class _Res:
+    def __init__(self, n):
+        self.sequences_ids = [list(range(n))]
+
+
+class _CT2:
+    """Fake CTranslate2 Whisper: records each call's max_length; output length per call from a list."""
+
+    def __init__(self, lengths):
+        self.lengths = list(lengths)
+        self.max_lengths = []
+        self.other = "kept"
+
+    def generate(self, features, prompts, **kw):
+        self.max_lengths.append(kw.get("max_length"))
+        return [_Res(min(self.lengths.pop(0), kw.get("max_length", 448) - len(prompts[0])))]
+
+
+def test_limiter_caps_only_the_attempts_it_is_told_to():
+    from audio_translator.asr import DecodeLimiter
+
+    inner = _CT2([224, 30, 20])
+    lim = DecodeLimiter(inner)
+    assert lim.other == "kept"
+    lim.begin(None, 52, None)  # (C): temperature 0 untouched, fallbacks capped
+    lim.generate(None, [[1, 2, 3]], max_length=448)
+    lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)
+    assert inner.max_lengths == [448, 55]
+    assert [(t, n, cap) for _s, t, n, cap in lim.calls] == [(0.0, 224, 224), (0.2, 30, 52)]
+    lim.begin(100, 52, None)  # (C+): temperature 0 gets a wide limit
+    lim.generate(None, [[1, 2, 3]], max_length=448)
+    assert inner.max_lengths[-1] == 103 and lim.calls[0][2:] == (20, 100)
+
+
+def test_budget_replays_the_last_real_result_and_never_invents_one():
+    from audio_translator.asr import DecodeLimiter
+
+    now = [0.0]
+    inner = _CT2([100, 90, 80])
+    lim = DecodeLimiter(inner, clock=lambda: now[0])
+    lim.begin(None, None, 4.0)
+    first = lim.generate(None, [[1]], max_length=448)  # t=0
+    now[0] = 3.0
+    second = lim.generate(None, [[1]], sampling_temperature=0.2)  # within budget: real decode
+    now[0] = 4.5
+    third = lim.generate(None, [[1]], sampling_temperature=0.4)  # over budget: replay the last real one
+    fourth = lim.generate(None, [[1]], sampling_temperature=0.6)
+    assert third is second and fourth is second and second is not first
+    assert len(inner.max_lengths) == 2 and lim.budget_skips == 2 and len(lim.calls) == 2
+    lim.begin(None, None, 4.0)  # a new segment: the budget restarts
+    now[0] = 100.0
+    lim.generate(None, [[1]], max_length=448)
+    assert len(inner.max_lengths) == 3 and lim.budget_skips == 0
+
+
+def test_budget_never_skips_the_first_attempt():
+    from audio_translator.asr import DecodeLimiter
+
+    now = [50.0]
+    inner = _CT2([10])
+    lim = DecodeLimiter(inner, clock=lambda: now[0])
+    lim.begin(None, None, 0.0)
+    assert lim.generate(None, [[1]], sampling_temperature=0.2) is not None  # nothing to replay: decodes
+    assert len(inner.max_lengths) == 1 and lim.budget_skips == 0
+
+
+@pytest.mark.parametrize("text,want", [
+    ("đó chứng tỏ rằng chúng ta đã già. a.......................", "đó chứng tỏ rằng chúng ta đã già."),
+    ("vì đó mới chính là thứ bạn cần. a.", "vì đó mới chính là thứ bạn cần."),
+    ("nhạc sĩ la hối với ca khúc xuân và tuổi trẻ........", "nhạc sĩ la hối với ca khúc xuân và tuổi trẻ."),
+    ("bạn đi đâu a", "bạn đi đâu"),  # only ever applied when the limit was hit
+    ("a.", "a."), ("xin chào.", "xin chào."),
+])
+def test_strip_cap_tail(text, want):
+    assert asr_mod.strip_cap_tail(text) == want
+
+
+def test_tail_strip_only_when_the_limit_was_hit(monkeypatch):
+    calls = {}
+
+    class Model:
+        def __init__(self, *a, **k):
+            self.ct2 = self.model = _CT2([])  # WhisperASR wraps .model in a DecodeLimiter
+
+        def transcribe(self, audio, **kw):
+            n = calls["n"]
+            self.ct2.lengths = [n]
+            self.model.generate(None, [[1, 2, 3]], max_length=3 + kw.get("max_new_tokens", 445))
+            return iter([types.SimpleNamespace(text="đã già. a....", no_speech_prob=0.1, avg_logprob=-0.2,
+                                               compression_ratio=1.0, temperature=0.0)]), None
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=Model))
+    a = WhisperASR("small", max_tokens_per_s=15, cap_tail_strip=True)
+    calls["n"] = 10  # well below the 77-token limit of 3 s: untouched
+    assert a.transcribe(np.zeros(48000, np.int16), 16000) == "đã già. a...." and not a.last_hit_limit
+    calls["n"] = 500  # reaches the limit: the tail goes
+    assert a.transcribe(np.zeros(48000, np.int16), 16000) == "đã già." and a.last_hit_limit
+
+
+def test_anti_stall_is_off_by_default_and_wired_through(fake_fw):
+    s = Settings()
+    assert (s.asr_fallback_max_tokens_per_s, s.asr_first_min_tokens, s.asr_decode_budget_s,
+            s.asr_cap_tail_strip) == (None, None, None, False)
+    a = WhisperASR("small")
+    a.load()
+    assert a.limiter is None and not a.uses_limiter and a.decode == "base"
+    c2 = WhisperASR("small", fallback_max_tokens_per_s=15, first_min_tokens=100, decode_budget_s=4.0)
+    assert c2.decode == "fb15+32,t0min100,budget4s"
+    assert c2.attempt_limits(3.0) == (100, 77) and c2.attempt_limits(12.0) == (212, 212)
+    assert c2.attempt_limits(30.0) == (224, 224)
+    assert WhisperASR("small", fallback_max_tokens_per_s=15).attempt_limits(3.0) == (None, 77)
+    args = cli.build_parser().parse_args(["--asr-fallback-max-tokens-per-s", "15", "--asr-first-min-tokens", "100",
+                                          "--asr-decode-budget-s", "4", "--asr-cap-tail-strip"])
+    assert (args.asr_fallback_max_tokens_per_s, args.asr_first_min_tokens, args.asr_decode_budget_s,
+            args.asr_cap_tail_strip) == (15, 100, 4, True)
+    from audio_translator.orchestrator import Orchestrator
+
+    rec = Orchestrator(Settings(asr_fallback_max_tokens_per_s=15, asr_first_min_tokens=100,
+                                asr_decode_budget_s=4.0, asr_cap_tail_strip=True))._make_recognizer("small")
+    assert (rec.fallback_max_tokens_per_s, rec.first_min_tokens, rec.decode_budget_s, rec.cap_tail_strip) == \
+        (15, 100, 4.0, True)
+    pytest.importorskip("PySide6")
+    from audio_translator.gui import parse_args
+
+    g, _ = parse_args(["--asr-fallback-max-tokens-per-s", "15", "--asr-decode-budget-s", "4"])
+    assert g.asr_fallback_max_tokens_per_s == 15 and g.asr_decode_budget_s == 4

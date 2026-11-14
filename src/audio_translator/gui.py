@@ -402,6 +402,15 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--asr-temperatures", default=None, metavar="T,T,...",
                    type=lambda v: tuple(float(x) for x in v.split(",") if x.strip()),
                    help="experimental, default off: Whisper temperature fallback ladder, e.g. 0,0.2,0.4")
+    p.add_argument("--asr-fallback-max-tokens-per-s", type=float, default=None, metavar="N",
+                   help="experimental, default off: cap only the fallback (temperature > 0) attempts at "
+                        "ceil(audio_s x N) + 32 tokens")
+    p.add_argument("--asr-first-min-tokens", type=int, default=None, metavar="N",
+                   help="experimental, default off: give the temperature-0 attempt a wide limit of at least N tokens")
+    p.add_argument("--asr-decode-budget-s", type=float, default=None, metavar="S",
+                   help="experimental, default off: no more fallback attempts once a segment took S seconds")
+    p.add_argument("--asr-cap-tail-strip", action="store_true",
+                   help="experimental, default off: strip a junk tail when a capped attempt reached its limit")
     args, rest = p.parse_known_args(list(argv or []))
     from .cli import build_parser
 
@@ -409,7 +418,7 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
     cli_only = [a for a in rest if a.split("=", 1)[0] in cli_opts]
     if cli_only:  # an app option must not silently go to Qt and be ignored
         p.error(f"{' '.join(cli_only)}: only with --cli (the GUI accepts --latency-log, --translator, --ns, "
-                "--asr-max-tokens-per-s, --asr-temperatures)")
+                "--asr-max-tokens-per-s, --asr-temperatures and the other --asr-* decoding options)")
     return args, rest
 
 
@@ -418,6 +427,10 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication.instance() or QApplication(sys.argv[:1] + qt_args)
     win = MainWindow(settings=Settings(latency_log=args.latency_log, translator=args.translator, ns_mode=args.ns,
                                        asr_max_tokens_per_s=args.asr_max_tokens_per_s,
-                                       asr_temperatures=args.asr_temperatures))
+                                       asr_temperatures=args.asr_temperatures,
+                                       asr_fallback_max_tokens_per_s=args.asr_fallback_max_tokens_per_s,
+                                       asr_first_min_tokens=args.asr_first_min_tokens,
+                                       asr_decode_budget_s=args.asr_decode_budget_s,
+                                       asr_cap_tail_strip=args.asr_cap_tail_strip))
     win.show()
     return app.exec()
