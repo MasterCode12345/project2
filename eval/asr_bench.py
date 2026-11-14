@@ -167,14 +167,19 @@ class TimedASR:
             self.asr.last_call_s = None
         if hasattr(self.asr, "last_decode"):
             self.asr.last_decode = None
+        if hasattr(self.asr, "last_limiter_stats"):
+            self.asr.last_limiter_stats = None
         t0 = time.perf_counter()
         text = self.asr.transcribe(audio, sample_rate)
         secs = getattr(self.asr, "last_call_s", None)
         lim = getattr(self.asr, "limiter", None)
+        # memoized recognizers keep the limiter stats of the real call with the segments (a replay
+        # would otherwise read the limiter's state of a later call; before 2026-11-14 they read 0)
+        stats = getattr(self.asr, "last_limiter_stats", None)
+        if stats is None:
+            stats = (lim.budget_skips, lim.t0_rejected) if lim is not None else (0, "")
         self.calls.append((time.perf_counter() - t0 if secs is None else secs, audio.size / sample_rate,
-                           getattr(self.asr, "last_decode", None) or [],
-                           lim.budget_skips if lim is not None and secs is None else 0,
-                           lim.t0_rejected if lim is not None and secs is None else ""))
+                           getattr(self.asr, "last_decode", None) or [], stats[0], stats[1]))
         return text
 
 
@@ -197,8 +202,10 @@ def memoize_segments(asr) -> dict | None:
         if key not in memo:
             t0 = time.perf_counter()
             segs = real(audio, sample_rate)
-            memo[key] = (segs, time.perf_counter() - t0, getattr(asr, "last_decode", None))
-        segs, asr.last_call_s, decode = memo[key]
+            lim = getattr(asr, "limiter", None)
+            memo[key] = (segs, time.perf_counter() - t0, getattr(asr, "last_decode", None),
+                         (lim.budget_skips, lim.t0_rejected) if lim is not None else (0, ""))
+        segs, asr.last_call_s, decode, asr.last_limiter_stats = memo[key]
         if decode is not None:
             asr.last_decode = decode
         return segs

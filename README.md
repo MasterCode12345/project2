@@ -537,12 +537,12 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
    - Bộ lọc câu ma không chặn được vì `no_speech_prob` ≈ 0.
    - Bench (`results/stall_*.csv`) cho thấy kẹt xảy ra cả trên giọng **sạch**: đoạn lâu nhất 10–34 s ở mọi bộ.
    - Giới hạn token 15/s + 32 hết kẹt (lâu nhất 1,5–3 s), nhưng làm đổi kết quả beam search: thêm đuôi "a." hoặc chuỗi dấu chấm, nên WER sạch tệ hơn 1,12 điểm. Chỉ rút dãy temperature thì gần như không giới hạn được.
-   - Chưa biến thể nào đạt tiêu chí "WER không tệ hơn quá 0,5 điểm", nên **mặc định vẫn tắt**. Thử bằng `--asr-max-tokens-per-s 15` (dùng được cả với giao diện lẫn `--cli`; kịch bản (e) trong `docs/manual_test.md`).
+   - Chưa biến thể nào đạt tiêu chí "WER không tệ hơn quá 0,5 điểm", nên **mặc định vẫn tắt**. Cờ thử nghiệm của app hiện là `--asr-anti-stall`, xem mục bên dưới.
    - Đã thử thêm 3 cách chống kẹt theo từng lượt giải mã (`results/antistall_*.csv`, plan `plan-asr-anti-stall.md`):
      - (B) giới hạn token kèm bỏ đuôi rác;
      - (C) chỉ giới hạn các lượt giải mã lại;
      - (C+)/(C2) giới hạn rộng cho lượt T=0, có hoặc không có ngân sách thời gian.
-   - Kết quả: (C+) hết kẹt (ASR lâu nhất 2,9 s) mà hai ô chính không tệ hơn, nhưng vẫn tệ hơn ở DEMAND 5 và 0 dB, nên **mặc định vẫn tắt**. Thử bằng `--asr-fallback-max-tokens-per-s 15 --asr-first-min-tokens 100`.
+   - Kết quả: (C+) hết kẹt (ASR lâu nhất 2,9 s) mà hai ô chính không tệ hơn, nhưng vẫn tệ hơn ở DEMAND 5 và 0 dB, nên **mặc định vẫn tắt**. Lần thử thứ hai (C3: lượt T=0 bị cắt hoặc lặp thì giải mã lại) cũng chưa đạt; xem `plan-asr-anti-stall.md`. Thử trong app bằng `--asr-anti-stall c3a` hoặc `c3b`, kịch bản (e) trong `docs/manual_test.md`.
    - Đèn báo cảnh báo người nói khi nhận dạng quá 3 s / 6 s.
 2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
 3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.

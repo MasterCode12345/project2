@@ -176,16 +176,18 @@ Dùng phòng yên tĩnh và đeo tai nghe. Có thể không cần gọi Meet. B�
 
 Sau đó chạy `uv run python eval/latency_report.py "$LOG"`. Cuối báo cáo có số đoạn theo mức đèn cao nhất.
 
-## (e) Tùy chọn: thử giới hạn token (thử nghiệm, mặc định tắt)
+## (e) Tùy chọn: thử chống kẹt nhận dạng (thử nghiệm, mặc định tắt)
 
-Mục đích: xem giới hạn token có hết kẹt nhận dạng 10–20 s trong app thật không, và chữ nhận dạng có bị thêm đuôi lạ ("a.", "…") không. Bench (`results/stall_*.csv`) cho thấy hết kẹt nhưng WER tệ hơn khoảng 1 điểm.
+Mục đích: xem chống kẹt có làm hết các lần nhận dạng 10–20 s trong app thật không, và chữ nhận dạng có bị thêm đuôi lạ ("a.", "…") không. Bench (`results/antistall_*.csv`, `plan-asr-anti-stall.md`) cho thấy hết kẹt (lâu nhất khoảng 3–5 s), nhưng WER vẫn tệ hơn mặc định ở vài ô, nên chưa bật.
 
 ```sh
-LOG=~/gr2_manual/latency_cap_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
-uv run audio-translator --asr-max-tokens-per-s 15 --latency-log "$LOG"
+LOG=~/gr2_manual/latency_antistall_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+uv run audio-translator --asr-anti-stall c3a --latency-log "$LOG"
 ```
 
-Cờ này dùng được cả với giao diện lẫn `--cli`. Đọc lại 10 câu của (a), rồi chạy `uv run python eval/latency_report.py "$LOG"`. Dòng `config:` phải ghi `asr_decode=cap15+32`; nếu ghi `base` thì giới hạn chưa được bật.
+- Cờ `--asr-anti-stall` (`off` / `c3a` / `c3b`) dùng được cả với giao diện lẫn `--cli`.
+- Đọc lại 10 câu của (a), rồi chạy `uv run python eval/latency_report.py "$LOG"`.
+- Dòng `config:` phải ghi `asr_decode=fb15+32,t0min100,budget4s,reject:t0trunc`. Nếu ghi `base` thì chống kẹt chưa được bật.
 
 ## (f) Chế độ thu gọn trong cuộc gọi Meet
 

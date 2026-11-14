@@ -2,7 +2,7 @@
 title: 'ASR anti-stall without a WER cost: compare (A) default, (B) cap + tail strip, (C) cap on fallback attempts only'
 type: 'feature'
 created: '2026-11-14'
-status: 'measured — no configuration passes; all stay optional (default unchanged)'
+status: 'C3 measured (step 1) — no configuration passes; all stay optional (default unchanged)'
 baseline_revision: 'main @ fix/polish merge (junk tokens unk/ofc on)'
 branch: 'feat/asr-anti-stall'
 route: 'full'
@@ -236,6 +236,93 @@ More detail per cell (CSV columns):
 1. **(C3) = (C+) + a "truncated loop" guard.** When the T=0 attempt was limited and its tokens end in a repeat (the same n-gram ≥ 2 times in the tail) or a dot run, the wrapper runs the next temperature instead of accepting. Only possible by deciding in the wrapper, not by faking a result. Needs care and a re-bench.
 2. A wider T=0 limit (150 or 200 tokens): fewer truncated loops get accepted, max about 4–6 s. One bench run each.
 3. Keep (A) and rely on the speaker indicator. It already turns red at 6 s of ASR.
+
+## C3 (human, 2026-11-14): fix the mechanism
+
+### Step 0: was clip 70 really cut? Yes. The cap-hit count was wrong.
+
+**Measurement.** faster-whisper with temperature 0 only, on the full clip 70; `max_new_tokens` N → `max_length` = 3 + N:
+
+| N | `max_length` | Generated |
+|---|---|---|
+| 20 | 23 | **11** (stops mid-sentence: "…với ca") |
+| ≥ 47 | 50 … 224 | 23 (the natural end) |
+
+Every capped run in the earlier benches fits the same rule:
+- 41 tokens / `max_length` 82; 40 / 80; 37 / 74; 43 / 86; 51 / 103; 68 / 136;
+- and (A)'s loops: 224 / 448.
+
+**CTranslate2's Whisper generates at most `max_length // 2` tokens.** The cause in CTranslate2 was not traced; the rule is measured.
+
+**Consequences.**
+- The bench counted a "hit" as n ≥ `max_length − prompt`, so it **under-counted**. Recounted with `max_length // 2`:
+
+  | Config | Speech segments whose T=0 stopped at the real limit |
+  |---|---|
+  | (C+) | DEMAND clean 2, 20 dB 6, 10 dB 3, 5 dB 3, 0 dB 9; MUSAN 2/4/2/4/6; FLEURS 14 |
+  | (B) fresh | VIVOS clean 4, FLEURS 16 |
+  | old cap15+32 | 1–16 per cell |
+
+- **Clip 70 at DEMAND 5 dB was truncated:** 51 of 51 tokens, no EOT. The mechanism is "**a loop cut by the limit, then accepted**" (its compression ratio is still < 2.4). It is not a beam-search change without reaching the limit.
+- **Correction to the earlier (B) explanation.** "The cap changes the T=0 beam result without reaching the limit" was **wrong**: those tails were truncations. (B)'s tail strip did not trigger because its hit test used the same wrong limit, not because no hit happened. (B) is not re-run: it is dropped (see below), and the record is corrected here.
+- **The configured limits allowed only about half the tokens intended.** (C+)'s "T=0 ≥ 100 tokens" really allowed 51 tokens on short segments; "15 tok/s + 32" allowed (15·s + 35) // 2. The 4a probe's "100–224 tokens" were really 51–113.
+- **Fixed:** `asr.real_token_limit()` = `max_length // 2`, used by `DecodeLimiter` and the bench's `DecodeProbe`.
+- **Kept on purpose:** the settings keep their former meaning (`max_length` = prompt + N), so (C3) is (C+) plus the rules only, as approved. Widening is a separate experiment.
+
+### The rules
+
+Both rules act on the **temperature-0 attempt only**; the retries stay capped as in (C+).
+- **(C3a) = (C+) + "truncated T=0 → retry".**
+- **(C3b) = (C3a) + "T=0 text with a dot run (≥ 3) or a 4-word group repeated → retry".**
+
+Implementation:
+- The wrapper replaces the real result by one with the **same tokens** and score −1e9. faster-whisper reads only `sequences_ids`, `scores` and `no_speech_prob` from a result.
+- Its average log-prob then fails the threshold, so the next temperature runs. In the "all failed" choice (highest average log-prob) it can never beat a real retry.
+- No text is deleted. If it were ever the only candidate, the ASR filter would drop it (avg log-prob < −1).
+- The 4 s budget is kept in both configurations.
+
+### Step 1 results
+
+**Setup.**
+- The decisive cells only: VIVOS clean, FLEURS clean, DEMAND 5 and 0 dB, MUSAN 5 dB. Run under `caffeinate -i`. Files in the scratchpad `c3/`.
+- (A) and (C+) come from `results/antistall_*.csv`.
+- The rule-catch column is recounted from the per-segment attempts. The bench column read 0 because memoized calls lost the limiter stats; that is fixed and tested.
+
+| Cell | (A) WER | (C+) | (C3a) | (C3b) | Max speech ms (A → C3a / C3b) | T=0 caught by rule a (C3a) |
+|---|---|---|---|---|---|---|
+| VIVOS clean | 5.73 | 0.00 | **+1.12** | **+1.12** | 15 159 → 3 631 / 3 330 | 2 |
+| DEMAND 5 dB | 8.69 | +1.64 | **+0.72** | **−0.92** | 10 097 → 3 704 / 3 304 | 3 |
+| DEMAND 0 dB | 11.66 | +1.43 | **+0.20** | **+0.81** | 23 678 → 4 172 / 4 060 | 9 |
+| MUSAN 5 dB | 7.87 | +0.21 | **+0.21** | **+0.21** | 7 330 → 3 330 / 3 403 | 4 |
+| FLEURS clean | 15.49 | −0.30 | **+0.32** | **+0.36** | 35 875 → 4 769 / 4 732 | 14 |
+| **Mean Δ** | | | +0.514 | +0.316 | | |
+
+- (C3b)'s loop rule caught 1 more segment (DEMAND 5) and 4 more (FLEURS) beyond rule a.
+- Budget skips: 0. Max noise-only ASR: (A) 20.2 s → 5.1 s / 4.8 s.
+
+**Decision: neither passes.** VIVOS clean is +1.12, FLEURS is worse, and several cells are above +0.1. **Step 2 was not run, and no default was changed.**
+
+**What still goes wrong.** The clips are listed by `c3/table.py`.
+- **The retries are capped too, at the real limit (15·s + 35) // 2, and are truncated in turn**, then accepted with a junk tail. Segments with a truncated retry: C3a DEMAND clean 2, 5 dB 3, 0 dB 5; MUSAN 5 dB 2; FLEURS 6.
+- Examples:
+  - VIVOS clean, clip 70: "nhạc sĩ … tuổi trẻ. a sĩ la hối với ca khúc xuân và tuổi trẻ." (now from the T=0.2 retry);
+  - clip 78: "… bản thân mình. a……";
+  - FLEURS clip 3: "… be a cây nhỏ. a……".
+- **Sampling makes some retries plainly worse**, e.g. (C3b) DEMAND 0 dB clip 41: "k tôi muốn sử dụng quần áo mới." against (A) "cũng chẳng còn xum xích quần áo mới.". A different path changes which sample is drawn.
+- **One word differs in every capped configuration** (MUSAN 5 dB clip 82: "thông thốc thổi" → "không thốc khỏi").
+
+## Tried, did not pass (kept reproducible through Settings + `eval/asr_bench.py` flags; no app flag)
+
+| Config | What | Why it failed |
+|---|---|---|
+| (B) | cap 15/s + 32 on every attempt + tail strip on a hit | +1.12 VIVOS clean; truncated T=0 tails accepted. Its tail strip never ran because of the wrong hit test, see step 0 |
+| (C) | cap only the retries | +1.12 VIVOS clean, max still 8.5 s: the uncapped T=0 loop remains, and the capped retries change the sampled result |
+| (C+) | + a wide T=0 limit | DEMAND 5 / 0 dB +1.64 / +1.43: T=0 loops truncated and accepted |
+| (C2) | (C+) + 4 s budget | ≡ (C+): the budget never triggered |
+| (C3a) | (C+) + retry a truncated T=0 | +1.12 VIVOS clean, FLEURS +0.32: the capped retries are truncated and accepted |
+| (C3b) | (C3a) + retry a looping T=0 | +1.12 VIVOS clean, FLEURS +0.36, DEMAND 0 dB +0.81 (DEMAND 5 dB −0.92) |
+
+App flag kept: `--asr-anti-stall {off, c3a, c3b}` (default `off`), for real-call trials only.
 
 ## Questions for you (answered above)
 
