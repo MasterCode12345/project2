@@ -2,7 +2,7 @@
 title: 'ASR anti-stall without a WER cost: compare (A) default, (B) cap + tail strip, (C) cap on fallback attempts only'
 type: 'feature'
 created: '2026-11-14'
-status: 'approved — implementing; bench before any default change'
+status: 'measured — no configuration passes; all stay optional (default unchanged)'
 baseline_revision: 'main @ fix/polish merge (junk tokens unk/ofc on)'
 branch: 'feat/asr-anti-stall'
 route: 'full'
@@ -178,6 +178,64 @@ This explains a longer output with a tail when a limit exists. It does not fully
 | (C2) | as (C+) | as (C+) | time budget 4 s per segment |
 
 Fresh runs: (A), (C), (C+), (C2), at about 35 min each, plus (B) clean only.
+
+## Results (2026-11-14)
+
+**Data and runs.**
+- Files: `results/antistall_vivos_demand.csv`, `results/antistall_vivos_musan.csv`, `results/antistall_fleurs_clean.csv`.
+- phowhisper-small, Silero + filter (junk tokens on), 100 VIVOS utterances × 5 SNRs per noise; FLEURS 100 sentences (244 segments); seed 0.
+- Sequential runs on the same machine. (A), (C), (C+) and (C2) were fresh.
+- (B):
+  - for every cell, the old cap15+32 rows (`results/stall_*.csv`), with WER/CER recomputed from their per-segment text under today's filter;
+  - fresh on VIVOS clean and FLEURS clean.
+
+**ΔWER against (A), in points; negative = better. Max ASR in ms (speech / noise-only).**
+
+| Cell | (A) WER | (B) | (C) | (C+) | (C2) |
+|---|---|---|---|---|---|
+| VIVOS×DEMAND clean | 5.73 | +1.12 | +1.12 | 0.00 | 0.00 |
+| VIVOS×DEMAND 20 | 6.85 | +0.92 | 0.00 | −0.20 | −0.20 |
+| VIVOS×DEMAND 10 | 7.16 | +0.82 | −0.10 | −0.31 | −0.31 |
+| VIVOS×DEMAND 5 | 8.69 | +0.61 | −0.10 | **+1.64** | **+1.64** |
+| VIVOS×DEMAND 0 | 11.66 | +1.94 | +0.71 | **+1.43** | **+1.43** |
+| VIVOS×MUSAN clean | 5.73 | +1.12 | +1.12 | 0.00 | 0.00 |
+| VIVOS×MUSAN 20 | 5.93 | 0.00 | +0.10 | 0.00 | 0.00 |
+| VIVOS×MUSAN 10 | 6.75 | −0.10 | +0.20 | −0.10 | −0.10 |
+| VIVOS×MUSAN 5 | 7.87 | +0.21 | 0.00 | **+0.21** | **+0.21** |
+| VIVOS×MUSAN 0 | 14.83 | −0.52 | −0.41 | −0.52 | −0.52 |
+| FLEURS clean | 15.49 | −0.43 | +0.23 | −0.30 | −0.30 |
+| **Mean ΔWER** | | +0.517 | +0.261 | +0.168 | +0.168 |
+| **Max ASR, speech** | 35 875 | 2 874 | 8 503 | 2 876 | 2 869 |
+| **Max ASR, noise-only** | 21 675 | 3 155 | 9 914 | 3 476 | 3 485 |
+
+More detail per cell (CSV columns):
+- **Speech P95** for (A) reaches 7 198 ms at DEMAND 0 dB and 3 836 ms on FLEURS; (C+)/(C2) are 1.4–2.1 s everywhere. P50 is about 1.15–1.24 s in every configuration.
+- **Cap hits** (an attempt reached its limit on speech): (A) 0–8 (at 224); (B) 0; (C) 0–7, all on the uncapped T=0; (C+)/(C2) **0** everywhere.
+- **Fallback segments / re-decodes on speech:** (A) up to 13 / 26 (FLEURS); (C) 13 / 13; (C+)/(C2) 0–2 / 0–2.
+- **Budget skips in (C2): 0 in every cell.** With the T=0 limit of (C+), no segment ever reached 4 s, so (C2) ≡ (C+).
+
+**Decision rule** (each cell ≤ +0.1, mean ≤ 0, VIVOS clean and FLEURS clean ≤ 0): **no configuration passes.** All stay optional; **no default was changed.**
+
+**Why each one fails: "tried, failed, why".**
+- **(B) — fails as predicted.**
+  - The fresh runs equal the old cap exactly: VIVOS clean 6.85 (+1.12), FLEURS 15.06.
+  - The tail strip **never triggered** (`cap_hits = 0`).
+  - The cap changes the temperature-0 beam result **without reaching the limit**: tails of "a." and dots on otherwise correct sentences (clips 30, 63, 8). Stripping only on a hit cannot catch them.
+- **(C) — fails on the clean cells (+1.12), and its max is still 8.5 s.**
+  - The uncapped T=0 loop (about 6 s) remains.
+  - The capped *sampling* attempts also change result, e.g. clip 70 "nhạc sĩ … a sĩ la hối với…". The cap acts on the sampling path too, not only by cutting.
+- **(C+)/(C2) — pass both main cells (VIVOS clean 0.00, FLEURS −0.30), are better in 6 cells, and bring max from 35.9 s to 2.9 s.** They fail on three cells:
+  - **DEMAND 5 dB (+1.64) is one clip.** In clip 70, the T=0 loop is now cut at about 51 tokens. Its compression ratio stays under 2.4, so faster-whisper accepts it without a retry: "nhạc sĩ la hối … tuổi trẻ. a sĩ la hối với ca khúc xuân và tuổi trẻ. a sĩ la hối với ca" (+11 words). In (A) the loop ran to 83 tokens, failed the compression check, and the retry gave the short line.
+  - **DEMAND 0 dB (+1.43)** has the same pattern: partial-repeat tails in clips 45 and 79, and a changed first word in clips 41 and 44.
+  - **MUSAN 5 dB (+0.21)** is one word in clip 82: "thông thốc thổi" → "không thốc khỏi".
+  - A what-if on the cached text, stripping the "a."/dot tail only on outputs ending in a dot run, does not fix these cells: the damage is the **partial repeat**, not the dots.
+
+**Limitations.** One model and one seed; 100 utterances per cell, so 1 point ≈ 7–10 words. The (C+) failures come from a handful of clips (one clip = 1.64 points at DEMAND 5 dB).
+
+**Possible next steps** (not done; for the human to decide):
+1. **(C3) = (C+) + a "truncated loop" guard.** When the T=0 attempt was limited and its tokens end in a repeat (the same n-gram ≥ 2 times in the tail) or a dot run, the wrapper runs the next temperature instead of accepting. Only possible by deciding in the wrapper, not by faking a result. Needs care and a re-bench.
+2. A wider T=0 limit (150 or 200 tokens): fewer truncated loops get accepted, max about 4–6 s. One bench run each.
+3. Keep (A) and rely on the speaker indicator. It already turns red at 6 s of ASR.
 
 ## Questions for you (answered above)
 

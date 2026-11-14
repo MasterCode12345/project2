@@ -405,6 +405,7 @@ Máy dùng để đo: MacBook Pro (Apple Silicon, 8 GB RAM), chạy bằng CPU (
 
 | Nhận dạng bị kẹt (cấu hình gốc), PhoWhisper + Silero + lọc | đoạn giọng thật lâu nhất 10–34 s ở mọi bộ (kể cả sạch); đoạn chỉ có nhiễu tới 20–30 s (DEMAND) | `results/stall_*.csv` |
 | Thử giới hạn token 15/s + 32 (mặc định **tắt**) | lâu nhất còn 1,5–3 s, P95 ~1,5 s; nhưng WER tệ hơn: sạch +1,12, DEMAND +0,6 đến +1,9; MUSAN 0 dB −0,52, FLEURS −0,59 | `results/stall_*.csv` |
+| Chống kẹt theo từng lượt giải mã (mặc định **tắt**) | (C+): lượt T=0 giới hạn ≥ 100 token, các lượt giải mã lại 15/s + 32. ASR lâu nhất còn 2,9 s (A: 35,9 s); hai ô chính không tệ hơn (VIVOS sạch 0,00; FLEURS −0,30), nhưng DEMAND 5/0 dB +1,64/+1,43 vì vòng lặp bị cắt ngắn rồi được chấp nhận (một câu thừa khoảng 11 từ). Chưa cấu hình nào đạt tiêu chí | `results/antistall_*.csv` |
 
 Chi tiết từng bench nằm ở mục 4 ("Chống câu ma") và mục 6.2.
 
@@ -537,6 +538,11 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
    - Bench (`results/stall_*.csv`) cho thấy kẹt xảy ra cả trên giọng **sạch**: đoạn lâu nhất 10–34 s ở mọi bộ.
    - Giới hạn token 15/s + 32 hết kẹt (lâu nhất 1,5–3 s), nhưng làm đổi kết quả beam search: thêm đuôi "a." hoặc chuỗi dấu chấm, nên WER sạch tệ hơn 1,12 điểm. Chỉ rút dãy temperature thì gần như không giới hạn được.
    - Chưa biến thể nào đạt tiêu chí "WER không tệ hơn quá 0,5 điểm", nên **mặc định vẫn tắt**. Thử bằng `--asr-max-tokens-per-s 15` (dùng được cả với giao diện lẫn `--cli`; kịch bản (e) trong `docs/manual_test.md`).
+   - Đã thử thêm 3 cách chống kẹt theo từng lượt giải mã (`results/antistall_*.csv`, plan `plan-asr-anti-stall.md`):
+     - (B) giới hạn token kèm bỏ đuôi rác;
+     - (C) chỉ giới hạn các lượt giải mã lại;
+     - (C+)/(C2) giới hạn rộng cho lượt T=0, có hoặc không có ngân sách thời gian.
+   - Kết quả: (C+) hết kẹt (ASR lâu nhất 2,9 s) mà hai ô chính không tệ hơn, nhưng vẫn tệ hơn ở DEMAND 5 và 0 dB, nên **mặc định vẫn tắt**. Thử bằng `--asr-fallback-max-tokens-per-s 15 --asr-first-min-tokens 100`.
    - Đèn báo cảnh báo người nói khi nhận dạng quá 3 s / 6 s.
 2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
 3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
