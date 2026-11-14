@@ -149,7 +149,9 @@ Theo góp ý của giảng viên, app có một đèn **xanh / vàng / đỏ** �
 - Đèn lên mức ngay lập tức, nhưng chỉ hạ mức sau khi mức thấp hơn giữ được 1 s, để không nhấp nháy.
 - Giao diện: một đèn tròn có màu, biểu tượng (✓ ⚠ ✋) và dòng chữ, nên không chỉ dựa vào màu. Khi chưa chạy, đèn màu xám.
 - CLI: in một dòng `[đèn] VÀNG: …`, chỉ khi đèn đổi mức.
-- `--latency-log` ghi thêm hai cột `health_max` và `health_reason`: mức đèn cao nhất trong lúc xử lý đoạn đó và lý do.
+- `--latency-log` ghi thêm các cột:
+  - `health_max`, `health_reason`: mức đèn cao nhất trong lúc xử lý đoạn đó, và lý do lần đầu đạt mức đó;
+  - `health_reasons`: mọi lý do đèn đã báo trong thời gian đó, theo thứ tự thời gian, không lặp, kèm mức, ví dụ `vàng: Đang xử lý, nói chậm lại | vàng: Đang phát bản dịch, chờ một chút`.
 - Mọi ngưỡng nằm trong `Settings` (`indicator_*`). Lý do chọn từng ngưỡng ở `_bmad-output/initiative-audio-translator/plan-speaker-indicator.md`.
 - Kịch bản thử: mục (d) của [docs/manual_test.md](docs/manual_test.md).
 
@@ -357,7 +359,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 352 passed
+uv run --group eval pytest -q     # 355 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -558,7 +560,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  352 test (pytest)
+├── tests/                  355 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu

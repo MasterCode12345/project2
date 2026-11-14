@@ -34,6 +34,7 @@ MESSAGES = {
     (QUALITY, YELLOW): "Câu vừa rồi nghe không rõ, hãy nói lại",
 }
 OK_MESSAGE = "Đang nghe, nói bình thường"
+LEVEL_WORDS = {GREEN: "xanh", YELLOW: "vàng", RED: "đỏ"}
 
 
 @dataclass
@@ -206,3 +207,21 @@ class HealthTracker:
             if best is None or RANK[lvl] > RANK[best[0]]:
                 best = (lvl, why)
         return best or ("", "")
+
+    def reasons_between(self, t0: float, t1: float) -> list[tuple[str, str]]:
+        """Every (level, reason) the light showed as its main reason during [t0, t1], in time
+        order, each once (green is left out: it has no reason)."""
+        with self._lock:
+            hist = list(self._hist)
+        out: list[tuple[str, str]] = []
+        for i, (t, lvl, why) in enumerate(hist):
+            end = hist[i + 1][0] if i + 1 < len(hist) else float("inf")
+            if end < t0 or t > t1 or lvl == GREEN or (lvl, why) in out:
+                continue
+            out.append((lvl, why))
+        return out
+
+
+def format_reasons(reasons: list[tuple[str, str]]) -> str:
+    """``"vàng: Đang xử lý, nói chậm lại | vàng: Đang phát bản dịch, chờ một chút"``."""
+    return " | ".join(f"{LEVEL_WORDS.get(lvl, lvl)}: {why}" for lvl, why in reasons)

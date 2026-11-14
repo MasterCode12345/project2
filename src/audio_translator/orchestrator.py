@@ -20,7 +20,7 @@ from .capture import AudioCapture
 from .config import Settings
 from .denoise import NoiseSuppressor, from_settings as noise_suppressor_from_settings
 from .devices import DeviceInfo, resolve_device
-from .health import GREEN, HealthTracker, Metrics, unclear_reason
+from .health import GREEN, HealthTracker, Metrics, format_reasons, unclear_reason
 from .latency_log import DROPPED, PLAYED, LatencyLog
 from .model_manager import ModelInfo, ModelManager
 from .models import (
@@ -655,13 +655,17 @@ class Orchestrator:
             self._lat_done.add((sid, seg_id))
             audio_s, forced = self._lat_seg.pop((sid, seg_id), (None, None))
         start = ts.get("speech_start", ts.get("segmented"))
-        hmax, hwhy = ("", "") if start is None or sid != self._health_sid else \
-            self._health.max_between(start, self.clock())
+        if start is None or sid != self._health_sid:
+            hmax, hwhy, hall = "", "", ""
+        else:
+            now = self.clock()
+            hmax, hwhy = self._health.max_between(start, now)
+            hall = format_reasons(self._health.reasons_between(start, now))
         try:
             log.write(session_id=sid, segment_id=seg_id, status=status, timestamps=ts,
                       session=self._lat_session, reason=reason, detail=detail, text_vi=text_vi,
                       text_en=text_en, audio_s=audio_s, forced_cut=forced, health_max=hmax,
-                      health_reason=hwhy)
+                      health_reason=hwhy, health_reasons=hall)
         except (OSError, ValueError) as exc:  # disk full, closed file: never stop the session
             self._latlog = None
             log.close()

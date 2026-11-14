@@ -426,3 +426,82 @@ def test_long_translations_turn_the_light_on_while_the_next_one_waits(harness):
     assert ev.data["level"] == YELLOW and ev.data["reason"].startswith("Đang phát bản dịch, chờ một chút")
     h.log.wait_for(lambda e: e.kind == RESULT and e.data["source_text"] == "ngắn", timeout=10)
     green_after(h, ev)
+
+
+# ------------------------------------------------------------ all reasons per segment (log)
+def test_reasons_between_lists_every_reason_in_order_once():
+    from audio_translator.health import format_reasons
+
+    t = HealthTracker(Settings(indicator_down_hold_s=0.0))
+    t.update(0.0, Metrics())
+    t.update(1.0, Metrics(asr_busy_s=3.5))  # yellow: ASR backlog
+    t.update(2.0, Metrics(playout_wait_s=5.9))  # yellow: playout, same level, new reason
+    t.update(3.0, Metrics(asr_busy_s=3.5))  # backlog again: not repeated
+    t.update(4.0, Metrics(playout_wait_s=8.5))  # red: playout
+    t.update(5.0, Metrics())
+    got = t.reasons_between(0.5, 4.5)
+    assert got == [(YELLOW, "Đang xử lý, nói chậm lại"), (YELLOW, "Đang phát bản dịch, chờ một chút"),
+                   (RED, "Đang phát bản dịch, chờ một chút")]
+    assert format_reasons(got[:2]) == "vàng: Đang xử lý, nói chậm lại | vàng: Đang phát bản dịch, chờ một chút"
+    assert t.max_between(0.5, 4.5) == (RED, "Đang phát bản dịch, chờ một chút")  # unchanged
+    assert t.reasons_between(5.5, 9.0) == [] and format_reasons([]) == ""
+
+
+def test_log_keeps_both_reasons_of_a_segment_like_2_2_of_the_wait_test(harness, tmp_path):
+    """latency_wait_20261114_1441.csv, session 2 segment 2: 'cảm ơn bạn.' waited for ASR, then 5.9 s
+    behind a long translation; the log kept only the first reason. Now every reason is listed."""
+    import numpy as np
+
+    from conftest import FakeTTS
+    from test_latency_log import wait_rows
+
+    class SlowShortASR(FakeASR):
+        def transcribe(self, audio, sample_rate):
+            text = super().transcribe(audio, sample_rate)
+            if text == "cảm ơn bạn.":
+                time.sleep(0.4)  # the light: "Đang xử lý" (ASR > warn)
+            return text
+
+    class LongTTS(FakeTTS):
+        def synthesize(self, text):
+            super().synthesize(text)
+            secs = 6.0 if "dài" in text else 0.3
+            return np.full(int(24000 * secs), 0.5, dtype=np.float32), 24000
+
+    p = tmp_path / "lat.csv"
+    h = harness(settings=fast(indicator_asr_warn_s=0.15, indicator_asr_stop_s=10.0, indicator_playout_warn_s=0.5,
+                              indicator_playout_stop_s=30.0, latency_log=str(p)),
+                asr=SlowShortASR(responses=["câu dài", "cảm ơn bạn."]), tts=LongTTS())
+    h.start()
+    h.say(utterance(10))
+    h.log.wait_for(lambda e: e.kind == RESULT)
+    h.say(utterance(10))
+    rows = {r["segment_id"]: r for r in wait_rows(p, 2, timeout=15)}
+    r = rows["2"]
+    assert r["health_reasons"] == "vàng: Đang xử lý, nói chậm lại | vàng: Đang phát bản dịch, chờ một chút"
+    assert (r["health_max"], r["health_reason"]) == (YELLOW, "Đang xử lý, nói chậm lại")  # old columns as before
+    assert rows["1"]["health_reasons"] == ""  # a long translation alone: nothing reported
+
+
+def test_report_still_reads_logs_with_and_without_the_new_column(tmp_path, capsys):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    from audio_translator.latency_log import COLUMNS, LatencyLog
+
+    spec = importlib.util.spec_from_file_location("lr_hr", Path(__file__).resolve().parents[1] / "eval" / "latency_report.py")
+    lr = importlib.util.module_from_spec(spec)
+    sys.modules["lr_hr"] = lr
+    spec.loader.exec_module(lr)
+    assert COLUMNS.index("health_reasons") == COLUMNS.index("health_reason") + 1
+    p = tmp_path / "new.csv"
+    log = LatencyLog(p)
+    log.write(session_id=1, segment_id=1, status="played", timestamps={"speech_end": 1.0}, session={},
+              health_max=YELLOW, health_reason="a", health_reasons="vàng: a | vàng: b")
+    log.close()
+    assert lr.main([str(p)]) == 0
+    old = tmp_path / "old.csv"
+    old.write_text("session_id,segment_id,status,health_max,health_reason,e2e_ms\n1,1,played,yellow,a,3000\n")
+    assert lr.main([str(old)]) == 0
+    assert "yellow" in capsys.readouterr().out
