@@ -542,7 +542,12 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
      - (B) giới hạn token kèm bỏ đuôi rác;
      - (C) chỉ giới hạn các lượt giải mã lại;
      - (C+)/(C2) giới hạn rộng cho lượt T=0, có hoặc không có ngân sách thời gian.
-   - Kết quả: (C+) hết kẹt (ASR lâu nhất 2,9 s) mà hai ô chính không tệ hơn, nhưng vẫn tệ hơn ở DEMAND 5 và 0 dB, nên **mặc định vẫn tắt**. Lần thử thứ hai (C3: lượt T=0 bị cắt hoặc lặp thì giải mã lại) cũng chưa đạt; xem `plan-asr-anti-stall.md`. Thử trong app bằng `--asr-anti-stall c3a` hoặc `c3b`, kịch bản (e) trong `docs/manual_test.md`.
+   - Kết quả: (C+) hết kẹt (ASR lâu nhất 2,9 s) mà hai ô chính không tệ hơn, nhưng vẫn tệ hơn ở DEMAND 5 và 0 dB, nên **mặc định vẫn tắt**. Thêm hai lượt thử, C3 và C4, đều chưa đạt; hướng chống kẹt dừng ở đây (`plan-asr-anti-stall.md`).
+     - C3: lượt T=0 bị cắt hoặc bị lặp thì giải mã lại.
+     - C4: trần tính bằng token thực, và không bao giờ chấp nhận một lượt bị cắt.
+     - C4 hết kẹt dài (ASR lâu nhất 6–9,6 s, so với 35,9 s) nhưng làm mất trọn vài câu ở DEMAND 0 dB (+2,96 WER), vì faster-whisper vẫn chọn lượt bị cắt khi mọi lượt đều thất bại.
+     - Mặc định giữ nguyên. Thử trong app bằng `--asr-anti-stall c4a`, kịch bản (e) trong `docs/manual_test.md`.
+     - Phát hiện phụ: CTranslate2 chỉ sinh `max_length // 2` token, nên các trần trước đây thực tế chỉ dùng khoảng một nửa số token.
    - Đèn báo cảnh báo người nói khi nhận dạng quá 3 s / 6 s.
 2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
 3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.

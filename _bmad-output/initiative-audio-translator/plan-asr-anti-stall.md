@@ -2,7 +2,7 @@
 title: 'ASR anti-stall without a WER cost: compare (A) default, (B) cap + tail strip, (C) cap on fallback attempts only'
 type: 'feature'
 created: '2026-11-14'
-status: 'C3 measured (step 1) — no configuration passes; all stay optional (default unchanged)'
+status: 'closed — no configuration passes (A, B, C, C+, C2, C3a/b, C4a/b); default stays (A), --asr-anti-stall off'
 baseline_revision: 'main @ fix/polish merge (junk tokens unk/ofc on)'
 branch: 'feat/asr-anti-stall'
 route: 'full'
@@ -311,6 +311,84 @@ Implementation:
 - **Sampling makes some retries plainly worse**, e.g. (C3b) DEMAND 0 dB clip 41: "k tôi muốn sử dụng quần áo mới." against (A) "cũng chẳng còn xum xích quần áo mới.". A different path changes which sample is drawn.
 - **One word differs in every capped configuration** (MUSAN 5 dB clip 82: "thông thốc thổi" → "không thốc khỏi").
 
+## C4 (human, 2026-11-15): real-token limits + "a truncated attempt is never accepted" — the last round
+
+### 1. Limits are real tokens now
+
+**Measurement on phowhisper-small** (a long VIVOS utterance, `max_new_tokens` swept over 8–40):
+- with the plain 3-token prompt (the app default), the model generates `max_length // 2` tokens;
+- with an initial-prompt context of 28 tokens, it generates `max_length − prompt + 1`.
+
+**Code.**
+- `asr.max_length_for(N, prompt)` and `real_token_limit()` encode both rules, so a configured N gives N tokens.
+- `Settings.asr_max_tokens_per_s` (the global cap) now goes through `DecodeLimiter` in real tokens, no longer through faster-whisper's `max_new_tokens`.
+- `test_real_model_generates_exactly_the_configured_tokens` checks N = 6/12/20, with and without a prompt, on the real model. It is skipped when the model or VIVOS is absent.
+
+**Note.** Every earlier capped result (stall bench, (B), (C), (C+), (C2), (C3a/b)) really used about **half** the configured tokens. The same correction is noted in plan-speaker-indicator.md.
+
+### 2. The cap, chosen from data
+
+Source: (A) on clean VIVOS + FLEURS, segments accepted at temperature 0 (one attempt, ended by EOT; loops excluded).
+
+| | Segments | p50 | p99 | Max |
+|---|---|---|---|---|
+| VIVOS | 98 | 6.6 tok/s | 9.2 tok/s | **9.2 tok/s**, 36 tokens |
+| FLEURS | 231 | 6.0 tok/s | 19.4 tok/s | 25.0 tok/s (a 0.96 s junk line) |
+
+The tightest FLEURS segment is 96 tokens in 4.38 s (a sentence followed by a dot run).
+
+| Candidate cap | Normal clean segments hitting it | Minimum headroom |
+|---|---|---|
+| 15 / s + 32 | 0 | 2 tokens |
+| **20 / s + 32 (chosen)** | **0** | **24 tokens (25 %)** |
+| | across all (A) cells: 2, both junk-dot lines at 0–5 dB | |
+
+### 3. The rule
+
+- **Truncation (C4a).** An attempt of **any** temperature that stopped at its limit (no EOT) is marked failed. Its average log-prob is lowered by 1000, which is reversible and keeps the order between marked attempts. It is never preferred by log-prob over an unmarked attempt.
+- **All attempts truncated.** faster-whisper picks the best of them. `WhisperASR` restores the real log-prob and trims the tail (from the second copy of a repeated 4-word group; then a dot run or a stray "a"). This case is counted (`all_truncated`).
+- **Loop rule (C4b).** C4a + C3b's loop rule on temperature 0.
+- The 4 s budget is kept.
+
+### 4. Step 1 (VIVOS clean, FLEURS clean, DEMAND 5/0 dB, MUSAN 5 dB) — `results/antistall_step1_c3_c4.csv`
+
+| Cell | (A) WER | (C4a) Δ | (C4b) Δ | Max speech ms (A → C4a / C4b) | Segments caught | All truncated (speech) | Budget skips |
+|---|---|---|---|---|---|---|---|
+| VIVOS clean | 5.73 | **−0.11** | **−0.11** | 15 159 → 6 075 / 8 280 | 2 / 2 | 2 / 2 | 8 / 8 |
+| DEMAND 5 dB | 8.69 | +1.02 | +0.21 | 10 097 → 4 759 / 5 991 | 1 / 2 | 0 / 0 | 4 / 4 |
+| DEMAND 0 dB | 11.66 | **+2.96** | **+2.25** | 23 678 → 9 586 / 8 307 | 8 / 8 | 4 / 3 | 24 / 16 |
+| MUSAN 5 dB | 7.87 | 0.00 | 0.00 | 7 330 → 6 187 / 5 792 | 1 / 1 | 1 / 1 | 4 / 4 |
+| FLEURS clean | 15.49 | +0.16 | +0.06 | 35 875 → 9 387 / 7 506 | 14 / 17 | 8 / 9 | 30 / 38 |
+| **Mean Δ** | | +0.81 | +0.48 | | | | |
+
+**Neither passes. Step 2 was not run. Per the instruction, this direction stops here.**
+
+**Why: sentences are now lost, not padded.** In DEMAND 0 dB clips 70, 44 and 41, the transcript becomes empty. Clip 70 at 5 dB shows the chain:
+1. T=0 ends by itself at 83 tokens with a loop, so faster-whisper rejects it on compression ratio.
+2. T=0.2 is truncated at 100/100 and marked.
+3. The 4 s budget is then spent (1.7 + 2.4 s), so no further attempt runs.
+4. In its "all failed" choice, faster-whisper prefers results **below the compression threshold** before comparing log-prob. A truncated attempt is short, so it is below the threshold, and it wins *despite* the mark. (It is not "all truncated", because T=0 ended by itself, so nothing is restored.)
+5. The ASR filter then drops it on log-prob, and the whole sentence is lost.
+
+In the "all truncated" cases, the trimmed text still carries the compression ratio of the untrimmed text, so the filter can drop it as well. The budget makes "everything failed" common: with real-token caps an attempt takes up to about 3 s, so roughly one retry fits.
+
+## Conclusion (2026-11-15)
+
+- **Default stays (A)**: faster-whisper's own decoding. `--asr-anti-stall` stays `off`.
+- `c4a`/`c4b` remain selectable for real-call trials only.
+- **What stays from this work:**
+  - the corrected token-limit accounting and the measured `max_length` rule (with a real-model test);
+  - the `DecodeLimiter` wrapper with its tests;
+  - the bench columns (p50, cap hits, re-decodes, rule catches, all-truncated, budget skips) and `--segments-out`;
+  - every result: `results/stall_*.csv`, `results/antistall_*.csv`, `results/antistall_step1_c3_c4.csv`.
+- **The stall itself is mitigated, not removed.** The speaker indicator turns red at 6 s of ASR and yellow on unclear segments.
+
+**Possible extensions (not done).**
+1. **Own the fallback loop.** Call CTranslate2 `generate` per temperature from `WhisperASR` and make the final choice ourselves (never a truncated attempt; trim and recompute compression; no "below compression first" rule). This removes every interaction above, but re-implements part of faster-whisper's `generate_with_fallback`. A bigger change, measured the same way.
+2. A larger or adaptive budget (e.g. 8 s), so that at least two full retries fit under the real-token caps.
+3. Recompute the compression ratio and log-prob of a trimmed result before the ASR filter.
+4. A second ASR worker, or a smaller model for retries, so that a stall does not block the next segment. This is an architectural change.
+
 ## Tried, did not pass (kept reproducible through Settings + `eval/asr_bench.py` flags; no app flag)
 
 | Config | What | Why it failed |
@@ -321,8 +399,10 @@ Implementation:
 | (C2) | (C+) + 4 s budget | ≡ (C+): the budget never triggered |
 | (C3a) | (C+) + retry a truncated T=0 | +1.12 VIVOS clean, FLEURS +0.32: the capped retries are truncated and accepted |
 | (C3b) | (C3a) + retry a looping T=0 | +1.12 VIVOS clean, FLEURS +0.36, DEMAND 0 dB +0.81 (DEMAND 5 dB −0.92) |
+| (C4a) | real-token cap 20/s + 32 on every attempt, never accept a truncated attempt, 4 s budget | DEMAND 0 dB +2.96, DEMAND 5 dB +1.02: whole sentences lost (a truncated, below-compression attempt is chosen in the "all failed" case, then filtered out) |
+| (C4b) | (C4a) + the loop rule on T=0 | DEMAND 0 dB +2.25, DEMAND 5 dB +0.21, FLEURS +0.06; the same loss |
 
-App flag kept: `--asr-anti-stall {off, c3a, c3b}` (default `off`), for real-call trials only.
+App flag kept: `--asr-anti-stall {off, c4a, c4b}` (default `off`), for real-call trials only. C3 has no app preset any more.
 
 ## Questions for you (answered above)
 
