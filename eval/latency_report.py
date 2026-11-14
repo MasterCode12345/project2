@@ -63,16 +63,28 @@ def drop_counts(rows: list[dict]) -> collections.Counter:
     return c
 
 
+def health_counts(rows: list[dict]) -> list[tuple[str, int, int, str]]:
+    """(level, played, dropped, most frequent reason) by ``health_max``; [] for logs without it."""
+    out = []
+    for lvl in ("green", "yellow", "red"):
+        sel = [r for r in rows if r.get("health_max") == lvl]
+        if sel:
+            why = collections.Counter(r.get("health_reason", "") for r in sel if r.get("health_reason"))
+            out.append((lvl, sum(r.get("status") == PLAYED for r in sel), sum(r.get("status") == DROPPED for r in sel),
+                        why.most_common(1)[0][0] if why else ""))
+    return out
+
+
 def report(rows: list[dict], markdown: bool = False) -> str:
     lines = []
     played = sum(r.get("status") == PLAYED for r in rows)
     dropped = sum(r.get("status") == DROPPED for r in rows)
-    configs = sorted({tuple(r.get(k, "") for k in ("asr_model", "vad", "asr_filter", "restore", "translator"))
-                      for r in rows})
+    configs = sorted({tuple(r.get(k, "") or "?" for k in ("asr_model", "asr_decode", "vad", "asr_filter", "restore",
+                                                         "translator")) for r in rows})
     sessions = sorted({(r["_file"], r.get("session_id", "")) for r in rows})
     lines.append(f"{len(rows)} segment(s) in {len(sessions)} session(s): {played} played, {dropped} dropped")
     for c in configs:
-        lines.append("config: asr_model={} vad={} asr_filter={} restore={} translator={}".format(*c))
+        lines.append("config: asr_model={} asr_decode={} vad={} asr_filter={} restore={} translator={}".format(*c))
     words = [int(r["n_words_vi"]) for r in rows if r.get("status") == PLAYED and r.get("n_words_vi")]
     if words:
         lines.append(f"words per played segment (vi): mean {np.mean(words):.1f}, max {max(words)}")
@@ -86,6 +98,15 @@ def report(rows: list[dict], markdown: bool = False) -> str:
         lines += [f"{s:<16} {n:>4} {m:>8.0f} {p50:>8.0f} {p95:>8.0f} {mx:>8.0f}" for s, n, m, p50, p95, mx in stats]
     if not stats:
         lines.append("(no played segment with timestamps)")
+    lights = health_counts(rows)
+    if lights:
+        lines.append("")
+        if markdown:
+            lines += ["| Đèn cao nhất | Đã phát | Đã bỏ | Lý do hay gặp nhất |", "|---|---|---|---|"]
+            lines += [f"| {lvl} | {p} | {d} | {why or '–'} |" for lvl, p, d, why in lights]
+        else:
+            lines.append("speaker indicator, highest level per segment (played / dropped, top reason):")
+            lines += [f"  {lvl:<7} {p:>3} / {d:<3} {why}" for lvl, p, d, why in lights]
     drops = drop_counts(rows)
     if drops:
         lines.append("")

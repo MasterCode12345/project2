@@ -20,10 +20,12 @@ from .capture import AudioCapture
 from .config import Settings
 from .denoise import NoiseSuppressor, from_settings as noise_suppressor_from_settings
 from .devices import DeviceInfo, resolve_device
+from .health import GREEN, HealthTracker, Metrics, unclear_reason
 from .latency_log import DROPPED, PLAYED, LatencyLog
 from .model_manager import ModelInfo, ModelManager
 from .models import (
     ERROR,
+    HEALTH,
     IDLE,
     INFO,
     MODEL,
@@ -131,6 +133,14 @@ class Orchestrator:
         self._lat_seg: dict[tuple[int, int], tuple[float, bool]] = {}
         self._lat_done: set[tuple[int, int]] = set()
         self._lat_lock = threading.Lock()
+        # Speaker indicator (health.py): the tracker lives on the monitor thread; the ASR
+        # worker only stamps _asr_busy = (session, asr_start) and posts "unclear" notes.
+        self._health = HealthTracker(s)
+        self._health_sid: int | None = None  # session the tracker was reset for
+        self._health_tick = float("-inf")
+        self._health_emit_t = float("-inf")
+        self._health_key: tuple | None = None
+        self._asr_busy: tuple[int, float] | None = None
 
         self._shutdown = threading.Event()
         self._workers: list[threading.Thread] = []
@@ -208,7 +218,9 @@ class Orchestrator:
         s = self.settings
         return WhisperASR(name, language=s.source_lang, device=s.asr_device,
                           compute_type=s.compute_type, beam_size=s.beam_size,
-                          initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s))
+                          initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s),
+                          max_tokens_per_s=s.asr_max_tokens_per_s, max_tokens_base=s.asr_max_tokens_base,
+                          temperatures=s.asr_temperatures)
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None
@@ -611,6 +623,7 @@ class Orchestrator:
             self._restorer_model[0] if self._restorer_model else s.restore)
         self._lat_session = {
             "asr_model": model,  # the model that really runs (a fallback, not the selection)
+            "asr_decode": getattr(asr, "decode", ""),  # bounded decoding in use (base = off)
             "vad": s.vad_backend if self._vad_factory is None else "injected",
             "asr_filter": "on" if filt is not None else ("off" if hasattr(asr, "segment_filter") else ""),
             "restore": restore,
@@ -641,10 +654,14 @@ class Orchestrator:
                 return
             self._lat_done.add((sid, seg_id))
             audio_s, forced = self._lat_seg.pop((sid, seg_id), (None, None))
+        start = ts.get("speech_start", ts.get("segmented"))
+        hmax, hwhy = ("", "") if start is None or sid != self._health_sid else \
+            self._health.max_between(start, self.clock())
         try:
             log.write(session_id=sid, segment_id=seg_id, status=status, timestamps=ts,
                       session=self._lat_session, reason=reason, detail=detail, text_vi=text_vi,
-                      text_en=text_en, audio_s=audio_s, forced_cut=forced)
+                      text_en=text_en, audio_s=audio_s, forced_cut=forced, health_max=hmax,
+                      health_reason=hwhy)
         except (OSError, ValueError) as exc:  # disk full, closed file: never stop the session
             self._latlog = None
             log.close()
@@ -799,16 +816,24 @@ class Orchestrator:
             asr = self._asr
             if asr is None:
                 continue  # session ended; the segment is stale
+            self._asr_busy = (seg.session_id, ts["asr_start"])
             try:
                 text = asr.transcribe(seg.audio, seg.sample_rate).strip()
             except Exception as exc:
+                self._asr_busy = None
                 self._skip_report(seg, WARNING, f"Segment {seg.segment_id}: ASR failed: {exc}",
                                   reason="asr_error", detail=str(exc))
                 continue
             ts["asr_end"] = self.clock()
+            self._asr_busy = None
+            # ASR filter reasons (one ASR worker: read right after transcribe), e.g. a ghost sentence.
+            filtered = [d for d in getattr(asr, "dropped", None) or [] if d[0] not in ("repetition", "unk")]
+            why = unclear_reason(self.settings, filtered=bool(filtered), asr_s=ts["asr_end"] - ts["asr_start"],
+                                 audio_s=len(seg.audio) / seg.sample_rate if seg.sample_rate else 0.0,
+                                 fallback=(getattr(asr, "last_temperature", 0.0) or 0.0) > 0)
+            if why:
+                self._post(("unclear", seg.session_id, seg.segment_id, why))
             if not text:
-                # ASR filter reasons (one ASR worker: read right after transcribe), e.g. a ghost sentence.
-                filtered = [d for d in getattr(asr, "dropped", None) or [] if d[0] != "repetition"]
                 seg.timestamps.update(ts)
                 self._skip_report(seg, INFO, f"Segment {seg.segment_id}: no speech recognised; skipped",
                                   reason="no_speech",
@@ -878,6 +903,7 @@ class Orchestrator:
             item = self._get(self._monitor_q)
             if item is not None:
                 self._handle_monitor(item)
+            self._tick_health()
             fatal = self._fatal
             if fatal is not None:
                 self._fatal = None
@@ -902,11 +928,57 @@ class Orchestrator:
                 data={"source_text": clip.source_text, "text": clip.text, "latency": lat,
                       "timestamps": dict(clip.timestamps)},
             ))
+        elif kind == "unclear":
+            _, sid, _seg_id, why = item
+            if sid == self._session:
+                now = self.clock()
+                self._health_session(sid, now)
+                self._health.note_unclear(now, why)
         elif kind == "notice":
             _, nkind, sid, seg_id, msg = item
             if sid == self._session:
                 self._log_latency(sid, seg_id, DROPPED, {}, reason=f"playout_{nkind}", detail=msg)
                 self._emit(Event(WARNING, msg, sid, seg_id, data={"notice": nkind}))
+
+    # ------------------------------------------------------ speaker indicator
+    def _health_session(self, sid: int, now: float) -> None:
+        """Monitor thread: a new session starts from green, nothing carried over."""
+        if sid != self._health_sid:
+            self._health_sid = sid
+            self._health_key = None
+            self._health.reset(now)
+
+    def _tick_health(self) -> None:
+        """Monitor thread: evaluate the indicator (at most indicator_rate_hz) and emit HEALTH
+        when the light changes, or once a second while it is not green (live numbers)."""
+        now = self.clock()
+        if now - self._health_tick < 1.0 / max(self.settings.indicator_rate_hz, 0.1):
+            return
+        self._health_tick = now
+        sid = self._session
+        if sid is None or self._state != RUNNING:
+            return
+        self._health_session(sid, now)
+        seg = self._segmenter
+        busy = self._asr_busy
+        playout = self._playout
+        busy_now = busy is not None and busy[0] == sid
+        queued = self._seg_q.qsize()
+        # A segment queued while the ASR worker is idle is picked up at once: it does not wait.
+        waiting = queued if busy_now else max(0, queued - 1)
+        m = Metrics(open_s=seg.open_s if seg is not None else 0.0, asr_waiting=waiting,
+                    asr_busy_s=now - busy[1] if busy_now else 0.0,
+                    playout_wait_s=playout.wait_s if playout is not None else 0.0)
+        h = self._health.update(now, m)
+        key = h.key
+        if key == self._health_key and (h.level == GREEN or now - self._health_emit_t < 1.0):
+            return
+        with self._lock:  # short: never emit for a session that has just stopped
+            if self._session != sid:
+                return
+            data = {**h.event_data(), "changed": key != self._health_key}  # False: numbers refresh only
+            self._health_key, self._health_emit_t = key, now
+            self._emit(Event(HEALTH, f"{data['level']}: {data['reason']}", session_id=sid, data=data))
 
     def _watchdog(self) -> None:
         with self._lock:

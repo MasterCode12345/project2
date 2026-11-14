@@ -73,6 +73,7 @@ WARNING = "warning"  # a segment was skipped/dropped; session continues
 ERROR = "error"  # fatal for the session; session has been stopped
 INFO = "info"  # per-segment progress (e.g. empty transcript skipped)
 MODEL = "model"  # ASR model status change; data: model, status, detail, selected
+HEALTH = "health"  # speaker indicator; data: level (green|yellow|red), signal, reason, others, metrics
 
 # Orchestrator states (data["state"] on STATUS events).
 IDLE = "idle"

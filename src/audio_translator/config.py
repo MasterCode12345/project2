@@ -70,6 +70,16 @@ class Settings:
     asr_max_no_speech_prob: float = 0.6
     asr_min_avg_logprob: float = -1.0
     asr_max_compression_ratio: float = 2.4
+    # Drop the stand-alone word "unk" PhoWhisper sometimes writes at an utterance start (3 of the
+    # real-test segments, 3/1166 bench segments; never in the references; WER never worse).
+    asr_drop_unk: bool = True
+    # Bounded decoding against stalls (opt-in; None = faster-whisper's own decoding, unchanged).
+    # A rejected attempt on unclear audio runs to 224 tokens (~6-7 s) and up to 6 temperatures
+    # are tried: one 3 s music clip took 22 s (plan-speaker-indicator.md). Being measured with
+    # eval/asr_bench.py (--max-tokens-per-s, --temperatures); default stays off until decided.
+    asr_max_tokens_per_s: float | None = None  # max_new_tokens = ceil(audio_s x this) + base (<= 224)
+    asr_max_tokens_base: int = 32  # bench choice with 15 tok/s (plan-speaker-indicator.md)
+    asr_temperatures: tuple[float, ...] | None = None  # e.g. (0.0, 0.2, 0.4); None = 0.0..1.0 step 0.2
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 
@@ -90,6 +100,31 @@ class Settings:
 
     # Device liveness: a stream silent for this long is treated as removed.
     device_watchdog_s: float = 2.0
+
+    # Speaker indicator (health.py; observation only, the pipeline is unchanged).
+    # Thresholds from the real logs and the stall probe (plan-speaker-indicator.md):
+    # length: spoken sentences so far P90 6.6 s, max 7.4 s -> yellow at 8 s; red at 12 s
+    #   leaves 3 s before the forced cut at max_segment_s (15 s), which can cut a word.
+    indicator_long_warn_s: float = 8.0
+    indicator_long_stop_s: float = 12.0
+    # backlog: segments waiting for ASR, or ASR time of the current segment (real ASR P50
+    # ~1.2 s, Meet P95 1.8 s; every decode > 5.7 s in the probe was a stall).
+    indicator_queue_warn: int = 1
+    indicator_queue_stop: int = 2
+    indicator_asr_warn_s: float = 3.0
+    indicator_asr_stop_s: float = 6.0
+    # playout: how long the newest ready translation waits behind the one playing (real log
+    # 2026-11-14 13:58: long sentences made the next ones wait 4.1, 6.4 and 7.8 s; 0 otherwise).
+    indicator_playout_warn_s: float = 4.0
+    indicator_playout_stop_s: float = 8.0
+    # quality: last segment filtered, or ASR >= min_asr_s AND >= ratio x audio length
+    # (normal real segments < 0.71), or a temperature fallback was needed; yellow for hold_s.
+    indicator_unclear_min_asr_s: float = 1.5
+    indicator_unclear_ratio: float = 1.5
+    indicator_fallback: bool = True
+    indicator_unclear_hold_s: float = 4.0
+    indicator_down_hold_s: float = 1.0  # a lower level shows only after holding this long
+    indicator_rate_hz: float = 10.0  # max evaluations per second (monitor thread)
 
     # Per-segment latency CSV (latency_log.py), appended from worker threads;
     # None = off (nothing is opened or written).

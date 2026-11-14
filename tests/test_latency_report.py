@@ -41,3 +41,23 @@ def test_report_errors(tmp_path, capsys):
     (tmp_path / "empty.csv").write_text("session_id,status\n")
     assert lr.main([str(tmp_path / "empty.csv")]) == 1
     assert lr.main([str(tmp_path / "empty.csv"), "--session", "9"]) == 1
+
+
+def test_report_counts_the_highest_light_per_segment(tmp_path, capsys):
+    from audio_translator.latency_log import LatencyLog
+
+    p = tmp_path / "lat.csv"
+    log = LatencyLog(p)
+    for i, (status, lvl, why) in enumerate([("played", "green", ""), ("played", "red", "Dừng lại một chút"),
+                                            ("dropped", "red", "Dừng lại một chút"),
+                                            ("played", "yellow", "Câu dài, hãy ngắt nghỉ")], 1):
+        log.write(session_id=1, segment_id=i, status=status, timestamps={"speech_end": 1.0}, session={},
+                  reason="" if status == "played" else "no_speech", health_max=lvl, health_reason=why)
+    log.close()
+    assert lr.health_counts(lr.load([p])) == [("green", 1, 0, ""), ("yellow", 1, 0, "Câu dài, hãy ngắt nghỉ"),
+                                              ("red", 1, 1, "Dừng lại một chút")]
+    assert lr.main([str(p)]) == 0
+    assert "speaker indicator" in capsys.readouterr().out
+    old = tmp_path / "old.csv"  # a log written before the health columns existed
+    old.write_text("session_id,segment_id,status,e2e_ms\n1,1,played,3000\n")
+    assert lr.health_counts(lr.load([old])) == [] and lr.main([str(old)]) == 0
