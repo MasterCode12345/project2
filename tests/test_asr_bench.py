@@ -290,7 +290,8 @@ def test_decode_probe_records_each_attempt_and_its_limit():
     probe = ab.install_decode_probe(r)
     assert r._model.model.other == "kept"  # everything else passes through
     assert r.transcribe_segments(None, 16000) == ["seg"]
-    assert [(t, n, lim) for _s, t, n, lim in r.last_decode] == [(0.0, 224, 224), (0.2, 30, 52)]
+    # real limit = max_length // 2 (CTranslate2's Whisper; plan-asr-anti-stall.md step 0): 448 -> 224, 55 -> 27
+    assert [(t, n, lim) for _s, t, n, lim in r.last_decode] == [(0.0, 224, 224), (0.2, 30, 27)]
     assert probe.calls == r.last_decode
     assert ab.install_decode_probe(object()) is None
 
@@ -329,9 +330,11 @@ def test_anti_stall_columns_and_probe_inside_the_limiter():
     assert rec._model.model is lim and lim._inner is probe  # the probe sees the limited calls
     lim.begin(None, 52, None)
     lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)
-    assert probe.calls[0][3] == 52
-    speech = [(1.0, 2.0, [(1, 0, 20, 224)], 0), (3.0, 3.0, [(1, 0, 52, 52), (1, .2, 30, 52), (1, .4, 9, 52)], 2)]
-    d = ab.decode_stats(speech, [(5.0, 3.0, [(1, 0, 9, 224)], 1)])
+    assert probe.calls[0][3] == 27  # max_length 3 + 52 = 55 -> 55 // 2 tokens really generated
+    speech = [(1.0, 2.0, [(1, 0, 20, 224)], 0, ""), (3.0, 3.0, [(1, 0, 52, 52), (1, .2, 30, 52), (1, .4, 9, 52)], 2,
+                                                       "truncated")]
+    d = ab.decode_stats(speech, [(5.0, 3.0, [(1, 0, 9, 224)], 1, "loop")])
+    assert (d["t0_rejected"], d["noise_t0_rejected"]) == (1, 1)
     assert (d["redecodes"], d["budget_skips"], d["noise_budget_skips"], d["asr_ms_p50"]) == (2, 2, 1, "2000")
     assert set(ab.COLUMNS) >= {"asr_ms_p50", "noise_asr_ms_p50", "redecodes", "budget_skips"}
     assert ab.decode_label(None, 32, None, 15, 100, 4.0, False) == "fb15+32,t0min100,budget4s"

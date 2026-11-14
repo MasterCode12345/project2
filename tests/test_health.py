@@ -331,10 +331,10 @@ def test_gui_accepts_the_bounded_decoding_flags_and_rejects_cli_only_ones():
     pytest.importorskip("PySide6")
     from audio_translator.gui import parse_args
 
-    args, rest = parse_args(["--asr-max-tokens-per-s", "15", "--asr-temperatures", "0,0.2,0.4", "-style", "fusion"])
-    assert args.asr_max_tokens_per_s == 15 and args.asr_temperatures == (0.0, 0.2, 0.4) and rest == ["-style", "fusion"]
+    args, rest = parse_args(["--asr-anti-stall", "c3b", "-style", "fusion"])
+    assert args.asr_anti_stall == "c3b" and rest == ["-style", "fusion"]
     args, _ = parse_args([])
-    assert args.asr_max_tokens_per_s is None and args.asr_temperatures is None
+    assert args.asr_anti_stall == "off"
     with pytest.raises(SystemExit):
         parse_args(["--model", "small"])  # CLI-only: an error, not silently ignored
 

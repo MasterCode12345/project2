@@ -62,7 +62,8 @@ COLUMNS = ["corpus", "noise", "model", "prompt", "vad", "filter", "decode", "snr
            "asr_ms_mean", "asr_ms_p95", "asr_rtf", "load_s", "vad_extra_segs", "vad_false_triggers",
            "ghost_texts", "asr_ms_max", "noise_segs", "noise_asr_ms_mean", "noise_asr_ms_p95", "noise_asr_ms_max",
            "fallback_segs", "noise_fallback_segs", "noise_redecodes", "cap_hits", "max_tok_per_s",
-           "asr_ms_p50", "noise_asr_ms_p50", "redecodes", "budget_skips", "noise_budget_skips"]
+           "asr_ms_p50", "noise_asr_ms_p50", "redecodes", "budget_skips", "noise_budget_skips",
+           "t0_rejected", "noise_t0_rejected"]
 # Decoding columns (bounded decoding, plan-speaker-indicator.md), from DecodeProbe (one entry per
 # CTranslate2 generate call = one decoding attempt): ``decode`` = the variant label;
 # ``asr_ms_max`` over scored speech segments; ``noise_*`` = ASR time over every segment of the
@@ -111,12 +112,13 @@ class DecodeProbe:
         return getattr(self._inner, name)
 
     def generate(self, *args, **kw):
-        from audio_translator.asr import MAX_NEW_TOKENS
+        from audio_translator.asr import real_token_limit
 
         t0 = time.perf_counter()
         out = self._inner.generate(*args, **kw)
-        prompts = args[1] if len(args) > 1 else kw.get("prompts", [[]])
-        limit = min(kw.get("max_length", 448) - len(prompts[0]), MAX_NEW_TOKENS)
+        # CTranslate2's Whisper generates at most max_length // 2 tokens (plan-asr-anti-stall.md step 0;
+        # before 2026-11-14 this used max_length - prompt and so under-counted cap hits).
+        limit = real_token_limit(kw.get("max_length", 448))
         n = len(out[0].sequences_ids[0]) if out and out[0].sequences_ids else 0
         self.calls.append((time.perf_counter() - t0, float(kw.get("sampling_temperature", 0.0) or 0.0), n, limit))
         return out
@@ -171,7 +173,8 @@ class TimedASR:
         lim = getattr(self.asr, "limiter", None)
         self.calls.append((time.perf_counter() - t0 if secs is None else secs, audio.size / sample_rate,
                            getattr(self.asr, "last_decode", None) or [],
-                           lim.budget_skips if lim is not None and secs is None else 0))
+                           lim.budget_skips if lim is not None and secs is None else 0,
+                           lim.t0_rejected if lim is not None and secs is None else ""))
         return text
 
 
@@ -224,7 +227,7 @@ def latency_stats(calls: list[tuple[float, float]]) -> tuple[float, float, float
     return float(secs.mean() * 1000), float(np.percentile(secs, 95) * 1000), float(secs.sum() / audio) if audio else 0.0
 
 
-SEG_COLUMNS = ["decode", "snr_db", "clip", "kind", "audio_s", "asr_ms", "attempts", "text", "ref"]
+SEG_COLUMNS = ["decode", "snr_db", "clip", "kind", "audio_s", "asr_ms", "attempts", "text", "ref", "t0_rejected"]
 
 
 def _seg_row(snr, k: int, kind: str, call: tuple, text: str, ref: str) -> dict:
@@ -232,7 +235,7 @@ def _seg_row(snr, k: int, kind: str, call: tuple, text: str, ref: str) -> dict:
     return {"snr_db": "clean" if snr is None else f"{snr:g}", "clip": k, "kind": kind, "audio_s": f"{call[1]:.2f}",
             "asr_ms": f"{call[0] * 1000:.0f}",
             "attempts": " ".join(f"t{t:g}:{n}/{lim}:{s * 1000:.0f}ms" for s, t, n, lim in att),
-            "text": text.strip(), "ref": ref}
+            "text": text.strip(), "ref": ref, "t0_rejected": call[4] if len(call) > 4 else ""}
 
 
 def decode_stats(speech: list[tuple], noise: list[tuple]) -> dict:
@@ -258,6 +261,8 @@ def decode_stats(speech: list[tuple], noise: list[tuple]) -> dict:
         "redecodes": sum(max(0, len(attempts(c)) - 1) for c in speech),
         "budget_skips": sum(c[3] if len(c) > 3 else 0 for c in speech),
         "noise_budget_skips": sum(c[3] if len(c) > 3 else 0 for c in noise),
+        "t0_rejected": sum(bool(c[4]) if len(c) > 4 else 0 for c in speech),
+        "noise_t0_rejected": sum(bool(c[4]) if len(c) > 4 else 0 for c in noise),
     }
 
 
@@ -360,11 +365,11 @@ def _snrs(text: str) -> list[float | None]:
 
 
 def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None, fallback_per_s=None,
-                 first_min=None, budget_s=None, tail=False) -> str:
+                 first_min=None, budget_s=None, tail=False, reject="") -> str:
     from audio_translator.asr import decode_label as label
 
     return label(per_s, base, temps, fallback_per_s=fallback_per_s, first_min=first_min, budget_s=budget_s,
-                 tail=tail)
+                 tail=tail, reject=reject)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -401,6 +406,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="anti-stall (C2): no more fallback attempts once a segment took S seconds")
     p.add_argument("--cap-tail-strip", action="store_true",
                    help="anti-stall (B): strip a junk tail when a capped attempt reached its limit")
+    p.add_argument("--reject-truncated-t0", action="store_true",
+                   help="anti-stall (C3a): retry when the temperature-0 attempt stopped at its token limit")
+    p.add_argument("--reject-loop-t0", action="store_true",
+                   help="anti-stall (C3b): retry when the temperature-0 text has a dot run or a repeated 4-word group")
     p.add_argument("--decode-label", default=None, help="value of the decode column (default: derived)")
     p.add_argument("--segments-out", type=Path, default=None,
                    help="also write one TSV row per ASR segment: time, decoding attempts, text, reference")
@@ -434,7 +443,9 @@ def main(argv: list[str] | None = None) -> int:
     temps = tuple(float(t) for t in args.temperatures.split(",") if t.strip()) if args.temperatures else None
     decode = args.decode_label or decode_label(args.max_tokens_per_s, args.max_tokens_base, temps,
                                                args.fallback_max_tokens_per_s, args.first_min_tokens,
-                                               args.decode_budget_s, args.cap_tail_strip)
+                                               args.decode_budget_s, args.cap_tail_strip,
+                                               ("t0trunc" if args.reject_truncated_t0 else "")
+                                               + ("+loop" if args.reject_loop_t0 else ""))
     if args.smoke:
         utts, noises = db.smoke_data(args.seed)
         corpus, noise_name = "smoke", "smoke"
@@ -470,7 +481,8 @@ def main(argv: list[str] | None = None) -> int:
                               max_tokens_base=args.max_tokens_base, temperatures=temps,
                               fallback_max_tokens_per_s=args.fallback_max_tokens_per_s,
                               first_min_tokens=args.first_min_tokens, decode_budget_s=args.decode_budget_s,
-                              cap_tail_strip=args.cap_tail_strip)
+                              cap_tail_strip=args.cap_tail_strip, reject_truncated_t0=args.reject_truncated_t0,
+                              reject_loop_t0=args.reject_loop_t0)
 
         def make_vad(name):
             return webrtc_vad(args.vad_aggressiveness) if name == "webrtc" else silero_vad(args.silero_threshold)

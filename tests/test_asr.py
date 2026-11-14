@@ -319,10 +319,10 @@ def test_bounded_decoding_is_off_by_default_and_passed_only_when_set(fake_fw):
 
 
 def test_bounded_decoding_flags_reach_the_recognizer():
-    args = cli.build_parser().parse_args(["--asr-max-tokens-per-s", "12", "--asr-temperatures", "0,0.2,0.4"])
-    assert args.asr_max_tokens_per_s == 12 and args.asr_temperatures == (0.0, 0.2, 0.4)
-    args = cli.build_parser().parse_args([])
-    assert args.asr_max_tokens_per_s is None and args.asr_temperatures is None
+    # the rejected global cap / temperature ladder are Settings-only now (bench reproducibility)
+    for flag in ("--asr-max-tokens-per-s", "--asr-temperatures"):
+        with pytest.raises(SystemExit):
+            cli.build_parser().parse_args([flag, "1"])
     from audio_translator.orchestrator import Orchestrator
 
     rec = Orchestrator(Settings(asr_max_tokens_per_s=12, asr_temperatures=(0.0, 0.4)))._make_recognizer("small")
@@ -403,7 +403,8 @@ class _Res:
 
 
 class _CT2:
-    """Fake CTranslate2 Whisper: records each call's max_length; output length per call from a list."""
+    """Fake CTranslate2 Whisper: records each call's max_length; output length per call from a list,
+    at most max_length // 2 tokens like the real one (plan-asr-anti-stall.md, step 0)."""
 
     def __init__(self, lengths):
         self.lengths = list(lengths)
@@ -412,7 +413,7 @@ class _CT2:
 
     def generate(self, features, prompts, **kw):
         self.max_lengths.append(kw.get("max_length"))
-        return [_Res(min(self.lengths.pop(0), kw.get("max_length", 448) - len(prompts[0])))]
+        return [_Res(min(self.lengths.pop(0), kw.get("max_length", 448) // 2))]
 
 
 def test_limiter_caps_only_the_attempts_it_is_told_to():
@@ -425,10 +426,11 @@ def test_limiter_caps_only_the_attempts_it_is_told_to():
     lim.generate(None, [[1, 2, 3]], max_length=448)
     lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)
     assert inner.max_lengths == [448, 55]
-    assert [(t, n, cap) for _s, t, n, cap in lim.calls] == [(0.0, 224, 224), (0.2, 30, 52)]
+    assert [(t, n, cap) for _s, t, n, cap in lim.calls] == [(0.0, 224, 224), (0.2, 27, 27)]  # real limit: 55 // 2
     lim.begin(100, 52, None)  # (C+): temperature 0 gets a wide limit
     lim.generate(None, [[1, 2, 3]], max_length=448)
-    assert inner.max_lengths[-1] == 103 and lim.calls[0][2:] == (20, 100)
+    assert inner.max_lengths[-1] == 103 and lim.calls[0][2:] == (20, 51)
+    assert asr_mod.real_token_limit(23) == 11 and asr_mod.real_token_limit(448) == 224  # measured
 
 
 def test_budget_replays_the_last_real_result_and_never_invents_one():
@@ -508,18 +510,86 @@ def test_anti_stall_is_off_by_default_and_wired_through(fake_fw):
     assert c2.attempt_limits(3.0) == (100, 77) and c2.attempt_limits(12.0) == (212, 212)
     assert c2.attempt_limits(30.0) == (224, 224)
     assert WhisperASR("small", fallback_max_tokens_per_s=15).attempt_limits(3.0) == (None, 77)
-    args = cli.build_parser().parse_args(["--asr-fallback-max-tokens-per-s", "15", "--asr-first-min-tokens", "100",
-                                          "--asr-decode-budget-s", "4", "--asr-cap-tail-strip"])
-    assert (args.asr_fallback_max_tokens_per_s, args.asr_first_min_tokens, args.asr_decode_budget_s,
-            args.asr_cap_tail_strip) == (15, 100, 4, True)
+    from audio_translator.config import ANTI_STALL_PRESETS
+
+    assert cli.build_parser().parse_args([]).asr_anti_stall == "off" and ANTI_STALL_PRESETS["off"] == {}
+    args = cli.build_parser().parse_args(["--asr-anti-stall", "c3b"])
+    s3 = Settings(**ANTI_STALL_PRESETS[args.asr_anti_stall])
+    assert (s3.asr_fallback_max_tokens_per_s, s3.asr_first_min_tokens, s3.asr_decode_budget_s,
+            s3.asr_reject_truncated_t0, s3.asr_reject_loop_t0, s3.asr_cap_tail_strip) == (15, 100, 4, True, True, False)
+    assert not Settings(**ANTI_STALL_PRESETS["c3a"]).asr_reject_loop_t0
+    for flag in ("--asr-fallback-max-tokens-per-s", "--asr-first-min-tokens", "--asr-decode-budget-s",
+                 "--asr-cap-tail-strip"):  # rejected configurations: no app flag
+        with pytest.raises(SystemExit):
+            cli.build_parser().parse_args([flag] + ([] if flag.endswith("strip") else ["1"]))
     from audio_translator.orchestrator import Orchestrator
 
     rec = Orchestrator(Settings(asr_fallback_max_tokens_per_s=15, asr_first_min_tokens=100,
-                                asr_decode_budget_s=4.0, asr_cap_tail_strip=True))._make_recognizer("small")
-    assert (rec.fallback_max_tokens_per_s, rec.first_min_tokens, rec.decode_budget_s, rec.cap_tail_strip) == \
-        (15, 100, 4.0, True)
+                                asr_decode_budget_s=4.0, asr_cap_tail_strip=True, asr_reject_truncated_t0=True,
+                                asr_reject_loop_t0=True))._make_recognizer("small")
+    assert (rec.fallback_max_tokens_per_s, rec.first_min_tokens, rec.decode_budget_s, rec.cap_tail_strip,
+            rec.reject_truncated_t0, rec.reject_loop_t0) == (15, 100, 4.0, True, True, True)
+    assert rec.decode == "fb15+32,t0min100,budget4s,tail,reject:t0trunc+loop"
     pytest.importorskip("PySide6")
     from audio_translator.gui import parse_args
 
-    g, _ = parse_args(["--asr-fallback-max-tokens-per-s", "15", "--asr-decode-budget-s", "4"])
-    assert g.asr_fallback_max_tokens_per_s == 15 and g.asr_decode_budget_s == 4
+    g, _ = parse_args(["--asr-anti-stall", "c3a"])
+    assert g.asr_anti_stall == "c3a"
+
+
+class _ScoredRes:
+    def __init__(self, ids, score=-0.2, nsp=0.01):
+        self.sequences_ids, self.scores, self.no_speech_prob = [ids], [score], nsp
+
+
+class _ScoredCT2:
+    def __init__(self, outs):
+        self.outs = list(outs)
+
+    def generate(self, features, prompts, **kw):
+        return [self.outs.pop(0)]
+
+
+@pytest.mark.parametrize("text,loop", [
+    ("nhạc sĩ la hối với ca khúc xuân và tuổi trẻ. a sĩ la hối với ca khúc xuân và tuổi trẻ. a sĩ la hối với ca", True),
+    ("đó chứng tỏ rằng chúng ta đã già....", True),
+    ("đó chứng tỏ rằng chúng ta đã già.", False),
+    ("tôi đi học, tôi đi chơi, tôi đi ngủ", False),  # 3-word repeats only
+    ("một hai ba bốn năm một hai ba bốn", True),
+    ("một hai ba bốn một hai ba", False),  # the second copy is shorter than 4 words
+])
+def test_has_loop_tail(text, loop):
+    assert asr_mod.has_loop_tail(text) is loop
+
+
+def test_t0_rules_reject_without_touching_the_tokens():
+    from audio_translator.asr import DecodeLimiter
+
+    trunc = _ScoredRes(list(range(51)))  # stopped at the real limit of max_length 103
+    lim = DecodeLimiter(_ScoredCT2([trunc, _ScoredRes([1, 2, 3])]))
+    lim.reject_truncated_t0 = True
+    lim.begin(100, 52, None)
+    out = lim.generate(None, [[1, 2, 3]], max_length=448)
+    assert lim.t0_rejected == "truncated" and out[0].sequences_ids is trunc.sequences_ids
+    assert out[0].scores == [-1e9] and out[0].no_speech_prob == trunc.no_speech_prob
+    retry = lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)  # retries are never marked
+    assert retry[0].scores == [-0.2]
+    lim2 = DecodeLimiter(_ScoredCT2([_ScoredRes([5, 6]), _ScoredRes([7])]))
+    lim2.reject_loop_t0, lim2.decode_text = True, lambda ids: "a b c d. a b c d" if ids == [5, 6] else "ok"
+    lim2.begin(None, None, None)
+    assert lim2.generate(None, [[1]], max_length=448)[0].scores == [-1e9] and lim2.t0_rejected == "loop"
+    lim2.begin(None, None, None)
+    assert lim2.generate(None, [[1]], max_length=448)[0].scores == [-0.2] and lim2.t0_rejected == ""
+    lim3 = DecodeLimiter(_ScoredCT2([_ScoredRes(list(range(10)))]))  # rules off: untouched
+    lim3.begin(100, 52, None)
+    assert lim3.generate(None, [[1, 2, 3]], max_length=448)[0].scores == [-0.2]
+
+
+def test_a_rejected_t0_is_never_chosen_over_a_real_retry():
+    """faster-whisper's 'all failed' choice: max average log-prob (score * len / (len + 1))."""
+    from audio_translator.asr import _Rejected
+
+    rej = _Rejected(_ScoredRes(list(range(51)), score=-0.1))
+    bad_retry = _ScoredRes(list(range(30)), score=-3.0)
+    avg = lambda r: r.scores[0] * len(r.sequences_ids[0]) / (len(r.sequences_ids[0]) + 1)  # noqa: E731
+    assert avg(rej) < -1.0 and max([rej, bad_retry], key=avg) is bad_retry

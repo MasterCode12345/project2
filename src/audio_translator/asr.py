@@ -235,7 +235,21 @@ class DecodeLimiter:
       checks, runs out of temperatures at no cost and picks the best real attempt. No synthetic
       or empty result is ever produced.
 
-    ``calls`` records (seconds, temperature, generated tokens, token limit) per real attempt.
+    Two optional rules for the temperature-0 attempt only (C3, plan-asr-anti-stall.md) make
+    faster-whisper retry at the next temperature instead of accepting it:
+
+    * ``reject_truncated_t0``: the attempt stopped at its token limit (no EOT);
+    * ``reject_loop_t0``: its text has a run of >= 3 dots or a 4-word group repeated (a loop,
+      also a partial one at the end).
+
+    A rejected result keeps its tokens; only its score is set to -1e9, so its average log-prob
+    fails the threshold (retry), and the "all attempts failed" choice (highest average log-prob)
+    never picks it over a real retry. Nothing is deleted from the text.
+
+    **Token limit.** CTranslate2's Whisper generates at most ``max_length // 2`` tokens (measured:
+    ``max_new_tokens=20`` -> ``max_length`` 23 -> 11 tokens; 448 -> 224), so a limit of N passed
+    here (``max_length = prompt + N``) allows ``(prompt + N) // 2`` tokens. ``calls`` records
+    (seconds, temperature, generated tokens, real token limit) per real attempt.
     """
 
     def __init__(self, inner, clock=None) -> None:
@@ -248,6 +262,10 @@ class DecodeLimiter:
         self.budget_s: float | None = None
         self.calls: list[tuple[float, float, int, int]] = []
         self.budget_skips = 0
+        self.reject_truncated_t0 = False
+        self.reject_loop_t0 = False
+        self.decode_text = None  # token ids -> text, for reject_loop_t0
+        self.t0_rejected = ""  # why the temperature-0 attempt of this segment was rejected ("" = not)
         self._start: float | None = None
         self._last = None
 
@@ -258,6 +276,7 @@ class DecodeLimiter:
         """Before each segment."""
         self.t0_tokens, self.fallback_tokens, self.budget_s = t0_tokens, fallback_tokens, budget_s
         self.calls, self.budget_skips, self._start, self._last = [], 0, None, None
+        self.t0_rejected = ""
 
     def generate(self, *args, **kw):
         temp = float(kw.get("sampling_temperature", 0.0) or 0.0)
@@ -274,15 +293,58 @@ class DecodeLimiter:
             kw["max_length"] = min(kw.get("max_length", 448), len(prompts[0]) + limit)
         out = self._inner.generate(*args, **kw)
         n = len(out[0].sequences_ids[0]) if out and out[0].sequences_ids else 0
-        cap = min(kw.get("max_length", 448) - len(prompts[0]), MAX_NEW_TOKENS)
+        cap = real_token_limit(kw.get("max_length", 448))
         self.calls.append((self._clock() - now, temp, n, cap))
+        if temp == 0 and out:
+            why = ""
+            if self.reject_truncated_t0 and n >= cap:
+                why = "truncated"
+            elif self.reject_loop_t0 and self.decode_text is not None and has_loop_tail(
+                    self.decode_text(out[0].sequences_ids[0])):
+                why = "loop"
+            if why:
+                self.t0_rejected = why
+                out = [_Rejected(out[0])] + list(out[1:])
         self._last = out
         return out
 
 
+class _Rejected:
+    """A real CTranslate2 result marked as failed: same tokens, score -1e9 (see DecodeLimiter)."""
+
+    def __init__(self, result) -> None:
+        self.sequences_ids = result.sequences_ids
+        self.no_speech_prob = result.no_speech_prob
+        self.scores = [-1e9 for _ in result.scores] if getattr(result, "scores", None) else [-1e9]
+        self.rejected = True
+
+
+def real_token_limit(max_length: int) -> int:
+    """Tokens CTranslate2's Whisper really generates at most for ``max_length`` (see DecodeLimiter)."""
+    return min(max_length // 2, MAX_NEW_TOKENS)
+
+
+_DOT_RUN = re.compile(r"\.{3,}")
+
+
+def has_loop_tail(text: str, n: int = 4) -> bool:
+    """A run of >= 3 dots, or a group of ``n`` words occurring twice without overlap (a decoding
+    loop, also when the second copy is cut off right after those ``n`` words)."""
+    if _DOT_RUN.search(text):
+        return True
+    words = re.findall(r"\w+", text.lower())
+    first: dict[tuple[str, ...], int] = {}
+    for i in range(len(words) - n + 1):
+        gram = tuple(words[i:i + n])
+        j = first.setdefault(gram, i)
+        if i - j >= n:
+            return True
+    return False
+
+
 def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None, *,
                  fallback_per_s: float | None = None, first_min: int | None = None,
-                 budget_s: float | None = None, tail: bool = False) -> str:
+                 budget_s: float | None = None, tail: bool = False, reject: str = "") -> str:
     """``base`` (faster-whisper defaults), else the parts in use joined by ``,``: ``cap15+32``
     (every attempt), ``t0/0.2/0.4``, ``fb15+32`` (fallback attempts only), ``t0min100``,
     ``budget4s``, ``tail``."""
@@ -299,6 +361,8 @@ def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None
         parts.append(f"budget{budget_s:g}s")
     if tail:
         parts.append("tail")
+    if reject:
+        parts.append("reject:" + reject.lstrip("+"))
     return ",".join(parts) or "base"
 
 
@@ -326,6 +390,8 @@ class WhisperASR:
         first_min_tokens: int | None = None,
         decode_budget_s: float | None = None,
         cap_tail_strip: bool = False,
+        reject_truncated_t0: bool = False,
+        reject_loop_t0: bool = False,
     ) -> None:
         self.model_size = model_size
         self.language = language
@@ -347,6 +413,8 @@ class WhisperASR:
         self.first_min_tokens = first_min_tokens
         self.decode_budget_s = decode_budget_s
         self.cap_tail_strip = cap_tail_strip
+        self.reject_truncated_t0 = reject_truncated_t0
+        self.reject_loop_t0 = reject_loop_t0
         self.last_hit_limit = False  # the last real attempt of the last call reached its token limit
         self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last call; "repetition": shortened, kept
         self.last_temperature = 0.0  # highest decoding temperature of the last call (> 0: fallback used)
@@ -366,12 +434,18 @@ class WhisperASR:
                     resolve_model(self.model_size), device=self.device, compute_type=self.compute_type
                 )
                 if self.uses_limiter:
-                    self._model.model = DecodeLimiter(self._model.model)
+                    lim = DecodeLimiter(self._model.model)
+                    lim.reject_truncated_t0, lim.reject_loop_t0 = self.reject_truncated_t0, self.reject_loop_t0
+                    tok = getattr(self._model, "hf_tokenizer", None)
+                    if tok is not None:
+                        eot = tok.token_to_id("<|endoftext|>") or 50257
+                        lim.decode_text = lambda ids, _t=tok, _e=eot: _t.decode([i for i in ids if i < _e])
+                    self._model.model = lim
 
     @property
     def uses_limiter(self) -> bool:
         return bool(self.fallback_max_tokens_per_s or self.first_min_tokens or self.decode_budget_s
-                    or self.cap_tail_strip)
+                    or self.cap_tail_strip or self.reject_truncated_t0 or self.reject_loop_t0)
 
     @property
     def limiter(self) -> "DecodeLimiter | None":
@@ -394,7 +468,9 @@ class WhisperASR:
         """Label of the decoding options in use (``base`` = faster-whisper defaults)."""
         return decode_label(self.max_tokens_per_s, self.max_tokens_base, self.temperatures,
                             fallback_per_s=self.fallback_max_tokens_per_s, first_min=self.first_min_tokens,
-                            budget_s=self.decode_budget_s, tail=self.cap_tail_strip)
+                            budget_s=self.decode_budget_s, tail=self.cap_tail_strip,
+                            reject=("t0trunc" if self.reject_truncated_t0 else "")
+                            + ("+loop" if self.reject_loop_t0 else ""))
 
     def max_new_tokens(self, audio_s: float) -> int | None:
         """Output-token cap for ``audio_s`` seconds of audio (None = no cap)."""

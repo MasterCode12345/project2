@@ -87,6 +87,10 @@ class Settings:
     asr_first_min_tokens: int | None = None
     asr_decode_budget_s: float | None = None
     asr_cap_tail_strip: bool = False
+    # C3: retry instead of accepting a temperature-0 attempt that stopped at its token limit (a)
+    # or whose text loops (b: dot run or a repeated 4-word group). Off until the bench decides.
+    asr_reject_truncated_t0: bool = False
+    asr_reject_loop_t0: bool = False
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 
@@ -140,3 +144,15 @@ class Settings:
     @property
     def frame_samples(self) -> int:
         return self.capture_rate * self.frame_ms // 1000
+
+
+# Anti-stall presets for the app (--asr-anti-stall; plan-asr-anti-stall.md). Only the C3 family is
+# offered in the app; the rejected configurations (B, C, C2 alone) stay reachable through the
+# Settings fields and eval/asr_bench.py flags so the bench can be reproduced.
+ANTI_STALL_PRESETS: dict[str, dict] = {
+    "off": {},
+    "c3a": dict(asr_fallback_max_tokens_per_s=15.0, asr_first_min_tokens=100, asr_decode_budget_s=4.0,
+                asr_reject_truncated_t0=True),
+    "c3b": dict(asr_fallback_max_tokens_per_s=15.0, asr_first_min_tokens=100, asr_decode_budget_s=4.0,
+                asr_reject_truncated_t0=True, asr_reject_loop_t0=True),
+}
