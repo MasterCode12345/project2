@@ -100,7 +100,33 @@ uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py
 - Chưa convert PhoWhisper thì app vẫn chạy: nó báo rõ (dòng đỏ trên giao diện, WARNING trong CLI) kèm lệnh convert, rồi dùng tạm Whisper `small` cho phiên đó.
 - Chưa convert vibert-capu thì app dịch nguyên chữ ASR như trước, không báo gì, vì `--restore auto`.
 
-**Chạy giao diện:** `uv run audio-translator`. Chọn micro, Output = **BlackHole 2ch**; Model đã được chọn sẵn là `phowhisper-small`. Bấm **Start**.
+**Chạy giao diện:** `uv run audio-translator`, rồi bấm **▶ Bắt đầu**. Đầu ra mặc định là **BlackHole 2ch**, model mặc định là `phowhisper-small`. Muốn đổi micro, đầu ra, model, bộ dịch hay lọc nhiễu thì mở mục **Cài đặt**. Có thể mở sẵn với bộ dịch khác: `uv run audio-translator --translator nllb-600m`.
+
+### Giao diện dùng trong cuộc gọi
+
+Giao diện chỉ có chữ tiếng Việt, gom ở `gui_strings.py` để sau này thêm ngôn ngữ giao diện. Có hai chế độ.
+
+**Chế độ đầy đủ** (cửa sổ chính), từ trên xuống:
+- **Băng đỏ báo lỗi**, chỉ hiện khi có lỗi:
+  - Hiện tiêu đề tiếng Việt kèm gợi ý cách xử lý, ví dụ "Không tìm thấy BlackHole – cài bằng: brew install blackhole-2ch".
+  - Câu gốc tiếng Anh nằm trong tooltip và trong nhật ký kỹ thuật. Nút **Chi tiết** mở nhật ký đó.
+- **Băng vàng:** "Đang dịch bằng Google (cần mạng) vì … chưa sẵn sàng", khi bộ dịch offline không dùng được.
+- **Hàng điều khiển:** nhãn "Tiếng Việt → Tiếng Anh" (sau này thay bằng ô chọn cặp ngôn ngữ), nút **▶ Bắt đầu / ■ Dừng** cỡ lớn, trạng thái, nút **Thu gọn**.
+- **Đèn báo cỡ lớn:** lý do chính, và dòng "Cũng: …" cho các lý do khác.
+- **Vùng bản dịch:**
+  - Mỗi câu là một khối: tiếng Việt chữ nhỏ màu xám, tiếng Anh chữ lớn, độ trễ ở bên phải.
+  - Tự cuộn tới câu mới, trừ khi bạn đang cuộn lên đọc lại. Giữ 200 câu gần nhất.
+  - Có nút **Sao chép tất cả** và **Xóa**, cùng dòng thống kê "Câu gần nhất · Trung vị phiên · Số câu".
+- **Cài đặt** (đóng sẵn): Micro, Đầu ra (micro ảo), Model nhận dạng, Bộ dịch, Lọc nhiễu.
+  - Các ô này bị khóa khi đang chạy, và có hiệu lực từ lần Bắt đầu tiếp theo.
+  - VAD, khôi phục dấu câu, bộ lọc ASR và giới hạn token chỉ chỉnh được bằng CLI.
+- **Nhật ký kỹ thuật** (ẩn sẵn): các dòng model, info, warning, error.
+
+**Chế độ thu gọn** (khoảng 360×120, luôn nằm trên các cửa sổ khác):
+- Gồm đèn, lý do chính, câu tiếng Anh gần nhất trên một dòng (bản đầy đủ ở tooltip), nút ▶ Bắt đầu / ■ Dừng và nút **Mở rộng**.
+- Lần đầu mở, cửa sổ nằm ở góc trên bên phải, để không che thanh điều khiển của Meet/Zoom ở phía dưới.
+- Đóng cửa sổ thu gọn thì app quay về cửa sổ chính. Cmd+Q vẫn tắt app gọn gàng.
+- **Hạn chế trên macOS:** cửa sổ nổi có thể không hiện đè lên ứng dụng đang ở chế độ toàn màn hình (ví dụ Meet trong Chrome toàn màn hình). Khi đó, để Meet ở cửa sổ thường. Xem kịch bản (f) trong `docs/manual_test.md`.
 
 **Chạy dòng lệnh:**
 ```sh
@@ -359,9 +385,9 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 355 passed
+uv run --group eval pytest -q     # 375 passed
 ```
-Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
+Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện (hai chế độ, đồng bộ, khóa cài đặt, không còn chữ tiếng Anh) và CLI.
 
 ## 6. Kết quả đo
 
@@ -555,12 +581,12 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ```
 ├── src/audio_translator/   mã nguồn
 │   ├── __main__.py         điểm vào: giao diện, hoặc CLI khi có --cli
-│   ├── gui.py, cli.py      tầng giao diện
+│   ├── gui.py, cli.py      tầng giao diện (gui_widgets.py: đèn, vùng bản dịch, cửa sổ thu gọn; gui_strings.py: mọi chữ hiển thị)
 │   ├── orchestrator.py     tầng điều phối (M1); latency_log.py: CSV độ trễ từng đoạn; health.py: đèn báo cho người nói
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  355 test (pytest)
+├── tests/                  375 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
@@ -572,7 +598,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ├── scripts/convert_capu_model.py   convert bộ khôi phục chữ hoa/dấu câu vibert-capu sang CTranslate2 (chạy một lần)
 ├── scripts/collect_hallucinations.py   thu thập câu ma từ nhiễu không trùng với bench
 ├── results/                CSV kết quả các bench
-├── docs/manual_test.md     kịch bản thử thật: CLI, Google Meet, môi trường ồn, đèn báo
+├── docs/manual_test.md     kịch bản thử thật: CLI, Google Meet, môi trường ồn, đèn báo, chế độ thu gọn
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
 ├── README.md               (tài liệu này)

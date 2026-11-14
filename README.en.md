@@ -62,20 +62,36 @@ sized for 8 GB RAM) are kept, least recently used first out — the model a
 running session uses is never released. The model can be changed only while no
 session is running (`Orchestrator.list_models()` / `select_model(name)` for
 front ends; loading happens in the background and is reported as `model` events).
-In the window, pick the model from the **Model:** dropdown (shows each model's
+In the window, pick the model from **Cài đặt → Model nhận dạng** (shows each model's
 status; enabled only while stopped).
 
 ## Run
 
-GUI (one window):
+GUI (Vietnamese UI; every string lives in `gui_strings.py`):
 
 ```sh
 uv run audio-translator
+uv run audio-translator --translator nllb-600m
 ```
 
-Pick your microphone, keep **BlackHole 2ch** as output, press **Start**, speak
-Vietnamese, press **Stop**. The log shows the Vietnamese text, English text and
-end-to-end latency (`first_audio_out − speech_end`) per segment.
+The second command opens the GUI with a different initial translator.
+
+Press **▶ Bắt đầu** (Start), speak Vietnamese, then press **■ Dừng** (Stop).
+
+**Full mode**, from top to bottom:
+- a red error banner: a Vietnamese headline plus a hint. The English original is in the tooltip; **Chi tiết** (Details) opens the technical log.
+- a yellow banner when translation fell back to Google;
+- the control row;
+- a large speaker light;
+- the translation pane: one block per sentence (VI small grey, EN large, latency on the right). It auto-scrolls unless you scrolled up, keeps the last 200 sentences, and has copy-all / clear buttons and a line with the last / session-median latency and the sentence count;
+- **Cài đặt** (Settings, collapsed): microphone, output (virtual mic), ASR model, translator, noise suppression. They are locked while running and apply from the next Start. VAD, restore, ASR filter and the token cap are CLI-only.
+- **Nhật ký kỹ thuật** (Technical log, hidden).
+
+**Thu gọn** (Compact) switches to a small always-on-top window (about 360×120):
+- it shows the light, the main reason, the newest English sentence (elided; full text in the tooltip), Start/Stop and **Mở rộng** (Expand);
+- it first opens at the top-right of the screen, away from the call controls;
+- closing it returns to the full window; Cmd+Q still shuts down cleanly;
+- on macOS it may not float above an app in native full-screen (e.g. Meet in full-screen Chrome). Keep the call in a normal window; see scenario (f) in `docs/manual_test.md`.
 
 CLI:
 

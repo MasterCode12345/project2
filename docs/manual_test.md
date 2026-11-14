@@ -1,6 +1,6 @@
 # Kịch bản thử thật: Việt → Anh
 
-Bốn lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet với điện thoại, (c) môi trường ồn, (d) đèn báo cho người nói. Mỗi lần thử ghi một file độ trễ (`--latency-log`) và một bảng kết quả điền tay. Làm xong cả ba, gửi lại các file ở mục [Gửi lại](#gửi-lại).
+Các lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet với điện thoại, (c) môi trường ồn, (d) đèn báo cho người nói, (e) giới hạn token (tùy chọn), (f) chế độ thu gọn trong cuộc gọi. Mỗi lần thử ghi một file độ trễ (`--latency-log`) và một bảng kết quả điền tay. Làm xong cả ba, gửi lại các file ở mục [Gửi lại](#gửi-lại).
 
 > ⚠️ **Luôn đeo tai nghe.** Nếu loa Mac phát ra tiếng (của Meet hay của bất kỳ ứng dụng nào), micro sẽ thu lại và app sẽ dịch chính tiếng đó. Đây là vòng lặp âm thanh đã gặp trước đây (README mục 8). Trong kịch bản (b), điện thoại nghe cũng phải để xa Mac hoặc đeo tai nghe.
 
@@ -29,7 +29,7 @@ uv run audio-translator --cli --list-models
 - Nếu app báo *"Model 'phowhisper-small' chưa được convert, đang dùng tạm 'small'"*, hãy dừng lại và convert trước (lệnh nằm ngay trong thông báo). Nếu không, số đo sẽ là của `small`. Cột `asr_model` trong file log luôn ghi đúng model đã thật sự chạy.
 - Lần chạy đầu có thể mất thêm vài giây để nạp model. Câu đầu tiên của mỗi lần thử nên là một câu chào ngắn để "khởi động"; câu này không tính vào kết quả.
 - **Không ghi đè log cũ.** Mỗi lần chạy, đặt tên file log có ngày giờ (biến `LOG` ở từng kịch bản bên dưới), ví dụ `~/gr2_manual/latency_meet_20261113_1350.csv`. Không dùng `mv` hay `cp` để đổi tên file đè lên file đã có: một lần như vậy đã làm mất log Meet có đoạn ASR 20 giây. Nếu chạy lại một kịch bản, cứ để file mới có tên mới. `--latency-log` chỉ nối thêm vào cuối file, không bao giờ xóa dữ liệu cũ.
-- Mỗi kịch bản chạy trong **một phiên** (Start một lần, Stop một lần), để `session_id` trong file log không bị lẫn.
+- Mỗi kịch bản chạy trong **một phiên** (Bắt đầu một lần, Dừng một lần), để `session_id` trong file log không bị lẫn.
 
 ## Cách đọc bảng độ trễ
 
@@ -98,15 +98,15 @@ LOG=~/gr2_manual/latency_meet_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
 uv run audio-translator --latency-log "$LOG"
 ```
 
-1. Trong GUI chọn Input là micro của Mac (hoặc micro tai nghe) và Output là **BlackHole 2ch**, nhưng **chưa bấm Start**.
+1. Trong GUI mở **Cài đặt**, chọn Micro là micro của Mac (hoặc micro tai nghe) và Đầu ra là **BlackHole 2ch**, nhưng **chưa bấm Bắt đầu**.
 2. Trên Mac, vào Meet bằng Chrome. Trong *Settings → Audio* của Meet:
    - **Microphone = BlackHole 2ch**;
    - Speakers = tai nghe;
    - tắt *Noise cancellation* nếu có, vì nó có thể cắt mất giọng TTS.
 3. Trên điện thoại, vào cùng cuộc họp, **tắt micro** của điện thoại và đeo tai nghe (hoặc để ở phòng khác).
-4. Bấm **Start** trong GUI. Nếu thấy dòng đỏ báo *"…chưa được convert…"* thì dừng lại và xem mục Chuẩn bị.
+4. Bấm **▶ Bắt đầu** trong GUI. Nếu thấy băng đỏ báo *"…chưa được convert…"* thì dừng lại và xem mục Chuẩn bị.
 5. Đọc 10 câu dưới đây. Người cầm điện thoại ghi lại câu tiếng Anh nghe được, hoặc bạn tự ghi âm màn hình điện thoại.
-6. Bấm **Stop** rồi đóng cửa sổ, sau đó chạy `uv run python eval/latency_report.py "$LOG"`.
+6. Bấm **■ Dừng** rồi đóng cửa sổ, sau đó chạy `uv run python eval/latency_report.py "$LOG"`.
 
 **10 câu (kiểu hội thoại khi gọi):**
 1. Alo, bạn có nghe rõ tôi nói không?
@@ -160,7 +160,7 @@ LOG=~/gr2_manual/latency_light_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
 uv run audio-translator --latency-log "$LOG"
 ```
 
-Dùng phòng yên tĩnh và đeo tai nghe. Có thể không cần gọi Meet. Bấm Start.
+Dùng phòng yên tĩnh và đeo tai nghe. Có thể không cần gọi Meet. Bấm ▶ Bắt đầu.
 
 1. **Câu rất dài.** Đọc liền một mạch, không nghỉ, khoảng 20 giây, ví dụ: *"Hôm nay tôi muốn trình bày về đồ án tốt nghiệp của nhóm, gồm phần nhận dạng giọng nói tiếng Việt, phần dịch sang tiếng Anh, phần tổng hợp giọng nói và phần phát vào micro ảo, sau đó là kết quả đo độ trễ và chất lượng dịch trên nhiều bộ dữ liệu khác nhau…"*
 
@@ -172,7 +172,7 @@ Dùng phòng yên tĩnh và đeo tai nghe. Có thể không cần gọi Meet. B�
 2. **Nói liên tục nhiều câu.** Đọc nhanh 5 câu của (a), mỗi câu chỉ nghỉ khoảng nửa giây. Kỳ vọng: **vàng** "Đang xử lý…" khi có câu chờ, có thể **đỏ** nếu chờ từ 2 câu. Dừng lại thì đèn về xanh sau khi hệ thống xử lý xong.
 3. **Chờ phát.** Nói liền 2–3 câu dài, mỗi câu khoảng 8–10 s, rồi ngay sau đó một câu ngắn ("Cảm ơn bạn."). Bản dịch của câu dài sẽ phát lâu. Kỳ vọng: khi câu ngắn đã dịch xong nhưng còn phải chờ, đèn chuyển **vàng** (chờ > 4 s) hoặc **đỏ** (chờ > 8 s) "Đang phát bản dịch, chờ một chút", và về xanh khi câu ngắn bắt đầu phát. Một câu dài đứng một mình thì đèn không đổi màu vì chờ phát, vì không có câu nào phải chờ.
 4. **Âm thanh không rõ.** Gần micro: lẩm bẩm không thành lời, ho, gõ bàn, hoặc mở một đoạn nhạc có lời khoảng 5 giây. Kỳ vọng: **vàng** "Câu vừa rồi nghe không rõ…" trong khoảng 4 s; hoặc đỏ "Dừng nói…" nếu nhận dạng bị kẹt lâu.
-5. Bấm **Stop**: đèn chuyển xám "–". Bấm Start lại: đèn bắt đầu từ xanh.
+5. Bấm **■ Dừng**: đèn chuyển xám "–". Bấm ▶ Bắt đầu lại: đèn bắt đầu từ xanh.
 
 Sau đó chạy `uv run python eval/latency_report.py "$LOG"`. Cuối báo cáo có số đoạn theo mức đèn cao nhất.
 
@@ -186,6 +186,25 @@ uv run audio-translator --asr-max-tokens-per-s 15 --latency-log "$LOG"
 ```
 
 Cờ này dùng được cả với giao diện lẫn `--cli`. Đọc lại 10 câu của (a), rồi chạy `uv run python eval/latency_report.py "$LOG"`. Dòng `config:` phải ghi `asr_decode=cap15+32`; nếu ghi `base` thì giới hạn chưa được bật.
+
+## (f) Chế độ thu gọn trong cuộc gọi Meet
+
+Mục đích: dùng app ngay trong cuộc gọi mà không che màn hình Meet, và ghi lại cửa sổ nổi có hiện được khi Meet ở chế độ toàn màn hình hay không.
+
+```sh
+LOG=~/gr2_manual/latency_compact_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+uv run audio-translator --latency-log "$LOG"
+```
+
+1. Vào Meet bằng Chrome, chọn Microphone = **BlackHole 2ch**. Điện thoại tắt micro, để xa Mac. Đeo tai nghe.
+2. Trong app bấm **Thu gọn**. Cửa sổ nhỏ (đèn, lý do, câu tiếng Anh gần nhất, nút Bắt đầu / Mở rộng) hiện ở **góc trên bên phải** màn hình.
+3. Bấm **▶ Bắt đầu** ngay trên cửa sổ nhỏ. Nó dùng đúng các cài đặt đang chọn.
+4. **Meet ở cửa sổ thường:** bấm vào cửa sổ Meet. Cửa sổ nhỏ phải **vẫn nằm trên** Meet. Đọc 3–4 câu của (b): đèn đổi màu, câu tiếng Anh mới hiện ra, rê chuột lên để xem đủ câu.
+5. **Meet toàn màn hình:** bấm nút toàn màn hình của Chrome (hoặc Ctrl+Cmd+F), rồi đọc thêm 2 câu. Ghi lại cửa sổ nhỏ **có hiện** hay **bị che**. Trên macOS, cửa sổ nổi có thể không hiện trên ứng dụng toàn màn hình; đây là hạn chế đã biết, app không xử lý.
+6. Thoát toàn màn hình. Bấm **■ Dừng** trên cửa sổ nhỏ (nút bị khóa trong lúc đang dừng), rồi bấm **Mở rộng**: cửa sổ chính hiện lại với đủ các câu trong vùng Bản dịch.
+7. Thử **Cmd+Q** khi đang ở chế độ thu gọn: app phải tắt hẳn, không treo.
+
+Sau đó chạy `uv run python eval/latency_report.py "$LOG"`.
 
 ---
 
@@ -218,9 +237,18 @@ Nguồn nhiễu ở (c): <...>
 | 2. Nói liên tục | vàng/đỏ "Đang xử lý…", về xanh khi dừng | | |
 | 3. Chờ phát | vàng/đỏ "Đang phát bản dịch…" khi câu ngắn chờ | | |
 | 4. Âm không rõ | vàng "nghe không rõ" ~4 s | | |
-| 5. Stop / Start | xám, rồi xanh | | |
+| 5. Dừng / Bắt đầu | xám, rồi xanh | | |
 - Đèn có lúc nào nhấp nháy khó chịu không? <...>
 - Chữ trên đèn có đọc kịp khi đang nói không? <...>
+
+## (f) Chế độ thu gọn
+| Bước | Kỳ vọng | Thực tế | Đúng? |
+|---|---|---|---|
+| 2. Vị trí lần đầu | góc trên bên phải, không che thanh điều khiển Meet | | |
+| 4. Meet cửa sổ thường | cửa sổ nhỏ vẫn nằm trên Meet | | |
+| 5. Meet toàn màn hình | (ghi lại: hiện / bị che) | | |
+| 6. Dừng / Mở rộng | dừng được, cửa sổ chính có đủ câu | | |
+| 7. Cmd+Q khi thu gọn | app tắt hẳn | | |
 
 ## Nhận xét chung
 - Câu bị lặp hai lần (vòng lặp âm thanh)? <có/không>
@@ -235,7 +263,8 @@ Nguồn nhiễu ở (c): <...>
 3. `~/gr2_manual/latency_noisy_<ngày_giờ>.csv`
 4. `~/gr2_manual/latency_light_<ngày_giờ>.csv`
 5. `~/gr2_manual/latency_cap_<ngày_giờ>.csv` (nếu làm (e))
-6. `~/gr2_manual/ket_qua.md` (bảng đã điền)
+6. `~/gr2_manual/latency_compact_<ngày_giờ>.csv` (kịch bản (f))
+7. `~/gr2_manual/ket_qua.md` (bảng đã điền)
 
 `ls -lt ~/gr2_manual/` liệt kê các file, mới nhất ở trên.
 

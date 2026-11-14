@@ -121,15 +121,17 @@ def _window(qapp):
 def test_gui_preselects_blackhole_and_starts(qapp):
     w, orch = _window(qapp)
     assert w.output_combo.currentText() == "BlackHole 2ch"
-    assert w.lang_label.text() == "Tiếng Việt → English"
-    assert w.button.text() == "Start"
+    assert w.lang_label.text() == "Tiếng Việt → Tiếng Anh"
+    assert w.button.text() == "▶ Bắt đầu"
     w.button.click()
     assert orch.started_with == (None, "BlackHole 2ch")
-    assert w.button.text() == "Stop"
+    assert w.button.text() == "■ Dừng"
     w.on_event(Event(STATUS, "Listening", data={"state": RUNNING}))
-    assert w.status_label.text() == "Listening" and not w.output_combo.isEnabled()
+    assert w.status_label.text() == "Đang chạy" and not w.output_combo.isEnabled()
+    assert "Listening" in w.log.toPlainText()  # the orchestrator's own text: technical log
     w.on_event(Event(RESULT, "", 1, 1, data={"source_text": "Xin chào", "text": "Hello", "latency": 0.9}))
-    assert "Xin chào" in w.log.toPlainText() and "0.90 s" in w.log.toPlainText()
+    block = w.transcript.block(0)  # the result goes to the translation pane
+    assert (block.vi.text(), block.en.text(), block.latency.text()) == ("Xin chào", "Hello", "0,9 s")
     w.button.click()
     assert not w.button.isEnabled()
     import time
@@ -139,7 +141,7 @@ def test_gui_preselects_blackhole_and_starts(qapp):
         time.sleep(0.01)
     assert orch.stopped  # called off the Qt thread
     w.on_event(Event(STATUS, "Stopped", data={"state": STOPPED}))
-    assert w.button.text() == "Start" and w.button.isEnabled()
+    assert w.button.text() == "▶ Bắt đầu" and w.button.isEnabled()
     w.close()
     assert orch.shut
 
@@ -151,7 +153,7 @@ def test_gui_shows_device_error_and_returns_to_stopped(qapp):
     w.on_event(Event(ERROR, "Output device 'BlackHole 2ch' stopped unexpectedly"))
     w.on_event(Event(STATUS, "Stopped", data={"state": STOPPED}))
     assert "BlackHole 2ch" in w.error_label.text()
-    assert w.button.text() == "Start" and w.button.isEnabled()
+    assert w.button.text() == "▶ Bắt đầu" and w.button.isEnabled()
 
 
 def test_gui_events_from_worker_thread_are_queued_to_qt_thread(qapp):
@@ -161,9 +163,9 @@ def test_gui_events_from_worker_thread_are_queued_to_qt_thread(qapp):
     t = threading.Thread(target=lambda: orch.on_event(Event(STATUS, "From worker", data={"state": RUNNING})))
     t.start()
     t.join()
-    assert w.status_label.text() != "From worker"  # not touched from the worker thread
+    assert w.status_label.text() != "Đang chạy"  # not touched from the worker thread
     qapp.processEvents()
-    assert w.status_label.text() == "From worker"
+    assert w.status_label.text() == "Đang chạy" and "From worker" in w.log.toPlainText()
 
 
 def test_gui_without_blackhole_never_defaults_to_speakers(qapp):
@@ -174,7 +176,7 @@ def test_gui_without_blackhole_never_defaults_to_speakers(qapp):
     assert w.output_combo.currentData() == ""
     assert "brew install blackhole-2ch" in w.error_label.text()
     w.button.click()
-    assert orch.started_with is None and w.button.text() == "Start"
+    assert orch.started_with is None and w.button.text() == "▶ Bắt đầu"
 
 
 def test_cli_list_models_prints_catalog_with_status(capsys):
@@ -258,7 +260,7 @@ def test_gui_pick_downloaded_model_loads_then_selects(qapp):
     _pick(w, "small")
     assert orch.select_calls == ["small"]
     w.on_event(orch.loading("small"))
-    assert "loading" in w.status_label.text()
+    assert w.status_label.text() == "Đang tải model 'small'…"
     assert _texts(w)[CATALOG_INDEX["small"]] == "small — đang tải…"
     w.on_event(orch.loaded("small"))
     # real order after "selected": "ready" for it, then maybe another model released
@@ -266,7 +268,7 @@ def test_gui_pick_downloaded_model_loads_then_selects(qapp):
         "model": "small", "status": "loaded", "detail": "ready", "selected": True}))
     w.on_event(Event(MODEL, "Model 'tiny': released from memory", data={
         "model": "tiny", "status": "downloaded", "detail": "released from memory", "selected": False}))
-    assert w.status_label.text() == "Model 'small' selected"
+    assert w.status_label.text() == "Đã chọn model 'small'"
     assert "ready" in w.log.toPlainText() and "released" in w.log.toPlainText()
     assert w.model_combo.currentData() == "small"
     assert _texts(w)[CATALOG_INDEX["small"]] == "small — trong RAM ✓"
@@ -279,7 +281,7 @@ def test_gui_pick_not_downloaded_model_reports_download(qapp):
     _pick(w, "large-v3")
     assert orch.select_calls == ["large-v3"]
     w.on_event(orch.loading("large-v3", "downloading (~3.1 GB) and loading"))
-    assert "downloading (~3.1 GB)" in w.status_label.text()
+    assert w.status_label.text() == "Đang tải về model 'large-v3' (~3.1 GB)…"
     assert w.model_combo.isEnabled()
 
 
@@ -289,7 +291,9 @@ def test_gui_model_load_failure_returns_to_selected(qapp):
     orch.status["large-v3"] = "failed"
     w.on_event(Event(ERROR, "Could not load model 'large-v3': boom; keeping 'medium'",
                      data={"model": "large-v3"}))
-    assert "Could not load model" in w.error_label.text()
+    assert w.error_label.text() == "Không tải được model 'large-v3' – vẫn dùng model đang chọn"
+    assert "Could not load model" in w.error_label.label.toolTip()  # English original: tooltip + log
+    assert "Could not load model" in w.log.toPlainText()
     assert w.model_combo.currentData() == "medium"
     assert _texts(w)[CATALOG_INDEX["large-v3"]] == "large-v3 — lỗi"
 
