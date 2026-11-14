@@ -10,10 +10,14 @@ Bốn lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet 
 cd ~/GR2
 git switch main && git pull
 uv sync
-mkdir -p ~/gr2_manual                                    # file đo để NGOÀI repo (có chữ bạn nói)
-uv run audio-translator --cli --list-devices             # phải thấy "BlackHole 2ch" ở output
-uv run audio-translator --cli --list-models              # phowhisper-small: "downloaded" (đã convert)
+mkdir -p ~/gr2_manual
+uv run audio-translator --cli --list-devices
+uv run audio-translator --cli --list-models
 ```
+
+- `~/gr2_manual` nằm **ngoài repo**, vì file đo có chữ bạn nói.
+- `--list-devices` phải thấy "BlackHole 2ch" ở output; `--list-models` phải thấy `phowhisper-small` là "downloaded" (đã convert).
+- **Chép lệnh vào zsh:** các khối lệnh trong tài liệu này không có chú thích `#`. zsh khi gõ lệnh không hiểu `#` là chú thích, nên một dòng như `lệnh  # ghi chú (d)` sẽ báo `number expected` và lệnh không chạy. Nếu chép lệnh từ nơi khác, bỏ phần sau `#`, hoặc chạy `setopt interactivecomments` một lần.
 
 - Cấu hình mặc định của app hiện nay:
   - ASR: `phowhisper-small`, dùng tạm `small` nếu chưa convert;
@@ -31,10 +35,12 @@ uv run audio-translator --cli --list-models              # phowhisper-small: "do
 
 ```sh
 uv run python eval/latency_report.py "$LOG"
-uv run python eval/latency_report.py "$LOG" --markdown   # dạng bảng để dán
+uv run python eval/latency_report.py "$LOG" --markdown
 ```
 
-Script in số đoạn đã phát và đã bỏ, cấu hình đã chạy, rồi in bảng TB / P50 / P95 / Max (ms) cho từng khâu:
+Thêm `--markdown` để in dạng bảng, dán thẳng vào báo cáo.
+
+Script in số đoạn đã phát và đã bỏ, cấu hình đã chạy (`asr_decode=base` nghĩa là giải mã mặc định; `cap15+32` nghĩa là đã bật giới hạn token), rồi in bảng TB / P50 / P95 / Max (ms) cho từng khâu:
 
 | Cột | Nghĩa |
 |---|---|
@@ -168,6 +174,17 @@ Dùng phòng yên tĩnh và đeo tai nghe. Có thể không cần gọi Meet. B�
 
 Sau đó chạy `uv run python eval/latency_report.py "$LOG"`. Cuối báo cáo có số đoạn theo mức đèn cao nhất.
 
+## (e) Tùy chọn: thử giới hạn token (thử nghiệm, mặc định tắt)
+
+Mục đích: xem giới hạn token có hết kẹt nhận dạng 10–20 s trong app thật không, và chữ nhận dạng có bị thêm đuôi lạ ("a.", "…") không. Bench (`results/stall_*.csv`) cho thấy hết kẹt nhưng WER tệ hơn khoảng 1 điểm.
+
+```sh
+LOG=~/gr2_manual/latency_cap_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+uv run audio-translator --asr-max-tokens-per-s 15 --latency-log "$LOG"
+```
+
+Cờ này dùng được cả với giao diện lẫn `--cli`. Đọc lại 10 câu của (a), rồi chạy `uv run python eval/latency_report.py "$LOG"`. Dòng `config:` phải ghi `asr_decode=cap15+32`; nếu ghi `base` thì giới hạn chưa được bật.
+
 ---
 
 ## Bảng kết quả (chép thành `~/gr2_manual/ket_qua.md` và điền)
@@ -214,7 +231,8 @@ Nguồn nhiễu ở (c): <...>
 2. `~/gr2_manual/latency_meet_<ngày_giờ>.csv`
 3. `~/gr2_manual/latency_noisy_<ngày_giờ>.csv`
 4. `~/gr2_manual/latency_light_<ngày_giờ>.csv`
-5. `~/gr2_manual/ket_qua.md` (bảng đã điền)
+5. `~/gr2_manual/latency_cap_<ngày_giờ>.csv` (nếu làm (e))
+6. `~/gr2_manual/ket_qua.md` (bảng đã điền)
 
 `ls -lt ~/gr2_manual/` liệt kê các file, mới nhất ở trên.
 

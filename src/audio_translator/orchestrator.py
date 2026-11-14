@@ -623,6 +623,7 @@ class Orchestrator:
             self._restorer_model[0] if self._restorer_model else s.restore)
         self._lat_session = {
             "asr_model": model,  # the model that really runs (a fallback, not the selection)
+            "asr_decode": getattr(asr, "decode", ""),  # bounded decoding in use (base = off)
             "vad": s.vad_backend if self._vad_factory is None else "injected",
             "asr_filter": "on" if filt is not None else ("off" if hasattr(asr, "segment_filter") else ""),
             "restore": restore,

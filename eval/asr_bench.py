@@ -346,13 +346,9 @@ def _snrs(text: str) -> list[float | None]:
 
 
 def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None) -> str:
-    """``base`` (faster-whisper defaults), ``cap12+16``, ``t0/0.2/0.4`` or both joined by ``,``."""
-    parts = []
-    if per_s:
-        parts.append(f"cap{per_s:g}+{base}")
-    if temps:
-        parts.append("t" + "/".join(f"{t:g}" for t in temps))
-    return ",".join(parts) or "base"
+    from audio_translator.asr import decode_label as label
+
+    return label(per_s, base, temps)
 
 
 def build_parser() -> argparse.ArgumentParser:

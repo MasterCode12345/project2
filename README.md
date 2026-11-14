@@ -118,11 +118,17 @@ uv run audio-translator --cli [--model phowhisper-small] [--input "Tên micro"] 
 File được ghi từ luồng worker, không bao giờ từ callback âm thanh. Nếu không ghi được file thì app báo một lần, phiên vẫn chạy tiếp. Cờ này dùng được với cả CLI lẫn giao diện:
 
 ```sh
-LOG=~/gr2_manual/latency_cli_$(date +%Y%m%d_%H%M).csv     # mỗi lần chạy một file mới, không ghi đè
+LOG=~/gr2_manual/latency_cli_$(date +%Y%m%d_%H%M).csv
 uv run audio-translator --cli --latency-log "$LOG"
-uv run audio-translator --latency-log "$LOG"                 # giao diện
-uv run python eval/latency_report.py "$LOG" [--markdown]     # TB / P50 / P95 / max từng khâu + số đoạn bị bỏ + mức đèn
+uv run audio-translator --latency-log "$LOG"
+uv run python eval/latency_report.py "$LOG"
 ```
+
+- Mỗi lần chạy dùng một file mới có ngày giờ trong tên, để không ghi đè log cũ.
+- Lệnh thứ hai mở giao diện; lệnh thứ ba ở trên dùng CLI.
+- `latency_report.py` in TB / P50 / P95 / max từng khâu, số đoạn bị bỏ và mức đèn; thêm `--markdown` để in dạng bảng.
+- Cột `asr_decode` cho biết giới hạn giải mã có được bật không (`base` = tắt).
+- **zsh:** các chú thích `# …` trong khối lệnh của README chỉ để đọc. Khi dán vào terminal, hãy bỏ phần đó (hoặc chạy `setopt interactivecomments` một lần), nếu không zsh sẽ báo lỗi.
 
 Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch bản 10 câu chuẩn bị sẵn): [docs/manual_test.md](docs/manual_test.md). File log chứa nguyên văn lời nói, nên để **ngoài repo**.
 
@@ -350,7 +356,7 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 329 passed
+uv run --group eval pytest -q     # 331 passed
 ```
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện và CLI.
 
@@ -495,7 +501,7 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
    - Bộ lọc câu ma không chặn được vì `no_speech_prob` ≈ 0.
    - Bench (`results/stall_*.csv`) cho thấy kẹt xảy ra cả trên giọng **sạch**: đoạn lâu nhất 10–34 s ở mọi bộ.
    - Giới hạn token 15/s + 32 hết kẹt (lâu nhất 1,5–3 s), nhưng làm đổi kết quả beam search: thêm đuôi "a." hoặc chuỗi dấu chấm, nên WER sạch tệ hơn 1,12 điểm. Chỉ rút dãy temperature thì gần như không giới hạn được.
-   - Chưa biến thể nào đạt tiêu chí "WER không tệ hơn quá 0,5 điểm", nên **mặc định vẫn tắt**. Thử bằng `--asr-max-tokens-per-s 15` và `--asr-temperatures 0,0.2,0.4`.
+   - Chưa biến thể nào đạt tiêu chí "WER không tệ hơn quá 0,5 điểm", nên **mặc định vẫn tắt**. Thử bằng `--asr-max-tokens-per-s 15` (dùng được cả với giao diện lẫn `--cli`; kịch bản (e) trong `docs/manual_test.md`).
    - Đèn báo cảnh báo người nói khi nhận dạng quá 3 s / 6 s.
 2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
 3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
@@ -550,7 +556,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 │   ├── model_manager.py    quản lý model Whisper
 │   ├── capture.py → denoise.py → segmenter.py → asr.py → restore.py → translate.py → tts.py → playout.py → virtual_out.py   (M2 → M8)
 │   └── config.py, models.py, devices.py, languages.py   dùng chung (languages.py: bảng ngôn ngữ trung tâm)
-├── tests/                  329 test (pytest)
+├── tests/                  331 test (pytest)
 ├── eval/denoise_bench.py   bench đo lọc nhiễu (WER/CER, độ trễ, RTF)
 ├── eval/asr_bench.py       bench so model ASR / câu mồi (WER/CER, độ trễ ASR)
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu

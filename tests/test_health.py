@@ -325,3 +325,40 @@ def test_gui_ignores_the_light_of_a_stopped_session(qapp):
     orch.current_session = None  # the session has stopped; a queued event arrives late
     w.on_event(Event(HEALTH, "", 1, data={"level": RED, "reason": "x"}))
     assert w.light_level == "off"
+
+
+def test_gui_accepts_the_bounded_decoding_flags_and_rejects_cli_only_ones():
+    pytest.importorskip("PySide6")
+    from audio_translator.gui import parse_args
+
+    args, rest = parse_args(["--asr-max-tokens-per-s", "15", "--asr-temperatures", "0,0.2,0.4", "-style", "fusion"])
+    assert args.asr_max_tokens_per_s == 15 and args.asr_temperatures == (0.0, 0.2, 0.4) and rest == ["-style", "fusion"]
+    args, _ = parse_args([])
+    assert args.asr_max_tokens_per_s is None and args.asr_temperatures is None
+    with pytest.raises(SystemExit):
+        parse_args(["--model", "small"])  # CLI-only: an error, not silently ignored
+
+
+def test_latency_log_records_the_decoding_in_use(harness, tmp_path):
+    from audio_translator.model_manager import ModelManager
+    from conftest import FakeModelFactory
+    from test_latency_log import wait_rows
+
+    from audio_translator.asr import WhisperASR, decode_label
+
+    assert decode_label(None, 32, None) == "base" and WhisperASR("small", max_tokens_per_s=15,
+                                                                  max_tokens_base=32).decode == "cap15+32"
+    f = FakeModelFactory()
+
+    def factory(name):
+        rec = f(name)
+        rec.decode = "cap15+32"
+        return rec
+
+    p = tmp_path / "lat.csv"
+    h = harness(settings=Settings(latency_log=str(p)),
+                model_manager=ModelManager(factory, is_downloaded=lambda n: True))
+    h.start()
+    h.say(utterance(15))
+    (r,) = wait_rows(p, 1)
+    assert r["asr_decode"] == "cap15+32"

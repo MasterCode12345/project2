@@ -79,12 +79,12 @@ def report(rows: list[dict], markdown: bool = False) -> str:
     lines = []
     played = sum(r.get("status") == PLAYED for r in rows)
     dropped = sum(r.get("status") == DROPPED for r in rows)
-    configs = sorted({tuple(r.get(k, "") for k in ("asr_model", "vad", "asr_filter", "restore", "translator"))
-                      for r in rows})
+    configs = sorted({tuple(r.get(k, "") or "?" for k in ("asr_model", "asr_decode", "vad", "asr_filter", "restore",
+                                                         "translator")) for r in rows})
     sessions = sorted({(r["_file"], r.get("session_id", "")) for r in rows})
     lines.append(f"{len(rows)} segment(s) in {len(sessions)} session(s): {played} played, {dropped} dropped")
     for c in configs:
-        lines.append("config: asr_model={} vad={} asr_filter={} restore={} translator={}".format(*c))
+        lines.append("config: asr_model={} asr_decode={} vad={} asr_filter={} restore={} translator={}".format(*c))
     words = [int(r["n_words_vi"]) for r in rows if r.get("status") == PLAYED and r.get("n_words_vi")]
     if words:
         lines.append(f"words per played segment (vi): mean {np.mean(words):.1f}, max {max(words)}")

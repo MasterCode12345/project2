@@ -20,7 +20,7 @@ DROPPED = "dropped"
 
 STAMPS = ["speech_start", "speech_end", "segmented", "asr_start", "asr_end", "mt_start", "restored",
           "mt_end", "tts_start", "tts_end", "first_audio_out"]
-SESSION_FIELDS = ["asr_model", "vad", "asr_filter", "restore", "translator"]
+SESSION_FIELDS = ["asr_model", "asr_decode", "vad", "asr_filter", "restore", "translator"]
 # (column, end stamp, start stamps: the first present one is used)
 DURATIONS = [
     ("segment_ms", "segmented", ("speech_end",)),

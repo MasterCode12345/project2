@@ -154,6 +154,16 @@ def filter_from_settings(settings) -> SegmentFilter | None:
 MAX_NEW_TOKENS = 224
 
 
+def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None) -> str:
+    """``base`` (faster-whisper defaults), ``cap15+32``, ``t0/0.2/0.4`` or both joined by ``,``."""
+    parts = []
+    if per_s:
+        parts.append(f"cap{per_s:g}+{base}")
+    if temps:
+        parts.append("t" + "/".join(f"{t:g}" for t in temps))
+    return ",".join(parts) or "base"
+
+
 class Recognizer(Protocol):
     def load(self) -> None: ...
 
@@ -204,6 +214,11 @@ class WhisperASR:
                 self._model = WhisperModel(
                     resolve_model(self.model_size), device=self.device, compute_type=self.compute_type
                 )
+
+    @property
+    def decode(self) -> str:
+        """Label of the decoding options in use (``base`` = faster-whisper defaults)."""
+        return decode_label(self.max_tokens_per_s, self.max_tokens_base, self.temperatures)
 
     def max_new_tokens(self, audio_s: float) -> int | None:
         """Output-token cap for ``audio_s`` seconds of audio (None = no cap)."""
