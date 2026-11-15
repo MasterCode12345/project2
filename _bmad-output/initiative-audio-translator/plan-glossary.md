@@ -238,6 +238,11 @@ One sentence changes meaning: "Trường CNTT&TT thuộc Đại học Bách khoa
 **Limitations.**
 - 20 term sentences; references unreviewed.
 - Google not measured. In the app, Google is only the per-segment fallback of Argos; the wrapper verifies the placeholders whatever the backend, so a Google fallback that damages one only causes a plain retranslation.
+- Sentences with a placeholder sometimes lose an article or a preposition around the name ("I'm School of …", "student School of …").
+- A sentence with two terms can have its relation changed: "Trường CNTT&TT thuộc Đại học Bách khoa Hà Nội" → "… **is** Hanoi University of Science and Technology" ("thuộc" = "belongs to").
+- "đồ án tốt nghiệp" and "giảng viên hướng dẫn" stay out of the shipped table (your decision: the table is for proper names only).
+
+**Possible extension (not done now):** a placeholder with its class noun kept in the source, e.g. "trường ZQX1" / "thầy ZQX2", so the MT sees a noun phrase and keeps articles, prepositions and relations. To be measured with the same bench before any change of default.
 
 ## Questions for you (answered above)
 
