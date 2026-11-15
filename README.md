@@ -181,6 +181,12 @@ Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch b
 - Bước khớp tốn khoảng 0,004 ms mỗi câu.
 - Google: không đo được (bị chặn vì gọi quá nhiều).
 
+**Hạn chế:**
+- Câu có placeholder đôi khi thiếu mạo từ hoặc giới từ quanh tên, ví dụ "I'm School of Information and Communication Technology…", "…student School of…". Tên vẫn đúng, nhưng câu kém tự nhiên hơn.
+- Câu có hai thuật ngữ có thể bị đổi quan hệ giữa chúng. Ví dụ "Trường CNTT&TT **thuộc** Đại học Bách khoa Hà Nội" được dịch thành "… **is** Hanoi University of Science and Technology".
+- Bảng chỉ dành cho tên riêng. Các cụm thường như "đồ án tốt nghiệp" hay "giảng viên hướng dẫn" không có trong bảng mặc định.
+- Hướng mở rộng (chưa làm): placeholder kèm danh từ loại, ví dụ "trường ZQX1", để bộ dịch giữ được mạo từ, giới từ và quan hệ.
+
 **Thêm thuật ngữ:**
 - Sửa `src/audio_translator/glossary_vi_en.tsv`, hoặc tạo file riêng rồi chạy `uv run audio-translator --glossary ~/thuat_ngu.tsv`. File riêng cộng thêm vào và ghi đè các mục trùng.
 - Mỗi dòng là `tên tiếng Việt<TAB>tên tiếng Anh`. Dòng bắt đầu bằng `#` là chú thích.
