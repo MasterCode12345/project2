@@ -290,7 +290,8 @@ def test_decode_probe_records_each_attempt_and_its_limit():
     probe = ab.install_decode_probe(r)
     assert r._model.model.other == "kept"  # everything else passes through
     assert r.transcribe_segments(None, 16000) == ["seg"]
-    assert [(t, n, lim) for _s, t, n, lim in r.last_decode] == [(0.0, 224, 224), (0.2, 30, 52)]
+    # real limit = max_length // 2 with a 3-token prompt (CTranslate2's Whisper; plan-asr-anti-stall.md): 448 -> 224, 55 -> 27
+    assert [(t, n, lim) for _s, t, n, lim in r.last_decode] == [(0.0, 224, 224), (0.2, 30, 27)]
     assert probe.calls == r.last_decode
     assert ab.install_decode_probe(object()) is None
 
@@ -312,3 +313,51 @@ def test_segments_out_writes_one_row_per_asr_segment(tmp_path):
     rows = list(csv.DictReader(open(segs, encoding="utf-8"), delimiter="\t"))
     assert list(rows[0]) == ab.SEG_COLUMNS and {r["kind"] for r in rows} >= {"speech"}
     assert {r["decode"] for r in rows} == {"base"} and {r["snr_db"] for r in rows} == {"clean", "5"}
+
+
+def test_anti_stall_columns_and_probe_inside_the_limiter():
+    import types
+
+    from audio_translator.asr import DecodeLimiter
+
+    class CT2:
+        def generate(self, features, prompts, **kw):
+            return [types.SimpleNamespace(sequences_ids=[[0] * 30])]
+
+    lim = DecodeLimiter(CT2())
+    rec = types.SimpleNamespace(_model=types.SimpleNamespace(model=lim), transcribe_segments=lambda a, s: [])
+    probe = ab.install_decode_probe(rec)
+    assert rec._model.model is lim and lim._inner is probe  # the probe sees the limited calls
+    lim.begin(None, 52, None)
+    lim.generate(None, [[1, 2, 3]], max_length=448, sampling_temperature=0.2)
+    assert probe.calls[0][3] == 52  # the limiter sets max_length so that 52 real tokens may be generated
+    speech = [(1.0, 2.0, [(1, 0, 20, 224)], 0, ""), (3.0, 3.0, [(1, 0, 52, 52), (1, .2, 30, 52), (1, .4, 9, 52)], 2,
+                                                       "truncated")]
+    d = ab.decode_stats(speech, [(5.0, 3.0, [(1, 0, 9, 224)], 1, "loop")])
+    assert (d["t0_rejected"], d["noise_t0_rejected"]) == (1, 1)
+    assert (d["redecodes"], d["budget_skips"], d["noise_budget_skips"], d["asr_ms_p50"]) == (2, 2, 1, "2000")
+    assert set(ab.COLUMNS) >= {"asr_ms_p50", "noise_asr_ms_p50", "redecodes", "budget_skips"}
+    assert ab.decode_label(None, 32, None, 15, 100, 4.0, False) == "fb15+32,t0min100,budget4s"
+
+
+def test_limiter_stats_survive_memoize():
+    import types
+
+    from audio_translator.asr import DecodeLimiter
+
+    lim = DecodeLimiter(types.SimpleNamespace())
+    rec = types.SimpleNamespace(_model=types.SimpleNamespace(model=lim), initial_prompt=None, limiter=lim)
+
+    def real(audio, sr):
+        lim.begin(None, None, None)
+        lim.t0_rejected, lim.budget_skips, lim.rejected = "truncated", 2, 1
+        return ["seg"]
+
+    rec.transcribe_segments = real
+    rec.transcribe = lambda audio, sr: rec.transcribe_segments(audio, sr) and "x"
+    ab.memoize_segments(rec)
+    timed = ab.TimedASR(rec)
+    timed.transcribe(np.zeros(160, np.int16), 16000)
+    lim.t0_rejected, lim.budget_skips, lim.rejected = "", 0, 0  # a later call resets the limiter
+    timed.transcribe(np.zeros(160, np.int16), 16000)  # replay: the stats of the real call
+    assert [c[3:] for c in timed.calls] == [(2, "truncated", 1, False)] * 2

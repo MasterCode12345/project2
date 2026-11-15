@@ -1,0 +1,6 @@
+corpus,noise,model,prompt,vad,filter,decode,snr_db,n_utts,wer,cer,asr_ms_mean,asr_ms_p95,asr_rtf,load_s,vad_extra_segs,vad_false_triggers,ghost_texts,asr_ms_max,noise_segs,noise_asr_ms_mean,noise_asr_ms_p95,noise_asr_ms_max,fallback_segs,noise_fallback_segs,noise_redecodes,cap_hits,max_tok_per_s,asr_ms_p50,noise_asr_ms_p50,redecodes,budget_skips,noise_budget_skips
+fleurs,-,phowhisper-small,off,silero,on,base,clean,100,0.1549,0.0920,1898,3836,0.421,0.7,0,0,0,35875,0,0,0,0,13,0,0,8,25.00,1235,0,26,0,0
+fleurs,-,phowhisper-small,off,silero,on,fb15+32,clean,100,0.1572,0.0925,1581,3809,0.351,0.8,0,0,0,8503,0,0,0,0,13,0,0,7,25.00,1229,0,13,0,0
+fleurs,-,phowhisper-small,off,silero,on,"fb15+32,t0min100",clean,100,0.1519,0.0902,1331,2078,0.295,0.7,0,0,0,2876,0,0,0,0,2,0,0,0,25.00,1231,0,2,0,0
+fleurs,-,phowhisper-small,off,silero,on,"fb15+32,t0min100,budget4s",clean,100,0.1519,0.0902,1331,2080,0.295,0.8,0,0,0,2869,0,0,0,0,2,0,0,0,25.00,1226,0,2,0,0
+fleurs,-,phowhisper-small,off,silero,on,"cap15+32,tail",clean,100,0.1506,0.0887,1317,2068,0.292,0.8,0,0,0,2861,0,0,0,0,1,0,0,0,26.04,1236,0,1,0,0

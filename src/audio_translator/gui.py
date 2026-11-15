@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from .asr import LOCAL_MODELS
-from .config import Settings
+from .config import ANTI_STALL_PRESETS, Settings
 from .gui_strings import (MODEL_NOT_CONVERTED, MODEL_NOT_DOWNLOADED, MODEL_STATUS, NOISE, TRANSLATOR_SHORT,
                           TRANSLATORS, VI, error_headline, is_google_fallback, model_event_text, status_text)
 from .gui_widgets import Banner, CollapsibleSection, CompactWindow, LightWidget, TranscriptView
@@ -397,11 +397,9 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
                    help="initial translation backend (can be changed in Cài đặt while stopped)")
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="initial noise suppression (can be changed in Cài đặt while stopped)")
-    p.add_argument("--asr-max-tokens-per-s", type=float, default=None, metavar="N",
-                   help="experimental, default off: cap Whisper output tokens per second of audio")
-    p.add_argument("--asr-temperatures", default=None, metavar="T,T,...",
-                   type=lambda v: tuple(float(x) for x in v.split(",") if x.strip()),
-                   help="experimental, default off: Whisper temperature fallback ladder, e.g. 0,0.2,0.4")
+    p.add_argument("--asr-anti-stall", default="off", choices=list(ANTI_STALL_PRESETS),
+                   help="experimental, default off: bounded decoding against ASR stalls (c4a: real-token cap, a "
+                        "truncated attempt is retried; c4b: also a looping temperature-0 one); see plan-asr-anti-stall.md")
     args, rest = p.parse_known_args(list(argv or []))
     from .cli import build_parser
 
@@ -409,7 +407,7 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
     cli_only = [a for a in rest if a.split("=", 1)[0] in cli_opts]
     if cli_only:  # an app option must not silently go to Qt and be ignored
         p.error(f"{' '.join(cli_only)}: only with --cli (the GUI accepts --latency-log, --translator, --ns, "
-                "--asr-max-tokens-per-s, --asr-temperatures)")
+                "--asr-anti-stall)")
     return args, rest
 
 
@@ -417,7 +415,6 @@ def main(argv: list[str] | None = None) -> int:
     args, qt_args = parse_args(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1] + qt_args)
     win = MainWindow(settings=Settings(latency_log=args.latency_log, translator=args.translator, ns_mode=args.ns,
-                                       asr_max_tokens_per_s=args.asr_max_tokens_per_s,
-                                       asr_temperatures=args.asr_temperatures))
+                                       **ANTI_STALL_PRESETS[args.asr_anti_stall]))
     win.show()
     return app.exec()

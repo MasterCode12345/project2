@@ -259,6 +259,8 @@ Clean runs with today's decoding (scratch per-segment TSVs, `--segments-out`):
   - For a 3 s segment an attempt stops at 77 tokens (about 2 s) instead of 224 (about 6 s).
 - **Runs:** 4 variants (base / cap15+32 / t0,0.2,0.4 / both) × {VIVOS × DEMAND, VIVOS × MUSAN at clean, 20, 10, 5, 0 dB; FLEURS clean}, run sequentially. Output: `results/stall_*.csv`.
 
+> **Correction (2026-11-14, plan-asr-anti-stall.md C4).** Every capped run in this plan passed the cap as faster-whisper's `max_new_tokens`. CTranslate2's Whisper then generates at most `max_length // 2` tokens (3-token prompt), so "15 tok/s + 32" really allowed only about **half**: (15·s + 35) // 2 tokens. The `cap_hits = 0` reported below were also counted against the wrong limit; most capped segments did stop at the real limit. The numbers stay as measured; their reading is corrected in plan-asr-anti-stall.md.
+
 ## Part B: results (2026-11-14, `results/stall_vivos_demand.csv`, `results/stall_vivos_musan.csv`, `results/stall_fleurs_clean.csv`)
 
 Configuration: phowhisper-small, Silero + filter, 100 VIVOS utterances (FLEURS: 244 segments of 100 sentences), seed 0, run sequentially on the same machine. WER in points; ASR in ms on scored speech segments; "noise" = every segment of the noise-only clips.

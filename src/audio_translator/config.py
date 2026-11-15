@@ -80,6 +80,20 @@ class Settings:
     asr_max_tokens_per_s: float | None = None  # max_new_tokens = ceil(audio_s x this) + base (<= 224)
     asr_max_tokens_base: int = 32  # bench choice with 15 tok/s (plan-speaker-indicator.md)
     asr_temperatures: tuple[float, ...] | None = None  # e.g. (0.0, 0.2, 0.4); None = 0.0..1.0 step 0.2
+    # Anti-stall per decoding attempt (asr.DecodeLimiter; plan-asr-anti-stall.md). All off until
+    # the bench decides: cap only the fallback attempts (C), a wide limit for temperature 0 (C+),
+    # a time budget per segment after which no more retries run (C2), tail strip for the cap (B).
+    asr_fallback_max_tokens_per_s: float | None = None
+    asr_first_min_tokens: int | None = None
+    asr_decode_budget_s: float | None = None
+    asr_cap_tail_strip: bool = False
+    # C3: retry instead of accepting a temperature-0 attempt that stopped at its token limit (a)
+    # or whose text loops (b: dot run or a repeated 4-word group). Off until the bench decides.
+    asr_reject_truncated_t0: bool = False
+    asr_reject_loop_t0: bool = False
+    # C4: no attempt (any temperature) that stopped at its token limit is accepted while another
+    # exists; limits are real tokens (asr.max_length_for). Off until the bench decides.
+    asr_reject_truncated_all: bool = False
     # Whisper models kept resident (LRU). ~2 fit in 8 GB RAM with int8 CPU models.
     max_loaded_models: int = 2
 
@@ -133,3 +147,17 @@ class Settings:
     @property
     def frame_samples(self) -> int:
         return self.capture_rate * self.frame_ms // 1000
+
+
+# Anti-stall presets for the app (--asr-anti-stall; plan-asr-anti-stall.md). Only the C3 family is
+# offered in the app; the rejected configurations (B, C, C2 alone) stay reachable through the
+# Settings fields and eval/asr_bench.py flags so the bench can be reproduced.
+ANTI_STALL_PRESETS: dict[str, dict] = {
+    "off": {},
+    # every attempt capped at 20 real tokens/s + 32 (no normal (A) segment of VIVOS/FLEURS clean
+    # reaches it, >= 25 % headroom), a truncated attempt is never accepted, 4 s budget.
+    "c4a": dict(asr_max_tokens_per_s=20.0, asr_max_tokens_base=32, asr_decode_budget_s=4.0,
+                asr_reject_truncated_all=True),
+    "c4b": dict(asr_max_tokens_per_s=20.0, asr_max_tokens_base=32, asr_decode_budget_s=4.0,
+                asr_reject_truncated_all=True, asr_reject_loop_t0=True),
+}

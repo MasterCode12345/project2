@@ -61,7 +61,9 @@ FILTER_MODES = ("off", "on")
 COLUMNS = ["corpus", "noise", "model", "prompt", "vad", "filter", "decode", "snr_db", "n_utts", "wer", "cer",
            "asr_ms_mean", "asr_ms_p95", "asr_rtf", "load_s", "vad_extra_segs", "vad_false_triggers",
            "ghost_texts", "asr_ms_max", "noise_segs", "noise_asr_ms_mean", "noise_asr_ms_p95", "noise_asr_ms_max",
-           "fallback_segs", "noise_fallback_segs", "noise_redecodes", "cap_hits", "max_tok_per_s"]
+           "fallback_segs", "noise_fallback_segs", "noise_redecodes", "cap_hits", "max_tok_per_s",
+           "asr_ms_p50", "noise_asr_ms_p50", "redecodes", "budget_skips", "noise_budget_skips",
+           "t0_rejected", "noise_t0_rejected", "trunc_rejected", "all_truncated", "noise_all_truncated"]
 # Decoding columns (bounded decoding, plan-speaker-indicator.md), from DecodeProbe (one entry per
 # CTranslate2 generate call = one decoding attempt): ``decode`` = the variant label;
 # ``asr_ms_max`` over scored speech segments; ``noise_*`` = ASR time over every segment of the
@@ -110,12 +112,14 @@ class DecodeProbe:
         return getattr(self._inner, name)
 
     def generate(self, *args, **kw):
-        from audio_translator.asr import MAX_NEW_TOKENS
+        from audio_translator.asr import real_token_limit
 
         t0 = time.perf_counter()
         out = self._inner.generate(*args, **kw)
+        # CTranslate2's Whisper generates at most max_length // 2 tokens (plan-asr-anti-stall.md step 0;
+        # before 2026-11-14 this used max_length - prompt and so under-counted cap hits).
         prompts = args[1] if len(args) > 1 else kw.get("prompts", [[]])
-        limit = min(kw.get("max_length", 448) - len(prompts[0]), MAX_NEW_TOKENS)
+        limit = real_token_limit(kw.get("max_length", 448), len(prompts[0]))
         n = len(out[0].sequences_ids[0]) if out and out[0].sequences_ids else 0
         self.calls.append((time.perf_counter() - t0, float(kw.get("sampling_temperature", 0.0) or 0.0), n, limit))
         return out
@@ -127,8 +131,14 @@ def install_decode_probe(asr) -> DecodeProbe | None:
     model = getattr(getattr(asr, "_model", None), "model", None)
     if model is None or not hasattr(model, "generate"):
         return None
-    probe = DecodeProbe(model)
-    asr._model.model = probe
+    from audio_translator.asr import DecodeLimiter
+
+    if isinstance(model, DecodeLimiter):  # record the real decodes, after the limiter's changes
+        probe = DecodeProbe(model._inner)
+        model._inner = probe
+    else:
+        probe = DecodeProbe(model)
+        asr._model.model = probe
     real = asr.transcribe_segments
 
     def probed(audio, sample_rate):
@@ -158,11 +168,20 @@ class TimedASR:
             self.asr.last_call_s = None
         if hasattr(self.asr, "last_decode"):
             self.asr.last_decode = None
+        if hasattr(self.asr, "last_limiter_stats"):
+            self.asr.last_limiter_stats = None
         t0 = time.perf_counter()
         text = self.asr.transcribe(audio, sample_rate)
         secs = getattr(self.asr, "last_call_s", None)
+        lim = getattr(self.asr, "limiter", None)
+        # memoized recognizers keep the limiter stats of the real call with the segments (a replay
+        # would otherwise read the limiter's state of a later call; before 2026-11-14 they read 0)
+        stats = getattr(self.asr, "last_limiter_stats", None)
+        if stats is None:
+            stats = (lim.budget_skips, lim.t0_rejected, lim.rejected, lim.all_truncated
+                     and bool(getattr(self.asr, "reject_truncated_all", False))) if lim is not None else (0, "", 0, False)
         self.calls.append((time.perf_counter() - t0 if secs is None else secs, audio.size / sample_rate,
-                           getattr(self.asr, "last_decode", None) or []))
+                           getattr(self.asr, "last_decode", None) or [], *stats))
         return text
 
 
@@ -185,8 +204,12 @@ def memoize_segments(asr) -> dict | None:
         if key not in memo:
             t0 = time.perf_counter()
             segs = real(audio, sample_rate)
-            memo[key] = (segs, time.perf_counter() - t0, getattr(asr, "last_decode", None))
-        segs, asr.last_call_s, decode = memo[key]
+            lim = getattr(asr, "limiter", None)
+            memo[key] = (segs, time.perf_counter() - t0, getattr(asr, "last_decode", None),
+                         (lim.budget_skips, lim.t0_rejected, lim.rejected,
+                          lim.all_truncated and bool(getattr(asr, "reject_truncated_all", False)))
+                         if lim is not None else (0, "", 0, False))
+        segs, asr.last_call_s, decode, asr.last_limiter_stats = memo[key]
         if decode is not None:
             asr.last_decode = decode
         return segs
@@ -215,7 +238,8 @@ def latency_stats(calls: list[tuple[float, float]]) -> tuple[float, float, float
     return float(secs.mean() * 1000), float(np.percentile(secs, 95) * 1000), float(secs.sum() / audio) if audio else 0.0
 
 
-SEG_COLUMNS = ["decode", "snr_db", "clip", "kind", "audio_s", "asr_ms", "attempts", "text", "ref"]
+SEG_COLUMNS = ["decode", "snr_db", "clip", "kind", "audio_s", "asr_ms", "attempts", "text", "ref", "t0_rejected",
+               "all_truncated"]
 
 
 def _seg_row(snr, k: int, kind: str, call: tuple, text: str, ref: str) -> dict:
@@ -223,7 +247,8 @@ def _seg_row(snr, k: int, kind: str, call: tuple, text: str, ref: str) -> dict:
     return {"snr_db": "clean" if snr is None else f"{snr:g}", "clip": k, "kind": kind, "audio_s": f"{call[1]:.2f}",
             "asr_ms": f"{call[0] * 1000:.0f}",
             "attempts": " ".join(f"t{t:g}:{n}/{lim}:{s * 1000:.0f}ms" for s, t, n, lim in att),
-            "text": text.strip(), "ref": ref}
+            "text": text.strip(), "ref": ref, "t0_rejected": call[4] if len(call) > 4 else "",
+            "all_truncated": int(bool(call[6])) if len(call) > 6 else 0}
 
 
 def decode_stats(speech: list[tuple], noise: list[tuple]) -> dict:
@@ -244,6 +269,16 @@ def decode_stats(speech: list[tuple], noise: list[tuple]) -> dict:
         "noise_redecodes": sum(max(0, len(attempts(c)) - 1) for c in noise),
         "cap_hits": sum(any(n >= lim for _s, _t, n, lim in attempts(c)) for c in speech),
         "max_tok_per_s": f"{max(rates, default=0.0):.2f}",
+        "asr_ms_p50": f"{np.percentile([c[0] * 1000 for c in speech], 50) if speech else 0.0:.0f}",
+        "noise_asr_ms_p50": f"{np.percentile(noise_ms, 50) if noise_ms.size else 0.0:.0f}",
+        "redecodes": sum(max(0, len(attempts(c)) - 1) for c in speech),
+        "budget_skips": sum(c[3] if len(c) > 3 else 0 for c in speech),
+        "noise_budget_skips": sum(c[3] if len(c) > 3 else 0 for c in noise),
+        "t0_rejected": sum(bool(c[4]) if len(c) > 4 else 0 for c in speech),
+        "noise_t0_rejected": sum(bool(c[4]) if len(c) > 4 else 0 for c in noise),
+        "trunc_rejected": sum(1 for c in speech if len(c) > 5 and c[5]),
+        "all_truncated": sum(1 for c in speech if len(c) > 6 and c[6]),
+        "noise_all_truncated": sum(1 for c in noise if len(c) > 6 and c[6]),
     }
 
 
@@ -345,10 +380,12 @@ def _snrs(text: str) -> list[float | None]:
     return out
 
 
-def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None) -> str:
+def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None, fallback_per_s=None,
+                 first_min=None, budget_s=None, tail=False, reject="") -> str:
     from audio_translator.asr import decode_label as label
 
-    return label(per_s, base, temps)
+    return label(per_s, base, temps, fallback_per_s=fallback_per_s, first_min=first_min, budget_s=budget_s,
+                 tail=tail, reject=reject)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -374,9 +411,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-tokens-per-s", type=float, default=None,
                    help="bounded decoding: cap output at ceil(audio_s x N) + --max-tokens-base tokens (default: off)")
-    p.add_argument("--max-tokens-base", type=int, default=16)
+    p.add_argument("--max-tokens-base", type=int, default=32)
     p.add_argument("--temperatures", default=None,
                    help="bounded decoding: temperature ladder, e.g. 0,0.2,0.4 (default: faster-whisper's 6)")
+    p.add_argument("--fallback-max-tokens-per-s", type=float, default=None,
+                   help="anti-stall (C): cap only fallback attempts at ceil(audio_s x N) + base tokens")
+    p.add_argument("--first-min-tokens", type=int, default=None,
+                   help="anti-stall (C+): temperature-0 limit max(N, per-second cap), at most 224")
+    p.add_argument("--decode-budget-s", type=float, default=None,
+                   help="anti-stall (C2): no more fallback attempts once a segment took S seconds")
+    p.add_argument("--cap-tail-strip", action="store_true",
+                   help="anti-stall (B): strip a junk tail when a capped attempt reached its limit")
+    p.add_argument("--reject-truncated-t0", action="store_true",
+                   help="anti-stall (C3a): retry when the temperature-0 attempt stopped at its token limit")
+    p.add_argument("--reject-truncated-all", action="store_true",
+                   help="anti-stall (C4): never accept an attempt (any temperature) that stopped at its limit")
+    p.add_argument("--reject-loop-t0", action="store_true",
+                   help="anti-stall (C3b): retry when the temperature-0 text has a dot run or a repeated 4-word group")
     p.add_argument("--decode-label", default=None, help="value of the decode column (default: derived)")
     p.add_argument("--segments-out", type=Path, default=None,
                    help="also write one TSV row per ASR segment: time, decoding attempts, text, reference")
@@ -408,7 +459,12 @@ def main(argv: list[str] | None = None) -> int:
     filters = tuple(SegmentFilter() if f == "on" else None for f in filter_modes)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     temps = tuple(float(t) for t in args.temperatures.split(",") if t.strip()) if args.temperatures else None
-    decode = args.decode_label or decode_label(args.max_tokens_per_s, args.max_tokens_base, temps)
+    decode = args.decode_label or decode_label(args.max_tokens_per_s, args.max_tokens_base, temps,
+                                               args.fallback_max_tokens_per_s, args.first_min_tokens,
+                                               args.decode_budget_s, args.cap_tail_strip,
+                                               ("trunc" if args.reject_truncated_all else
+                                                "t0trunc" if args.reject_truncated_t0 else "")
+                                               + ("+loop" if args.reject_loop_t0 else ""))
     if args.smoke:
         utts, noises = db.smoke_data(args.seed)
         corpus, noise_name = "smoke", "smoke"
@@ -441,7 +497,11 @@ def main(argv: list[str] | None = None) -> int:
 
         def make_asr(name):
             return WhisperASR(name, language="vi", beam_size=args.beam_size, max_tokens_per_s=args.max_tokens_per_s,
-                              max_tokens_base=args.max_tokens_base, temperatures=temps)
+                              max_tokens_base=args.max_tokens_base, temperatures=temps,
+                              fallback_max_tokens_per_s=args.fallback_max_tokens_per_s,
+                              first_min_tokens=args.first_min_tokens, decode_budget_s=args.decode_budget_s,
+                              cap_tail_strip=args.cap_tail_strip, reject_truncated_t0=args.reject_truncated_t0,
+                              reject_loop_t0=args.reject_loop_t0, reject_truncated_all=args.reject_truncated_all)
 
         def make_vad(name):
             return webrtc_vad(args.vad_aggressiveness) if name == "webrtc" else silero_vad(args.silero_threshold)
