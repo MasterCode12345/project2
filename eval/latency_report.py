@@ -98,6 +98,10 @@ def report(rows: list[dict], markdown: bool = False) -> str:
         lines += [f"{s:<16} {n:>4} {m:>8.0f} {p50:>8.0f} {p95:>8.0f} {mx:>8.0f}" for s, n, m, p50, p95, mx in stats]
     if not stats:
         lines.append("(no played segment with timestamps)")
+    gl = [r for r in rows if r.get("glossary")]
+    if gl:
+        fb = sum(r["glossary"] == "fallback" for r in gl)
+        lines.append(f"glossary: {len(gl) - fb} segment(s) with terms translated, {fb} fallback(s)")
     lights = health_counts(rows)
     if lights:
         lines.append("")

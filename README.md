@@ -158,6 +158,38 @@ uv run python eval/latency_report.py "$LOG"
 
 Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch bản 10 câu chuẩn bị sẵn): [docs/manual_test.md](docs/manual_test.md). File log chứa nguyên văn lời nói, nên để **ngoài repo**.
 
+### Bảng thuật ngữ (tên riêng)
+
+**Vấn đề:** tên riêng bị dịch theo nghĩa từng chữ. Ví dụ "Đại học Bách khoa Hà Nội" bị Argos dịch thành "University of Hanoi Encyclopedia", còn "Trần Trung Nghĩa" thành "Chen Yi".
+
+**Cách làm** (bật mặc định):
+- Trước khi dịch, mỗi thuật ngữ trong bảng được thay bằng một placeholder (`ZQX1`, `ZQX2`…).
+- Dịch xong, mỗi placeholder phải còn nguyên đúng một lần; khi đó nó được thay bằng tên tiếng Anh chính thức.
+- Nếu một placeholder bị mất hoặc biến dạng, câu đó được dịch lại không dùng bảng. Placeholder không bao giờ lọt ra bản dịch hay giọng đọc.
+- Câu không chứa thuật ngữ nào được dịch y như trước.
+
+**Kết quả đo** (`results/mt_glossary_vi_en.csv`, bộ 27 câu `eval/data/mt_glossary_vi_en.tsv`, chưa duyệt):
+
+| Bộ dịch | Thuật ngữ dịch đúng | BLEU bộ thuật ngữ |
+|---|---|---|
+| Argos | 0% → 100% | 18,6 → 57,9 |
+| NLLB-600M | 12% → 100% | |
+| M2M100-418M | 8% → 100% | |
+
+- 0 placeholder lọt ra.
+- FLEURS 100/100 câu giống hệt trước; mt_custom có BLEU tăng (42,5 → 44,4).
+- Bước khớp tốn khoảng 0,004 ms mỗi câu.
+- Google: không đo được (bị chặn vì gọi quá nhiều).
+
+**Thêm thuật ngữ:**
+- Sửa `src/audio_translator/glossary_vi_en.tsv`, hoặc tạo file riêng rồi chạy `uv run audio-translator --glossary ~/thuat_ngu.tsv`. File riêng cộng thêm vào và ghi đè các mục trùng.
+- Mỗi dòng là `tên tiếng Việt<TAB>tên tiếng Anh`. Dòng bắt đầu bằng `#` là chú thích.
+- Bảng chỉ dành cho **tên riêng** (người, trường, tổ chức), và mỗi tên phải có **ít nhất 3 âm tiết**. Muốn nhận tên ngắn hơn thì ghi `short_ok` ở cột thứ 3. Quy tắc này chặn các từ chung chung như "bách khoa" hay "Hà Nội".
+- Khớp không phân biệt hoa thường, có tính dấu, chỉ khớp nguyên từ, cụm dài nhất được ưu tiên.
+- Dòng lỗi trong file riêng sẽ bị bỏ qua, kèm cảnh báo vàng ghi file:dòng. Đường dẫn không tồn tại thì app không cho bắt đầu phiên.
+- Tắt bảng bằng `--no-glossary`.
+- Cột `glossary` của `--latency-log` ghi các thuật ngữ đã dùng cho từng đoạn, hoặc `fallback`.
+
 ### Đèn báo cho người nói
 
 Theo góp ý của giảng viên, app có một đèn **xanh / vàng / đỏ** để người nói biết lúc nào nên ngắt nghỉ, nói chậm lại, hoặc nói lại. Mục đích là để cuộc hội thoại không bị lỗi hay mất thông tin.

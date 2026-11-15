@@ -34,6 +34,12 @@ command and runs Whisper `small` (downloaded on first use, ≈ 485 MB) for the s
 Per-segment latency of a real session: `--latency-log PATH` (CLI and GUI), summarised by
 `uv run python eval/latency_report.py PATH`; manual test script: `docs/manual_test.md`.
 
+**Glossary of proper names** (on by default; `--no-glossary` to turn it off):
+- `src/audio_translator/glossary_vi_en.tsv` holds the names; `--glossary PATH` adds your own file, which also overrides identical terms.
+- Before MT each name is replaced by a placeholder (`ZQX1`…), and restored to the official English name after MT.
+- A sentence whose placeholders do not survive is translated again without the glossary; sentences without a name are unchanged.
+- Results (`results/mt_glossary_vi_en.csv`): Argos term accuracy 0 → 100 %; NLLB and M2M100 also reach 100 %; no placeholder leaked; FLEURS unchanged.
+
 Speaker indicator (green / yellow / red, observation only): it shows the highest of three signals: utterance length (yellow ≥ 8 s, red ≥ 12 s), ASR backlog (yellow with ≥ 1 segment queued or ASR > 3 s; red with ≥ 2 queued or ASR > 6 s), and an unclear last segment (filtered, ASR time abnormal for its length, or a temperature fallback). The GUI shows a coloured disc with an icon and text; the CLI prints a line only when the level changes; `--latency-log` adds the columns `health_max` and `health_reason`. The thresholds live in `Settings.indicator_*`.
 
 ## Models

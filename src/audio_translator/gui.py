@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from .asr import LOCAL_MODELS
-from .config import ANTI_STALL_PRESETS, Settings
+from .config import ANTI_STALL_PRESETS, Settings, glossary_settings
 from .gui_strings import (MODEL_NOT_CONVERTED, MODEL_NOT_DOWNLOADED, MODEL_STATUS, NOISE, TRANSLATOR_SHORT,
                           TRANSLATORS, VI, error_headline, is_google_fallback, model_event_text, status_text)
 from .gui_widgets import Banner, CollapsibleSection, CompactWindow, LightWidget, TranscriptView
@@ -337,6 +337,12 @@ class MainWindow(QMainWindow):
                 self.error_label.show_message(VI["model_fallback"].format(
                     model=ev.data.get("model"), fallback=ev.data.get("fallback"), command=ev.data.get("command")),
                     ev.message)
+            elif ev.kind == WARNING and ev.data.get("glossary_problem"):
+                where = ev.data["glossary_problem"].split(": ", 1)[0]
+                prev = self.warn_banner.text()
+                text = VI["glossary_problem"].format(where=where)
+                self.warn_banner.show_message(f"{prev}; {where}" if prev.startswith(text.split(":")[0]) else text,
+                                              ev.message)
             elif ev.kind == WARNING and is_google_fallback(ev.message):
                 value = self.translator_combo.currentData()
                 label = TRANSLATOR_SHORT.get(value, self.translator_combo.currentText())
@@ -397,6 +403,10 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
                    help="initial translation backend (can be changed in Cài đặt while stopped)")
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="initial noise suppression (can be changed in Cài đặt while stopped)")
+    p.add_argument("--glossary", default=None, metavar="PATH", nargs="?", const="",
+                   help="use the glossary of proper names (glossary_vi_en.tsv); PATH adds your own file "
+                        "(source<TAB>English per line, overrides identical terms)")
+    p.add_argument("--no-glossary", dest="glossary_off", action="store_true", help="do not use the glossary")
     p.add_argument("--asr-anti-stall", default="off", choices=list(ANTI_STALL_PRESETS),
                    help="experimental, default off: bounded decoding against ASR stalls (c4a: real-token cap, a "
                         "truncated attempt is retried; c4b: also a looping temperature-0 one); see plan-asr-anti-stall.md")
@@ -407,7 +417,7 @@ def parse_args(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
     cli_only = [a for a in rest if a.split("=", 1)[0] in cli_opts]
     if cli_only:  # an app option must not silently go to Qt and be ignored
         p.error(f"{' '.join(cli_only)}: only with --cli (the GUI accepts --latency-log, --translator, --ns, "
-                "--asr-anti-stall)")
+                "--asr-anti-stall, --glossary, --no-glossary)")
     return args, rest
 
 
@@ -415,6 +425,6 @@ def main(argv: list[str] | None = None) -> int:
     args, qt_args = parse_args(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1] + qt_args)
     win = MainWindow(settings=Settings(latency_log=args.latency_log, translator=args.translator, ns_mode=args.ns,
-                                       **ANTI_STALL_PRESETS[args.asr_anti_stall]))
+                                       **ANTI_STALL_PRESETS[args.asr_anti_stall], **glossary_settings(args)))
     win.show()
     return app.exec()

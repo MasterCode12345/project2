@@ -8,7 +8,7 @@ import sys
 import threading
 
 from .asr import LOCAL_MODELS, convert_command
-from .config import ANTI_STALL_PRESETS, Settings
+from .config import ANTI_STALL_PRESETS, Settings, glossary_settings
 from .denoise import NS_MODES
 from .model_manager import CATALOG, NOT_DOWNLOADED
 from .models import ERROR, HEALTH, RESULT, STATUS, STOPPED, Event
@@ -36,6 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--asr-anti-stall", default="off", choices=list(ANTI_STALL_PRESETS),
                    help="experimental, default off: bounded decoding against ASR stalls (c4a: real-token cap, a "
                         "truncated attempt is retried; c4b: also a looping temperature-0 one); see plan-asr-anti-stall.md")
+    p.add_argument("--glossary", default=None, metavar="PATH", nargs="?", const="",
+                   help="use the glossary of proper names (glossary_vi_en.tsv); PATH adds your own file "
+                        "(source<TAB>English per line, overrides identical terms)")
+    p.add_argument("--no-glossary", dest="glossary_off", action="store_true", help="do not use the glossary")
     p.add_argument("--translator", default="offline", choices=["offline", "google", *MT_MODELS],
                    help="translation backend: offline = Argos (default), google, or a converted multilingual "
                         "model (scripts/convert_mt_model.py); offline backends fall back to google per segment")
@@ -147,6 +151,7 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
     settings = Settings(input_device=args.input, output_device=args.output, model_size=args.model,
                         asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
                         **ANTI_STALL_PRESETS[args.asr_anti_stall],
+                        **glossary_settings(args),
                         vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
                         restore=args.restore, latency_log=args.latency_log,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)

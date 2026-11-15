@@ -14,6 +14,7 @@ from __future__ import annotations
 import queue
 import threading
 import time
+from pathlib import Path
 from typing import Any, Callable
 
 from .capture import AudioCapture
@@ -133,6 +134,8 @@ class Orchestrator:
         self._lat_seg: dict[tuple[int, int], tuple[float, bool]] = {}
         self._lat_done: set[tuple[int, int]] = set()
         self._lat_lock = threading.Lock()
+        self._lat_gloss: dict[tuple[int, int], str] = {}  # glossary terms used per segment (log column)
+        self._mt = None  # the session's translator, wrapped by the glossary when it is on
         # Speaker indicator (health.py): the tracker lives on the monitor thread; the ASR
         # worker only stamps _asr_busy = (session, asr_start) and posts "unclear" notes.
         self._health = HealthTracker(s)
@@ -310,6 +313,7 @@ class Orchestrator:
             ns = noise_suppressor_from_settings(s)
             vad = self._vad_factory(s.vad_aggressiveness) if self._vad_factory else vad_from_settings(s)
             self._prepare_translator()
+            self._prepare_glossary()
             self._prepare_restorer()
             with self._lock:
                 if self._abort_start:  # Stop during the translation-model download
@@ -508,6 +512,25 @@ class Orchestrator:
 
         self._translator = FallbackTranslator(self._offline_tr, google, on_fallback)
 
+    def _prepare_glossary(self) -> None:
+        """Wrap the session's translator with the glossary (``Settings.glossary``). A missing user
+        file stops the start (likely a typo); bad lines in it are skipped with a WARNING each."""
+        from .glossary import Glossary, GlossaryTranslator
+
+        s = self.settings
+        self._mt = None
+        if not s.glossary:
+            return
+        try:
+            gl, problems = Glossary.load(s.source_lang, s.target_lang, s.glossary_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Glossary file not found: '{Path(s.glossary_path).expanduser()}'") from None
+        for p in problems:
+            self._emit(Event(WARNING, f"Glossary line skipped: {p}", data={"glossary_problem": p}))
+        if len(gl):
+            self._mt = GlossaryTranslator(self._translator, gl, s.glossary_placeholder)
+            self._emit(Event(INFO, f"Glossary: {len(gl)} term(s)", data={"glossary_terms": len(gl)}))
+
     def _prepare_restorer(self) -> None:
         """Casing/punctuation restoration for this session (``Settings.restore``), never downloaded.
 
@@ -658,6 +681,7 @@ class Orchestrator:
                 return
             self._lat_done.add((sid, seg_id))
             audio_s, forced = self._lat_seg.pop((sid, seg_id), (None, None))
+            gloss = self._lat_gloss.pop((sid, seg_id), "")
         start = ts.get("speech_start", ts.get("segmented"))
         if start is None or sid != self._health_sid:
             hmax, hwhy, hall = "", "", ""
@@ -669,7 +693,7 @@ class Orchestrator:
             log.write(session_id=sid, segment_id=seg_id, status=status, timestamps=ts,
                       session=self._lat_session, reason=reason, detail=detail, text_vi=text_vi,
                       text_en=text_en, audio_s=audio_s, forced_cut=forced, health_max=hmax,
-                      health_reason=hwhy, health_reasons=hall)
+                      health_reason=hwhy, health_reasons=hall, glossary=gloss)
         except (OSError, ValueError) as exc:  # disk full, closed file: never stop the session
             self._latlog = None
             log.close()
@@ -868,7 +892,10 @@ class Orchestrator:
                                               "translating as recognised"))
                 ts["restored"] = self.clock()
             try:
-                en = (self._translator.translate(text) or "").strip()
+                mt = self._mt or self._translator
+                en = (mt.translate(text) or "").strip()
+                if self._latlog is not None and mt is not self._translator:
+                    self._lat_gloss[(tr.session_id, tr.segment_id)] = getattr(mt, "last", "")
             except Exception as exc:
                 tr.timestamps.update(ts)
                 self._skip_report(tr, WARNING, f"Segment {tr.segment_id}: translation failed: {exc}",
