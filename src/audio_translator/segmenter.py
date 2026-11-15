@@ -99,12 +99,20 @@ class Utterance:
 class Segmenter:
     """Turn a stream of frames into utterances.
 
-    * Idle: frames go into a pre-roll ring; when at least half of the ring is
-      voiced, the ring becomes the start of a new utterance.
+    * Idle: an utterance starts once at least half of the last ``START_WINDOW_MS``
+      (300 ms, 10 frames) of frames are voiced: the start vote. It then begins
+      with the last ``pre_roll_ms`` of idle audio, trigger frame included; the
+      pre-roll may be longer than the vote window (a soft first syllable can be
+      spoken before the VAD votes, plan-first-word-preroll.md). At the start of a
+      stream or right after an utterance it holds only the idle frames there are:
+      never audio from before the stream or already sent in the previous utterance.
     * Triggered: frames accumulate; ``silence_ms`` of unvoiced frames ends the
-      utterance; reaching ``max_segment_s`` force-cuts it and the next frame
-      starts a new one immediately (no audio is lost across a forced cut).
+      utterance; reaching ``max_segment_s`` (counted over all its audio, pre-roll
+      included) force-cuts it and the next frame starts a new one immediately (no
+      audio is lost across a forced cut).
     """
+
+    START_WINDOW_MS = 300
 
     def __init__(
         self,
@@ -120,9 +128,16 @@ class Segmenter:
         self.sample_rate = sample_rate
         self.frame_ms = frame_ms
         self.frame_samples = sample_rate * frame_ms // 1000
-        ring_len = max(1, pre_roll_ms // frame_ms)
-        self._ring: collections.deque[tuple[np.ndarray, float, bool]] = collections.deque(maxlen=ring_len)
-        self._start_votes = max(1, math.ceil(ring_len / 2))
+        window = max(1, self.START_WINDOW_MS // frame_ms)
+        self._window_frames = window
+        self._pre_frames = max(1, pre_roll_ms // frame_ms)
+        # idle history (frame, t, voiced): long enough for the vote window and the pre-roll
+        self._ring: collections.deque[tuple[np.ndarray, float, bool]] = collections.deque(
+            maxlen=max(window, self._pre_frames))
+        self._votes: collections.deque[bool] = collections.deque(maxlen=window)  # last `window` flags
+        self._vote_sum = 0
+        self._start_votes = max(1, math.ceil(window / 2))
+        self._extra = 0  # kept pre-roll frames older than the vote window (not counted by open_s)
         self._end_frames = max(1, silence_ms // frame_ms)
         self._max_frames = max(1, int(max_segment_s * 1000) // frame_ms)
         self._triggered = False
@@ -138,15 +153,24 @@ class Segmenter:
 
     @property
     def open_s(self) -> float:
-        """Audio length of the utterance being collected (0 when idle). Read-only; safe to
-        read from another thread (a ``len`` of the frame list)."""
-        return len(self._frames) * self.frame_ms / 1000.0 if self._triggered else 0.0
+        """Length of the utterance being collected, counted from the start of the vote window
+        (pre-roll older than it is left out, so the length light does not depend on
+        ``pre_roll_ms``); 0 when idle. Read-only; safe to read from another thread."""
+        if not self._triggered:
+            return 0.0
+        return max(0, len(self._frames) - self._extra) * self.frame_ms / 1000.0
+
+    @property
+    def preroll_s(self) -> float:
+        """Pre-roll of the open utterance older than the vote window (0 when idle or after a cut)."""
+        return self._extra * self.frame_ms / 1000.0 if self._triggered else 0.0
 
     def _emit(self, speech_end: float, forced: bool) -> Utterance:
         audio = np.concatenate(self._frames) if self._frames else np.zeros(0, np.int16)
         utt = Utterance(audio.astype(np.int16, copy=False), self._start_t, speech_end, forced)
         self._frames = []
         self._voiced_in_seg = 0
+        self._extra = 0
         return utt
 
     def feed(self, frame: np.ndarray, t: float, vad_frame: np.ndarray | None = None) -> list[Utterance]:
@@ -169,14 +193,20 @@ class Segmenter:
 
         if not self._triggered:
             self._ring.append((frame, t, voiced))
-            if sum(v for _, _, v in self._ring) >= self._start_votes:
+            if len(self._votes) == self._votes.maxlen:
+                self._vote_sum -= self._votes[0]
+            self._votes.append(voiced)
+            self._vote_sum += voiced
+            if self._vote_sum >= self._start_votes:
+                kept = list(self._ring)[-self._pre_frames:]
                 self._triggered = True
-                self._frames = [f for f, _, _ in self._ring]
-                self._voiced_in_seg = sum(v for _, _, v in self._ring)
-                self._start_t = self._ring[0][1]
+                self._frames = [f for f, _, _ in kept]
+                self._voiced_in_seg = sum(v for _, _, v in kept)
+                self._extra = max(0, len(kept) - len(self._votes))
+                self._start_t = kept[0][1]
                 self._last_voiced_t = t
                 self._silence_run = 0
-                self._ring.clear()
+                self._clear_idle()
             return out
 
         if not self._frames:  # continuing after a forced cut
@@ -197,6 +227,7 @@ class Segmenter:
                 out.append(self._emit(self._last_voiced_t, forced=False))
             self._frames = []
             self._voiced_in_seg = 0
+            self._extra = 0
             self._triggered = False
             self._silence_run = 0
         elif len(self._frames) >= self._max_frames:
@@ -204,10 +235,17 @@ class Segmenter:
                 out.append(self._emit(t, forced=True))
             else:
                 self._frames = []
+                self._extra = 0
         return out
 
-    def reset(self) -> None:
+    def _clear_idle(self) -> None:
         self._ring.clear()
+        self._votes.clear()
+        self._vote_sum = 0
+
+    def reset(self) -> None:
+        self._clear_idle()
+        self._extra = 0
         self._frames = []
         self._triggered = False
         self._silence_run = 0
