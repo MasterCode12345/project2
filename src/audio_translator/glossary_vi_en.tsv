@@ -1,0 +1,14 @@
+# Glossary of proper names, Vietnamese -> English (people, schools, organisations only).
+# One entry per line: Vietnamese term <TAB> English [<TAB> flags]. Lines starting with # are comments.
+# A term needs >= 3 syllables; a shorter one is refused unless column 3 says short_ok.
+# Matching: case-insensitive, tone marks matter, whole words, the longest term wins.
+# Add your own entries in a separate file and pass it with --glossary PATH (it adds to and
+# overrides this one). plan-glossary.md.
+Đại học Bách khoa Hà Nội	Hanoi University of Science and Technology
+Trường Đại học Bách khoa Hà Nội	Hanoi University of Science and Technology
+Bách khoa Hà Nội	Hanoi University of Science and Technology
+Trường Công nghệ Thông tin và Truyền thông	School of Information and Communication Technology
+Viện Công nghệ Thông tin và Truyền thông	School of Information and Communication Technology
+Đại học Quốc gia Hà Nội	Vietnam National University, Hanoi
+Trần Hải Anh	Tran Hai Anh
+Trần Trung Nghĩa	Tran Trung Nghia

@@ -61,3 +61,15 @@ def test_report_counts_the_highest_light_per_segment(tmp_path, capsys):
     old = tmp_path / "old.csv"  # a log written before the health columns existed
     old.write_text("session_id,segment_id,status,e2e_ms\n1,1,played,3000\n")
     assert lr.health_counts(lr.load([old])) == [] and lr.main([str(old)]) == 0
+
+
+def test_report_counts_glossary_segments(tmp_path, capsys):
+    from audio_translator.latency_log import LatencyLog
+
+    p = tmp_path / "lat.csv"
+    log = LatencyLog(p)
+    for i, g in enumerate(["Trần Hải Anh", "", "fallback"], 1):
+        log.write(session_id=1, segment_id=i, status="played", timestamps={"speech_end": 1.0}, session={}, glossary=g)
+    log.close()
+    assert lr.main([str(p)]) == 0
+    assert "glossary: 1 segment(s) with terms translated, 1 fallback(s)" in capsys.readouterr().out

@@ -1,6 +1,6 @@
 # Kịch bản thử thật: Việt → Anh
 
-Các lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet với điện thoại, (c) môi trường ồn, (d) đèn báo cho người nói, (e) giới hạn token (tùy chọn), (f) chế độ thu gọn trong cuộc gọi. Mỗi lần thử ghi một file độ trễ (`--latency-log`) và một bảng kết quả điền tay. Làm xong cả ba, gửi lại các file ở mục [Gửi lại](#gửi-lại).
+Các lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet với điện thoại, (c) môi trường ồn, (d) đèn báo cho người nói, (e) giới hạn token (tùy chọn), (f) chế độ thu gọn trong cuộc gọi, (g) bảng thuật ngữ. Mỗi lần thử ghi một file độ trễ (`--latency-log`) và một bảng kết quả điền tay. Làm xong cả ba, gửi lại các file ở mục [Gửi lại](#gửi-lại).
 
 > ⚠️ **Luôn đeo tai nghe.** Nếu loa Mac phát ra tiếng (của Meet hay của bất kỳ ứng dụng nào), micro sẽ thu lại và app sẽ dịch chính tiếng đó. Đây là vòng lặp âm thanh đã gặp trước đây (README mục 8). Trong kịch bản (b), điện thoại nghe cũng phải để xa Mac hoặc đeo tai nghe.
 
@@ -207,6 +207,33 @@ uv run audio-translator --latency-log "$LOG"
 7. Thử **Cmd+Q** khi đang ở chế độ thu gọn: app phải tắt hẳn, không treo.
 
 Sau đó chạy `uv run python eval/latency_report.py "$LOG"`.
+
+## (g) Bảng thuật ngữ (tên riêng)
+
+Mục đích: kiểm tra tên riêng được dịch đúng tên chính thức trong app thật.
+
+```sh
+LOG=~/gr2_manual/latency_glossary_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+uv run audio-translator --latency-log "$LOG"
+```
+
+1. Đọc 4 câu:
+   - "Tôi là Trần Trung Nghĩa, sinh viên Trường Công nghệ Thông tin và Truyền thông."
+   - "Giảng viên hướng dẫn của tôi là thầy Trần Hải Anh."
+   - "Tôi học ở Đại học Bách khoa Hà Nội."
+   - "Bách khoa toàn thư rất hữu ích." Câu này **không** được đổi thành tên trường.
+2. Ở vùng Bản dịch, dòng tiếng Anh phải có:
+   - "Tran Trung Nghia";
+   - "School of Information and Communication Technology";
+   - "Tran Hai Anh";
+   - "Hanoi University of Science and Technology".
+
+   Không được thấy chữ "ZQX" ở đâu cả, kể cả trong giọng đọc.
+3. `uv run python eval/latency_report.py "$LOG"` phải in dòng `glossary: … segment(s) with terms translated`. Cột `glossary` trong file CSV ghi tên đã dùng.
+4. **Thêm tên của bạn:**
+   - Tạo file `~/thuat_ngu.tsv` với một dòng `Nguyễn Văn An<TAB>Nguyen Van An` (phím Tab giữa hai tên).
+   - Chạy `uv run audio-translator --glossary ~/thuat_ngu.tsv`, rồi nói một câu có tên đó.
+   - Nếu gõ sai đường dẫn, app phải báo đỏ "Không tìm thấy file thuật ngữ…" và không bắt đầu phiên.
 
 ---
 

@@ -54,6 +54,7 @@ VI = {
     "model_fallback": ("Model '{model}' chưa được convert, đang dùng tạm '{fallback}'. "
                        "Convert một lần bằng: {command}"),
     "mt_google": "Đang dịch bằng Google (cần mạng) vì {translator} chưa sẵn sàng",
+    "glossary_problem": "File thuật ngữ có dòng lỗi, đã bỏ qua: {where}",
     # status line (model work shown while stopped, and start-up progress)
     "model_loading": "Đang tải model '{model}'…",
     "model_downloading": "Đang tải về model '{model}' ({size})…",
@@ -89,6 +90,7 @@ MODEL_NOT_DOWNLOADED = "chưa tải (~{size})"
 # Orchestrator ERROR text -> Vietnamese headline + short hint (first match wins). "{name}" is the
 # first quoted name of the original message (a device or model name), when there is one.
 ERROR_PATTERNS = [
+    (r"Glossary file not found", "Không tìm thấy file thuật ngữ '{name}' – kiểm tra đường dẫn --glossary"),
     (r"not found", "Không tìm thấy thiết bị '{name}' – kiểm tra đã cắm/cài và chọn lại trong Cài đặt"),
     (r"stopped (responding|unexpectedly)|removed",
      "Thiết bị '{name}' ngừng hoạt động – cắm lại rồi bấm Bắt đầu"),

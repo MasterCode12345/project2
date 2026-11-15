@@ -26,6 +26,16 @@ class Settings:
     # sent (capital + final period) | vibert-capu (converted once, Vietnamese only).
     restore: str = "auto"
     translation_cache_dir: str = "~/.cache/audio-translator/argos"
+    # Glossary of proper names (glossary.py, glossary_<src>_<tgt>.tsv; plan-glossary.md): terms are
+    # protected with placeholders during MT and replaced by the official English names; a sentence
+    # whose placeholders do not survive is translated again without it. glossary_path adds a user
+    # file (overrides identical terms). glossary_placeholder: x | zqx | bracket | under | inline.
+    # On by default since the glossary bench (results/mt_glossary_vi_en.csv): Argos term accuracy
+    # 0 -> 100 % with "zqx", no placeholder ever leaked, sentences without a term unchanged,
+    # BLEU/chrF not worse, matching costs about 0.004 ms per sentence. --no-glossary turns it off.
+    glossary: bool = True
+    glossary_path: str | None = None
+    glossary_placeholder: str = "zqx"
     argos_vi_en_url: str = "https://argos-net.com/v1/translate-vi_en-1_9.argosmodel"
 
     # M2 capture
@@ -161,3 +171,15 @@ ANTI_STALL_PRESETS: dict[str, dict] = {
     "c4b": dict(asr_max_tokens_per_s=20.0, asr_max_tokens_base=32, asr_decode_budget_s=4.0,
                 asr_reject_truncated_all=True, asr_reject_loop_t0=True),
 }
+
+
+def glossary_settings(args) -> dict:
+    """Settings fields from the --glossary [PATH] / --no-glossary flags (CLI and GUI)."""
+    out: dict = {}
+    if getattr(args, "glossary", None) is not None:  # --glossary (with or without PATH): on
+        out["glossary"] = True
+        if args.glossary:
+            out["glossary_path"] = args.glossary
+    if getattr(args, "glossary_off", False):
+        out["glossary"] = False
+    return out
