@@ -1,0 +1,17 @@
+corpus,src_lang,tgt_lang,backend,condition,asr_model,restore,n_sents,src_wer,bleu,chrf,bleu_lc,chrf_lc,n_inputs,mean_words,mean_latency_ms,p95_latency_ms,restore_mean_ms,restore_p95_ms,n_failed
+fleurs_vi_vn,vi,en,argos,text,-,off,347,0.0000,27.83,55.37,28.37,55.91,347,30.9,194,315,,,0
+fleurs_vi_vn,vi,en,argos,text_norm,-,off,347,0.0000,18.14,49.70,19.89,51.50,347,31.0,190,320,,,0
+custom,vi,en,argos,text,-,off,25,0.0000,42.49,59.27,43.06,60.02,25,11.4,101,145,,,0
+custom,vi,en,argos,text_norm,-,off,25,0.0000,31.46,54.09,34.94,56.50,25,11.5,102,137,,,0
+fleurs_vi_vn,vi,en,nllb-600m,text,-,off,347,0.0000,34.60,60.10,35.48,60.71,347,30.9,1024,1758,,,0
+fleurs_vi_vn,vi,en,nllb-600m,text_norm,-,off,347,0.0000,25.02,54.24,26.84,55.74,347,31.0,1040,1667,,,0
+custom,vi,en,nllb-600m,text,-,off,25,0.0000,51.19,68.55,51.39,69.73,25,11.4,483,658,,,0
+custom,vi,en,nllb-600m,text_norm,-,off,25,0.0000,35.57,57.50,37.31,58.33,25,11.5,491,679,,,0
+fleurs_vi_vn,vi,en,m2m100-418m,text,-,off,347,0.0000,27.29,54.91,27.83,55.48,347,30.9,797,1328,,,0
+fleurs_vi_vn,vi,en,m2m100-418m,text_norm,-,off,347,0.0000,19.15,50.61,20.95,52.15,347,31.0,830,1327,,,0
+custom,vi,en,m2m100-418m,text,-,off,25,0.0000,44.59,63.67,45.04,64.21,25,11.4,376,512,,,0
+custom,vi,en,m2m100-418m,text_norm,-,off,25,0.0000,31.05,55.44,33.66,57.09,25,11.5,362,487,,,0
+fleurs_vi_vn,vi,en,google,text,-,off,0,0.0000,,,,,347,30.9,,,,,347
+fleurs_vi_vn,vi,en,google,text_norm,-,off,0,0.0000,,,,,347,31.0,,,,,347
+custom,vi,en,google,text,-,off,0,0.0000,,,,,25,11.4,,,,,25
+custom,vi,en,google,text_norm,-,off,0,0.0000,,,,,25,11.5,,,,,25

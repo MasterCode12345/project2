@@ -217,6 +217,15 @@ Otherwise it stays optional (`--glossary`).
   | mt_custom | 42.5 → 44.4 / 59.3 → 61.3 | 52.0 → 53.6 | 44.9 → 47.2 |
   | FLEURS | unchanged (27.70 / 54.37) | unchanged | unchanged |
 
+  **Re-measured with the references reviewed by the author on 2026-11-16** (`results/mt_glossary_vi_en_reviewed.csv`; the table above is kept as it was measured). Translations are identical (a re-run on the old data reproduces the old numbers exactly), so every change comes from the data edits: 6 references of the glossary set (g04, g11, g13, g16, g20, n02) and the source of c01 in mt_custom.
+
+  | Set, zqx, BLEU before → after glossary | Argos | NLLB | M2M100 |
+  |---|---|---|---|
+  | Glossary set, reviewed | 20.0 → 58.1 / chrF 45.2 → 76.2 | 28.3 → 58.9 | 27.3 → 56.4 |
+  | mt_custom, reviewed | 42.5 → 44.4 / chrF 59.3 → 61.3 | 51.2 → 53.6 | 44.6 → 47.2 |
+
+  Term accuracy (100 % for every backend with zqx), leaks (0) and identical no-term sentences are unchanged. The decision (on by default, zqx) stands.
+
 - **mt_ms.**
   - `Glossary.find` costs **0.004 ms per sentence**: about 0.002 % of an Argos FLEURS sentence (about 197 ms).
   - FLEURS through the wrapper (form x, all 100 sentences): 197.5 → 203.0 ms (+2.8 %, within run-to-run noise).
