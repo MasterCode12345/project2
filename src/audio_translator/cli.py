@@ -55,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"voice activity detector (default: {d.vad_backend})")
     p.add_argument("--silero-threshold", type=_unit_float, default=d.silero_threshold,
                    help=f"Silero speech probability to start speech, 0..1 (default: {d.silero_threshold})")
+    p.add_argument("--pre-roll-ms", type=_pre_roll_ms, default=d.pre_roll_ms, metavar="MS",
+                   help=f"audio kept before the start vote fires, 30..3000 ms (default: {d.pre_roll_ms}; the "
+                        "vote itself always needs 5 voiced frames of the last 300 ms)")
     p.add_argument("--ns", default=d.ns_mode, choices=list(NS_MODES),
                    help="noise suppression before VAD/ASR (experimental; default: off)")
     p.add_argument("--ns-mix", type=_unit_float, default=d.ns_mix,
@@ -63,6 +66,16 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"skip suppression above this input SNR in dB, or 'none' to always "
                         f"suppress (default: {d.ns_gate_snr_db})")
     return p
+
+
+def _pre_roll_ms(text: str) -> int:
+    try:
+        v = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not an integer: {text!r}") from None
+    if not 30 <= v <= 3000:
+        raise argparse.ArgumentTypeError(f"must be between 30 and 3000 ms, got {v}")
+    return v
 
 
 def _unit_float(text: str) -> float:
@@ -152,7 +165,8 @@ def main(argv: list[str] | None = None, orchestrator_factory=None) -> int:
                         asr_initial_prompt=args.asr_prompt, asr_filter=args.asr_filter,
                         **ANTI_STALL_PRESETS[args.asr_anti_stall],
                         **glossary_settings(args),
-                        vad_backend=args.vad, silero_threshold=args.silero_threshold, translator=args.translator,
+                        vad_backend=args.vad, silero_threshold=args.silero_threshold, pre_roll_ms=args.pre_roll_ms,
+                        translator=args.translator,
                         restore=args.restore, latency_log=args.latency_log,
                         ns_mode=args.ns, ns_mix=args.ns_mix, ns_gate_snr_db=args.ns_gate_db)
     done = threading.Event()

@@ -1,6 +1,6 @@
 # Kịch bản thử thật: Việt → Anh
 
-Các lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet với điện thoại, (c) môi trường ồn, (d) đèn báo cho người nói, (e) giới hạn token (tùy chọn), (f) chế độ thu gọn trong cuộc gọi, (g) bảng thuật ngữ. Mỗi lần thử ghi một file độ trễ (`--latency-log`) và một bảng kết quả điền tay. Làm xong cả ba, gửi lại các file ở mục [Gửi lại](#gửi-lại).
+Các lần thử với micro thật: (a) CLI không gọi, (b) qua Google Meet với điện thoại, (c) môi trường ồn, (d) đèn báo cho người nói, (e) giới hạn token (tùy chọn), (f) chế độ thu gọn trong cuộc gọi, (g) bảng thuật ngữ, (h) chữ đầu câu. Mỗi lần thử ghi một file độ trễ (`--latency-log`) và một bảng kết quả điền tay. Làm xong cả ba, gửi lại các file ở mục [Gửi lại](#gửi-lại).
 
 > ⚠️ **Luôn đeo tai nghe.** Nếu loa Mac phát ra tiếng (của Meet hay của bất kỳ ứng dụng nào), micro sẽ thu lại và app sẽ dịch chính tiếng đó. Đây là vòng lặp âm thanh đã gặp trước đây (README mục 8). Trong kịch bản (b), điện thoại nghe cũng phải để xa Mac hoặc đeo tai nghe.
 
@@ -235,6 +235,31 @@ uv run audio-translator --latency-log "$LOG"
    - Chạy `uv run audio-translator --glossary ~/thuat_ngu.tsv`, rồi nói một câu có tên đó.
    - Nếu gõ sai đường dẫn, app phải báo đỏ "Không tìm thấy file thuật ngữ…" và không bắt đầu phiên.
 
+## (h) Chữ đầu câu (pre-roll 600 ms)
+
+Mục đích: kiểm tra chữ đầu của câu bắt đầu bằng âm nhẹ không còn bị mất. Mặc định từ nay là 600 ms; 300 ms là cách cũ.
+
+```sh
+LOG=~/gr2_manual/latency_preroll600_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+uv run audio-translator --cli --latency-log "$LOG"
+```
+
+1. Đọc 6 câu dưới đây. Trước mỗi câu, im lặng khoảng 2 giây. Bắt đầu câu **nhẹ giọng** như khi nói bình thường, không nhấn chữ đầu.
+   - "Âm thầm chắt chiu nuôi tôi khôn lớn."
+   - "Mặc dù trời mưa, chúng tôi vẫn đi học."
+   - "Không nên chỉ dựa vào một nguồn tài liệu."
+   - "Màu son này trông rất hợp với bạn."
+   - "Nó liên quan đến đồ án tốt nghiệp của tôi."
+   - "Vì vậy chúng ta cần thử thêm một lần nữa."
+2. Ở mỗi dòng `VI:` trên terminal, kiểm tra **chữ đầu tiên** có đúng không, chứ không chỉ còn một phụ âm lẻ như "m", "n" hay mất hẳn.
+3. Bấm `Ctrl+C` để dừng. Chạy lại đúng 6 câu đó với cách cũ để so sánh:
+
+   ```sh
+   LOG=~/gr2_manual/latency_preroll300_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+   uv run audio-translator --cli --pre-roll-ms 300 --latency-log "$LOG"
+   ```
+4. Ghi vào bảng kết quả số câu đúng chữ đầu ở mỗi lần chạy. Kỳ vọng: 600 ms đúng bằng hoặc nhiều hơn 300 ms. Đèn "câu dài" vẫn bật vàng ở khoảng 8 s như trước.
+
 ---
 
 ## Bảng kết quả (chép thành `~/gr2_manual/ket_qua.md` và điền)
@@ -279,6 +304,16 @@ Nguồn nhiễu ở (c): <...>
 | 6. Dừng / Mở rộng | dừng được, cửa sổ chính có đủ câu | | |
 | 7. Cmd+Q khi thu gọn | app tắt hẳn | | |
 
+## (h) Chữ đầu câu
+| Câu | 600 ms: VI app nhận | Chữ đầu đúng? | 300 ms: VI app nhận | Chữ đầu đúng? |
+|---|---|---|---|---|
+| Âm thầm chắt chiu… | | | | |
+| Mặc dù trời mưa… | | | | |
+| Không nên chỉ dựa… | | | | |
+| Màu son này… | | | | |
+| Nó liên quan… | | | | |
+| Vì vậy chúng ta… | | | | |
+
 ## Nhận xét chung
 - Câu bị lặp hai lần (vòng lặp âm thanh)? <có/không>
 - Cảm nhận độ trễ khi gọi: <...>
@@ -293,7 +328,8 @@ Nguồn nhiễu ở (c): <...>
 4. `~/gr2_manual/latency_light_<ngày_giờ>.csv`
 5. `~/gr2_manual/latency_cap_<ngày_giờ>.csv` (nếu làm (e))
 6. `~/gr2_manual/latency_compact_<ngày_giờ>.csv` (kịch bản (f))
-7. `~/gr2_manual/ket_qua.md` (bảng đã điền)
+7. `~/gr2_manual/latency_preroll600_<ngày_giờ>.csv` và `latency_preroll300_<ngày_giờ>.csv` (kịch bản (h))
+8. `~/gr2_manual/ket_qua.md` (bảng đã điền)
 
 `ls -lt ~/gr2_manual/` liệt kê các file, mới nhất ở trên.
 

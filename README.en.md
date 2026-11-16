@@ -41,6 +41,8 @@ Per-segment latency of a real session: `--latency-log PATH` (CLI and GUI), summa
 - Results (`results/mt_glossary_vi_en.csv`): Argos term accuracy 0 → 100 %; NLLB and M2M100 also reach 100 %; no placeholder leaked; FLEURS unchanged.
 - Limitations: sentences with a placeholder sometimes lose an article or a preposition around the name; with two terms, their relation can change ("thuộc", "belongs to", → "is"). The table is for proper names only. Possible extension (not done): a placeholder with its class noun, e.g. "trường ZQX1".
 
+**First word of an utterance** (`--pre-roll-ms`, default 600): an utterance still starts when ≥ 5 of the last 10 frames (300 ms) are voiced, but it now keeps the 600 ms of audio before that, so a soft first syllable is no longer cut ("đồ án" → "án"). The length light and the 15 s cap are unchanged. Measured on a continuous stream of VIVOS/FLEURS through the app's Segmenter + Silero + PhoWhisper (`eval/preroll_bench.py`, `results/preroll_*.csv`): first word lost 9.5 → 7.0 % (VIVOS clean; best possible 8.0 %) and 27 → 13 % (FLEURS clean); WER better in every cell at seed 0 (FLEURS DEMAND 10 dB, seed 2: +0.73); ASR p95 in noise 5–7.5 s → 1.4–2.4 s.
+
 Speaker indicator (green / yellow / red, observation only): it shows the highest of three signals: utterance length (yellow ≥ 8 s, red ≥ 12 s), ASR backlog (yellow with ≥ 1 segment queued or ASR > 3 s; red with ≥ 2 queued or ASR > 6 s), and an unclear last segment (filtered, ASR time abnormal for its length, or a temperature fallback). The GUI shows a coloured disc with an icon and text; the CLI prints a line only when the level changes; `--latency-log` adds the columns `health_max` and `health_reason`. The thresholds live in `Settings.indicator_*`.
 
 ## Models

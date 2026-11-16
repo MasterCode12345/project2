@@ -205,3 +205,137 @@ def test_vad_from_settings_picks_a_fresh_backend():
         assert "webrtc, silero" in str(exc)
     else:
         raise AssertionError("unknown backend accepted")
+
+
+# ------------------------------------------------ pre-roll separate from the start vote
+def idle(k: int) -> np.ndarray:
+    """A quiet frame (never voiced) whose constant value identifies it."""
+    return np.full(FRAME, k + 1, np.int16)
+
+
+def trigger_index(seg, frames):
+    for i, f in enumerate(frames):
+        seg.feed(f, (i + 1) * 0.03)
+        if seg.triggered:
+            return i
+    return None
+
+
+def test_pre_roll_starts_exactly_pre_roll_ms_before_the_end_of_the_trigger_frame():
+    for pr in (300, 450, 600, 900):
+        seg = Segmenter(energy_vad, silence_ms=300, pre_roll_ms=pr)
+        frames = [idle(k) for k in range(40)] + utterance(20, 15)
+        utts = run(seg, frames)
+        assert len(utts) == 1
+        trig = 40 + 4  # 5th voiced frame of the 10-frame vote window
+        first = trig + 1 - pr // 30
+        u = utts[0]
+        assert abs(u.speech_start - (first + 1) * 0.03) < 1e-9  # times are frame end times
+        assert abs((trig + 1) * 0.03 - (u.speech_start - 0.03) - pr / 1000) < 1e-9
+        kept = np.concatenate(frames[first:first + u.audio.size // FRAME])
+        assert np.array_equal(u.audio, kept)
+
+
+def test_start_vote_is_the_same_for_every_pre_roll():
+    rng = np.random.default_rng(3)
+    patterns = [
+        [idle(k) for k in range(30)] + [speech_frame(i) for i in range(10)],  # plain onset
+        [speech_frame() if k % 2 else idle(k) for k in range(40)],  # every other frame voiced
+        [speech_frame() if k in (3, 7, 12, 15) else idle(k) for k in range(30)],  # 4 of 10: never
+        [speech_frame() if k in (20, 22, 25, 27, 29) else idle(k) for k in range(40)],  # 5 scattered
+        [speech_frame() if rng.random() < 0.4 else idle(k) for k in range(200)],
+    ]
+    for frames in patterns:
+        got = {pr: trigger_index(Segmenter(energy_vad, pre_roll_ms=pr), frames) for pr in (300, 450, 600, 900)}
+        assert len(set(got.values())) == 1, got
+    assert trigger_index(Segmenter(energy_vad, pre_roll_ms=900), patterns[2]) is None
+    assert trigger_index(Segmenter(energy_vad, pre_roll_ms=900), patterns[3]) == 29
+
+
+def test_start_of_stream_keeps_only_the_frames_there_are():
+    seg = Segmenter(energy_vad, silence_ms=300, pre_roll_ms=600)
+    frames = [idle(0)] + utterance(20, 15)  # triggers on frame 5: only 6 frames exist
+    utts = run(seg, frames)
+    assert len(utts) == 1
+    assert abs(utts[0].speech_start - 0.03) < 1e-9
+    n = utts[0].audio.size // FRAME
+    assert np.array_equal(utts[0].audio, np.concatenate(frames[:n]))  # no padding added
+
+
+def test_pre_roll_right_after_an_utterance_holds_nothing_of_it():
+    seg = Segmenter(energy_vad, silence_ms=300, pre_roll_ms=900)
+    first = utterance(20, 10)  # ends on the 10th silent frame
+    gap = [idle(100 + k) for k in range(4)]
+    frames = [idle(k) for k in range(40)] + first + gap + utterance(20, 15)
+    utts = run(seg, frames)
+    assert len(utts) == 2
+    assert np.array_equal(utts[1].audio[:4 * FRAME], np.concatenate(gap))
+    joined = np.concatenate([u.audio for u in utts])
+    start = 40 + 5 - 30  # first kept frame of the first utterance (900 ms back from frame 44)
+    assert np.array_equal(joined, np.concatenate(frames[start:start + joined.size // FRAME]))  # no frame twice
+
+
+def test_forced_cut_continuation_has_no_pre_roll_and_loses_nothing():
+    seg = Segmenter(energy_vad, silence_ms=300, pre_roll_ms=600, max_segment_s=1.5)  # 50 frames
+    frames = [idle(k) for k in range(40)] + utterance(170, 20)
+    utts = run(seg, frames)
+    assert len(utts) >= 4 and all(u.forced_cut for u in utts[:-1])
+    assert all(u.audio.size <= 50 * FRAME for u in utts)  # the cap counts the pre-roll
+    start = 44 + 1 - 20
+    joined = np.concatenate([u.audio for u in utts])
+    assert np.array_equal(joined, np.concatenate(frames[start:start + joined.size // FRAME]))
+    assert np.array_equal(utts[0].audio, np.concatenate(frames[start:start + 50]))
+
+
+def test_open_s_does_not_depend_on_the_pre_roll():
+    frames = [idle(k) for k in range(40)] + utterance(60, 15) + [idle(k) for k in range(3)] + utterance(30, 15)
+    segs = {pr: Segmenter(energy_vad, silence_ms=300, pre_roll_ms=pr) for pr in (300, 600, 900)}
+    for i, f in enumerate(frames):
+        vals = {}
+        for pr, seg in segs.items():
+            seg.feed(f, (i + 1) * 0.03)
+            vals[pr] = seg.open_s
+        assert vals[600] == vals[300] == vals[900], (i, vals)
+    seg = Segmenter(energy_vad, pre_roll_ms=600)
+    run(seg, [idle(k) for k in range(40)] + [speech_frame(i) for i in range(5)])
+    assert seg.triggered and abs(seg.open_s - 0.3) < 1e-9 and abs(seg.preroll_s - 0.3) < 1e-9
+    seg.reset()
+    assert seg.open_s == 0.0 and seg.preroll_s == 0.0
+
+
+def test_cli_pre_roll_flag_reaches_settings_and_is_cli_only():
+    import pytest
+
+    from audio_translator import cli
+    from audio_translator.config import Settings
+
+    assert Settings().pre_roll_ms == 600  # since the pre-roll bench
+    assert cli.build_parser().parse_args([]).pre_roll_ms == Settings().pre_roll_ms
+    assert cli.build_parser().parse_args(["--pre-roll-ms", "600"]).pre_roll_ms == 600
+    for bad in ("0", "10", "5000", "abc"):
+        with pytest.raises(SystemExit):
+            cli.build_parser().parse_args(["--pre-roll-ms", bad])
+    seen = {}
+
+    class Orch:
+        def __init__(self, settings, on_event):
+            seen["s"] = settings
+            self.on_event = on_event
+
+        def start(self):
+            from audio_translator.models import STATUS, STOPPED, Event
+            self.on_event(Event(STATUS, "Stopped", data={"state": STOPPED}))
+
+        def stop(self):
+            pass
+
+        def shutdown(self):
+            pass
+
+    cli.main(["--pre-roll-ms", "450"], orchestrator_factory=Orch)
+    assert seen["s"].pre_roll_ms == 450
+    pytest.importorskip("PySide6")
+    from audio_translator.gui import parse_args
+
+    with pytest.raises(SystemExit):
+        parse_args(["--pre-roll-ms", "600"])  # CLI-only: an error, not silently ignored by Qt

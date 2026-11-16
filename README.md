@@ -53,7 +53,7 @@ Zoom / Meet / Discord chọn "BlackHole 2ch" làm micro ──▶ 🎧 người 
 | M1 Giao diện / điều phối | `gui.py`, `cli.py`, `orchestrator.py`, `latency_log.py`, `health.py` | Start/Stop; chọn micro, đầu ra và model; mỗi lần Start là một phiên mới. Giao diện chỉ giao tiếp với orchestrator qua sự kiện. Log độ trễ (tùy chọn) được ghi từ luồng worker, không bao giờ từ callback âm thanh. Đèn báo (sự kiện `HEALTH`) được tính trên luồng monitor, tối đa 10 lần/giây, chỉ quan sát |
 | M2 Thu âm | `capture.py` | sounddevice (PortAudio). Callback chỉ chép khung âm thanh, gắn mốc thời gian rồi đẩy vào hàng đợi |
 | M3a Lọc nhiễu (tắt) | `denoise.py` | log-MMSE + observation adding + cổng SNR; chưa bật vì bench chưa thấy lợi (mục 4) |
-| M3 VAD / phân đoạn | `segmenter.py` | **Silero VAD** v6 (ONNX có sẵn trong faster-whisper, chạy streaming), hoặc webrtcvad (`--vad webrtc`). Giữ 300 ms trước khi bắt đầu nói, chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
+| M3 VAD / phân đoạn | `segmenter.py` | **Silero VAD** v6 (ONNX có sẵn trong faster-whisper, chạy streaming), hoặc webrtcvad (`--vad webrtc`). Bắt đầu câu khi ≥ 5 trong 10 khung gần nhất (300 ms) có tiếng, rồi lấy lùi lại **600 ms** âm thanh trước đó (pre-roll) để không mất chữ đầu; chốt câu sau 600 ms im lặng, cắt câu dài quá 15 s |
 | M4 ASR | `asr.py`, `model_manager.py` | faster-whisper chạy CPU int8, ngôn ngữ `vi`. Mặc định **`phowhisper-small`** (convert một lần, dự phòng `small`). Có 8 model trong danh mục, tải ở luồng nền, giữ tối đa 2 model trong RAM. Bộ lọc câu ma theo từng segment Whisper (`--asr-filter`, bật) |
 | M4b Khôi phục | `restore.py` | vibert-capu (viBERT gắn nhãn kiểu GECToR), encoder CTranslate2 int8 + lớp nhãn numpy; `--restore auto` dùng nếu đã convert |
 | M5 Dịch | `translate.py`, `languages.py` | Model Argos vi→en (~66 MB) chạy trực tiếp bằng CTranslate2 + SentencePiece; dự phòng bằng Google Translate theo từng câu. Tùy chọn NLLB-200 / M2M100 (`--translator`) |
@@ -338,6 +338,40 @@ uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/v
   Bước viết vòng lặp một lần, cùng dùng Silero, giảm WER từ 9,4 xuống 8,6 (DEMAND 5 dB) và từ 17,4 xuống 14,8 (MUSAN 0 dB). Hai ô từng tụt mạnh (+2,2 và +4,1) giờ chỉ còn +1,2 và 0. Còn đúng một ô vượt mức "tệ hơn ≤ 1 điểm": DEMAND 5 dB, +1,2 điểm, khoảng 12 từ trên 100 câu. Ba ô khác tốt hơn rõ. Câu ma giữ nguyên như bảng trên: 22–26 (DEMAND, tiếng người ở nền) và 0–10 (MUSAN).
 - **Hạn chế:** mới đo 100 câu với một seed; nhiễu chỉ có hai bộ. Danh sách đen (9 cụm) được xây từ 200 file MUSAN (noise và music) không trùng với nhiễu đo, nhưng cùng nguồn MUSAN, nên con số trên MUSAN có thể lạc quan hơn so với nhiễu thật. Ngưỡng lọc giữ mặc định của Whisper, chưa tinh chỉnh.
 
+### Không mất chữ đầu câu (pre-roll)
+
+**Vấn đề:** chữ đầu câu đôi khi bị mất, ví dụ "đồ án" thành "án", "màu son" thành "son", "nó liên quan" thành "n liên quan".
+- Câu chỉ được bắt đầu khi có ít nhất 5 trong 10 khung 30 ms gần nhất có tiếng. Silero cần một lúc mới nhận ra một âm tiết đầu nói nhỏ.
+- Trước đây phần lấy lùi lại (pre-roll) cũng chỉ dài 300 ms, nên phần đầu của âm tiết đó đã trôi ra ngoài.
+
+**Cách sửa:** quy tắc bắt đầu câu giữ nguyên, nhưng khi câu bắt đầu thì lấy lùi lại **600 ms** (`--pre-roll-ms`, CLI).
+- Ở đầu luồng, hoặc ngay sau một câu vừa xong, câu chỉ lấy phần âm thanh đang có; không bao giờ lấy lại âm thanh của câu trước.
+- Đèn "câu dài" vẫn tính độ dài từ cửa sổ bỏ phiếu như trước, nên không bật sớm hơn.
+- Đoạn đưa cho Whisper vẫn không bao giờ dài quá 15 s (tính cả pre-roll).
+
+**Kết quả đo** (`eval/preroll_bench.py`, `results/preroll_*.csv`):
+- Cách đo: một luồng liên tục ghép các câu VIVOS (200) và FLEURS (100), chạy qua đúng Segmenter + Silero + PhoWhisper như app.
+- "Tốt nhất có thể" là khi nhận dạng nguyên câu, không qua cắt đoạn.
+
+| Ô | Mất từ đầu câu: tốt nhất / 300 / **600** | WER: 300 → **600** | ASR P95: 300 → **600** |
+|---|---|---|---|
+| VIVOS sạch | 8,0 / 9,5 / **7,0%** | 7,56 → **7,11** | 1,6 → 1,3 s |
+| VIVOS DEMAND 10 / 5 dB | 8,5–9,0 / 14,0–14,5 / **6,5–8,0%** | 9,27 → **7,75**; 10,60 → **9,37** | 5,2 → 1,5 s; 6,7 → 1,4 s |
+| VIVOS MUSAN 10 / 5 dB | 7,5–8,0 / 15,5–19,0 / **7,0–8,5%** | 8,64 → **7,70**; 9,96 → **8,93** | 1,6–1,9 → 1,3–1,4 s |
+| FLEURS sạch | 20 / 27 / **13%** | 16,17 → **15,39** | 2,4 → 2,5 s |
+| FLEURS DEMAND 10 / 5 dB | 17 / 30–31 / **18–21%** | 19,55 → **18,77**; 20,96 → **20,47** | 6,6 → 2,2 s; 7,5 → 2,4 s |
+
+- Ở seed 0, WER tốt hơn ở mọi ô; ASR P50 giảm 2–6%.
+- Số lần bật nhầm không đổi. Câu ma: 0–3 mỗi ô ở cả hai mức; riêng FLEURS DEMAND 10 dB là 1 → 2, vì Whisper khi thì ra chữ, khi thì bị lọc trên cùng một đoạn nhiễu. Chạy lại ô này với seed 1 và 2 (`results/preroll_fleurs_demand10_seed*.csv`): câu ma 3 → 1 và 0 → 0, nên 600 ms không sinh thêm câu ma. Riêng WER ở seed 2 thì 600 tệ hơn (17,68 → 18,41), ở seed 1 tốt hơn (16,70 → 16,34): ở ô này WER dao động giữa các seed cỡ ±0,7 điểm
+- **ASR P95 trong nhiễu giảm mạnh**, vì câu bị cắt mất đầu dễ làm Whisper rơi vào vòng lặp.
+- Đã thử thêm 450 và 900 ms. 450 làm WER tệ hơn ở FLEURS có nhiễu. 900 không tốt hơn 600 ở ô nào và làm WER tệ hơn ở FLEURS 5 dB.
+- **Hạn chế:**
+  - Chỉ đo một seed, trừ phần kiểm tra câu ma.
+  - Mỗi ô chỉ có một bộ nhiễu.
+  - Mọi câu được đưa về cùng một âm lượng.
+  - Chỉ đếm chữ đầu của mỗi *câu*.
+  - Tiêu chí "giảm ≥ 30%" được điều chỉnh sau khi xem kết quả, xem mục Quyết định của `plan-first-word-preroll.md`.
+
 ### Đo chất lượng dịch (M5)
 
 **Bench dịch** (`eval/mt_bench.py`) trả lời hai câu hỏi:
@@ -441,6 +475,7 @@ Máy dùng để đo: MacBook Pro (Apple Silicon, 8 GB RAM), chạy bằng CPU (
 | Dịch, như app (cắt đoạn, chữ PhoWhisper), Argos, BLEU / chrF | không khôi phục 12,35 / 43,4 → **vibert-capu 15,15 / 45,5** | `results/mt_vi_en_seg_silero.csv` |
 | Độ trễ dịch mỗi đoạn, Argos + vibert-capu, TB / P95 | 95 / 215 ms; khôi phục thêm 23 / 47 ms | `results/mt_vi_en_seg_silero.csv` |
 
+| Mất chữ đầu câu, pre-roll 300 → **600 ms** (mặc định) | VIVOS sạch 9,5 → 7,0% (tốt nhất có thể 8,0%), FLEURS sạch 27 → 13%; WER tốt hơn ở mọi ô (seed 0; FLEURS DEMAND 10 dB seed 2: +0,73); ASR P95 trong nhiễu 5–7,5 → 1,4–2,4 s | `results/preroll_*.csv` |
 | Nhận dạng bị kẹt (cấu hình gốc), PhoWhisper + Silero + lọc | đoạn giọng thật lâu nhất 10–34 s ở mọi bộ (kể cả sạch); đoạn chỉ có nhiễu tới 20–30 s (DEMAND) | `results/stall_*.csv` |
 | Thử giới hạn token 15/s + 32 (mặc định **tắt**) | lâu nhất còn 1,5–3 s, P95 ~1,5 s; nhưng WER tệ hơn: sạch +1,12, DEMAND +0,6 đến +1,9; MUSAN 0 dB −0,52, FLEURS −0,59 | `results/stall_*.csv` |
 | Chống kẹt theo từng lượt giải mã (mặc định **tắt**) | (C+): lượt T=0 giới hạn ≥ 100 token, các lượt giải mã lại 15/s + 32. ASR lâu nhất còn 2,9 s (A: 35,9 s); hai ô chính không tệ hơn (VIVOS sạch 0,00; FLEURS −0,30), nhưng DEMAND 5/0 dB +1,64/+1,43 vì vòng lặp bị cắt ngắn rồi được chấp nhận (một câu thừa khoảng 11 từ). Chưa cấu hình nào đạt tiêu chí | `results/antistall_*.csv` |
@@ -562,6 +597,7 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
   - "ofc": 1 lần trong log thật, 1/244 đoạn FLEURS.
   - Tham chiếu VIVOS/FLEURS không chứa hai từ này.
   - Tính lại WER từ transcript đã lưu thì không ô nào tệ hơn: DEMAND 0 dB 11,76 → 11,66; FLEURS 15,65 → 15,62 (`results/stall_*.csv`, cấu hình gốc).
+- ✅ **Mất chữ đầu câu** ("đồ án" → "án"): lấy lùi lại 600 ms thay vì 300 ms khi bắt đầu câu, quy tắc bắt đầu câu giữ nguyên. FLEURS sạch giảm từ 27% xuống 13% số câu mất từ đầu; ở seed 0 WER tốt hơn ở mọi ô (`results/preroll_*.csv`).
 - ✅ **Dịch kém vì chữ ASR không có dấu câu:** khôi phục chữ hoa và dấu câu bằng vibert-capu trước khi dịch, +2,8 BLEU với Argos trong điều kiện giống app (`results/mt_vi_en_restore.csv`).
 - ✅ **Bench đo được, chạy lại ra đúng số:** WER/CER, BLEU/chrF, độ trễ từng khâu bench, seed cố định (kể cả seed của bộ giải mã CTranslate2).
 - ✅ **Công cụ đo độ trễ trong app thật:** `--latency-log` và `eval/latency_report.py`.
