@@ -61,9 +61,10 @@ def test_custom_set_is_unreviewed_until_every_row_says_yes(tmp_path):
         mt.load_custom(p)
 
 
-def test_shipped_custom_set_loads_and_is_marked_for_review():
+def test_shipped_custom_set_loads_and_is_reviewed():
+    # every reference reviewed by the author on 2026-11-16: the bench labels it corpus=custom
     pairs, reviewed = mt.load_custom(_ROOT / "eval" / "data" / "mt_custom_vi_en.tsv")
-    assert 20 <= len(pairs) <= 30 and not reviewed
+    assert 20 <= len(pairs) <= 30 and reviewed
     assert {"name", "time", "number", "unit", "loanword"} <= {p.category for p in pairs}
 
 
@@ -218,3 +219,16 @@ def test_restore_inputs_times_each_non_empty_segment():
 def test_unknown_restorer_is_rejected(tmp_path, capsys):
     assert mt.main(["--smoke", "--restore", "magic", "--out", str(tmp_path / "x.csv")]) == 2
     assert "unknown restorer" in capsys.readouterr().err
+
+
+def test_shipped_glossary_set_is_reviewed_and_references_hold_their_terms():
+    import csv as _csv
+
+    path = _ROOT / "eval" / "data" / "mt_glossary_vi_en.tsv"
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
+    rows = list(_csv.DictReader(lines, delimiter="\t", quoting=_csv.QUOTE_NONE))
+    assert len(rows) == 27 and len({r["id"] for r in rows}) == 27
+    assert all(r["reviewed"] == "yes" for r in rows)  # reviewed by the author on 2026-11-16
+    for r in rows:
+        for term in filter(None, (r.get("expect") or "").split(";")):
+            assert term in r["ref"], (r["id"], term)

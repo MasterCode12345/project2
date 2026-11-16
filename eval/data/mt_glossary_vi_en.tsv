@@ -1,34 +1,34 @@
 # Bộ câu đánh giá bảng thuật ngữ (eval/glossary_bench.py), vi -> en.
-# CẦN NGƯỜI DÙNG DUYỆT: cột ref là bản dịch nháp do Claude soạn. Khi đã kiểm tra một câu, đổi reviewed thành yes.
+# Cột ref: bản nháp do Claude soạn, ĐÃ ĐƯỢC TÁC GIẢ DUYỆT ngày 2026-11-16 (reviewed=yes). Câu mới thêm ghi reviewed=no.
 # Cột expect: các thuật ngữ tiếng Anh phải có trong bản dịch (ngăn bởi ;). Cột check: cụm thường (không thuộc bảng)
 # chỉ dùng để đo xem bộ dịch có tự dịch đúng không. category=generic: câu KHÔNG được khớp thuật ngữ nào.
 # Câu viết như chữ ASR sau khi khôi phục: có chữ hoa đầu câu; tên riêng có câu viết hoa, có câu viết thường.
 # Cột: id <TAB> category <TAB> reviewed <TAB> src <TAB> ref <TAB> expect <TAB> check
 id	category	reviewed	src	ref	expect	check
-g01	term_start	no	Đại học Bách khoa Hà Nội là trường kỹ thuật lớn nhất Việt Nam.	Hanoi University of Science and Technology is the largest technical university in Vietnam.	Hanoi University of Science and Technology
-g02	term_end	no	Tôi là sinh viên năm cuối của Đại học Bách khoa Hà Nội.	I am a final-year student at Hanoi University of Science and Technology.	Hanoi University of Science and Technology
-g03	term_lower	no	Tôi là sinh viên năm cuối của đại học bách khoa hà nội.	I am a final-year student at Hanoi University of Science and Technology.	Hanoi University of Science and Technology
-g04	term_mid	no	Năm ngoái Trường Đại học Bách khoa Hà Nội đã mở thêm ba chương trình mới.	Last year Hanoi University of Science and Technology opened three new programmes.	Hanoi University of Science and Technology
-g05	term_short	no	Bạn tôi cũng học ở Bách khoa Hà Nội.	My friend also studies at Hanoi University of Science and Technology.	Hanoi University of Science and Technology
-g06	term_lower	no	Em đang học ở bách khoa hà nội, khoa điện tử.	I study at Hanoi University of Science and Technology, in the electronics department.	Hanoi University of Science and Technology
-g07	term_mid	no	Tôi thuộc Trường Công nghệ Thông tin và Truyền thông, khóa sáu mươi sáu.	I belong to the School of Information and Communication Technology, cohort sixty-six.	School of Information and Communication Technology
-g08	term_lower	no	Trường công nghệ thông tin và truyền thông có rất nhiều phòng thí nghiệm.	The School of Information and Communication Technology has many laboratories.	School of Information and Communication Technology
-g09	term_old	no	Trước đây Viện Công nghệ Thông tin và Truyền thông có ba bộ môn.	The School of Information and Communication Technology used to have three departments.	School of Information and Communication Technology
-g10	term_two	no	Trường Công nghệ Thông tin và Truyền thông thuộc Đại học Bách khoa Hà Nội.	The School of Information and Communication Technology belongs to Hanoi University of Science and Technology.	School of Information and Communication Technology;Hanoi University of Science and Technology
-g11	name	no	Giảng viên của tôi là thầy Trần Hải Anh.	My lecturer is Mr Tran Hai Anh.	Tran Hai Anh
-g12	name_start	no	Trần Hải Anh sẽ chấm đồ án của nhóm vào tuần sau.	Tran Hai Anh will grade the group's project next week.	Tran Hai Anh
-g13	name_lower	no	Em gửi báo cáo cho thầy trần hải anh rồi ạ.	I have already sent the report to Mr Tran Hai Anh.	Tran Hai Anh
-g14	name	no	Xin chào, tôi tên là Trần Trung Nghĩa.	Hello, my name is Tran Trung Nghia.	Tran Trung Nghia
-g15	name_lower	no	Bạn có thể gọi tôi là trần trung nghĩa.	You can call me Tran Trung Nghia.	Tran Trung Nghia
-g16	name_two	no	Trần Trung Nghĩa làm đồ án dưới sự hướng dẫn của thầy Trần Hải Anh.	Tran Trung Nghia does his project under the supervision of Mr Tran Hai Anh.	Tran Trung Nghia;Tran Hai Anh
-g17	term_vnu	no	Đại học Quốc gia Hà Nội và Đại học Bách khoa Hà Nội đều ở thủ đô.	Vietnam National University, Hanoi and Hanoi University of Science and Technology are both in the capital.	Vietnam National University, Hanoi;Hanoi University of Science and Technology
-g18	term_vnu	no	Chị tôi tốt nghiệp đại học quốc gia hà nội năm ngoái.	My sister graduated from Vietnam National University, Hanoi last year.	Vietnam National University, Hanoi
-g19	name_term	no	Tôi là Trần Trung Nghĩa, sinh viên Trường Công nghệ Thông tin và Truyền thông.	I am Tran Trung Nghia, a student of the School of Information and Communication Technology.	Tran Trung Nghia;School of Information and Communication Technology
-g20	name_term	no	Thầy Trần Hải Anh dạy ở Đại học Bách khoa Hà Nội đã nhiều năm.	Mr Tran Hai Anh has taught at Hanoi University of Science and Technology for many years.	Tran Hai Anh;Hanoi University of Science and Technology
-n01	generic	no	Bách khoa toàn thư là nguồn tham khảo rất hữu ích.	An encyclopedia is a very useful reference.
-n02	generic	no	Em học bách khoa vì thích kỹ thuật.	I study engineering because I like technology.
-n03	generic	no	Hà Nội có nhiều trường đại học lớn.	Hanoi has many large universities.
-p01	phrase	no	Tôi đang làm đồ án tốt nghiệp về dịch giọng nói.	I am working on my graduation project about speech translation.		graduation project
-p02	phrase	no	Đồ án tốt nghiệp phải nộp trước ngày hai mươi tháng Mười Hai.	The graduation project must be submitted before December twentieth.		graduation project
-p03	phrase	no	Giảng viên hướng dẫn của tôi rất nhiệt tình.	My supervisor is very enthusiastic.		supervisor
-p04	phrase	no	Em sẽ gửi bản nháp cho giảng viên hướng dẫn tối nay.	I will send the draft to my supervisor tonight.		supervisor
+g01	term_start	yes	Đại học Bách khoa Hà Nội là trường kỹ thuật lớn nhất Việt Nam.	Hanoi University of Science and Technology is the largest technical university in Vietnam.	Hanoi University of Science and Technology
+g02	term_end	yes	Tôi là sinh viên năm cuối của Đại học Bách khoa Hà Nội.	I am a final-year student at Hanoi University of Science and Technology.	Hanoi University of Science and Technology
+g03	term_lower	yes	Tôi là sinh viên năm cuối của đại học bách khoa hà nội.	I am a final-year student at Hanoi University of Science and Technology.	Hanoi University of Science and Technology
+g04	term_mid	yes	Năm ngoái Trường Đại học Bách khoa Hà Nội đã mở thêm ba chương trình mới.	Last year Hanoi University of Science and Technology opened three new programs.	Hanoi University of Science and Technology
+g05	term_short	yes	Bạn tôi cũng học ở Bách khoa Hà Nội.	My friend also studies at Hanoi University of Science and Technology.	Hanoi University of Science and Technology
+g06	term_lower	yes	Em đang học ở bách khoa hà nội, khoa điện tử.	I study at Hanoi University of Science and Technology, in the electronics department.	Hanoi University of Science and Technology
+g07	term_mid	yes	Tôi thuộc Trường Công nghệ Thông tin và Truyền thông, khóa sáu mươi sáu.	I belong to the School of Information and Communication Technology, cohort sixty-six.	School of Information and Communication Technology
+g08	term_lower	yes	Trường công nghệ thông tin và truyền thông có rất nhiều phòng thí nghiệm.	The School of Information and Communication Technology has many laboratories.	School of Information and Communication Technology
+g09	term_old	yes	Trước đây Viện Công nghệ Thông tin và Truyền thông có ba bộ môn.	The School of Information and Communication Technology used to have three departments.	School of Information and Communication Technology
+g10	term_two	yes	Trường Công nghệ Thông tin và Truyền thông thuộc Đại học Bách khoa Hà Nội.	The School of Information and Communication Technology belongs to Hanoi University of Science and Technology.	School of Information and Communication Technology;Hanoi University of Science and Technology
+g11	name	yes	Giảng viên của tôi là thầy Trần Hải Anh.	My lecturer is Mr. Tran Hai Anh.	Tran Hai Anh
+g12	name_start	yes	Trần Hải Anh sẽ chấm đồ án của nhóm vào tuần sau.	Tran Hai Anh will grade the group's project next week.	Tran Hai Anh
+g13	name_lower	yes	Em gửi báo cáo cho thầy trần hải anh rồi ạ.	I have already sent the report to Mr. Tran Hai Anh.	Tran Hai Anh
+g14	name	yes	Xin chào, tôi tên là Trần Trung Nghĩa.	Hello, my name is Tran Trung Nghia.	Tran Trung Nghia
+g15	name_lower	yes	Bạn có thể gọi tôi là trần trung nghĩa.	You can call me Tran Trung Nghia.	Tran Trung Nghia
+g16	name_two	yes	Trần Trung Nghĩa làm đồ án dưới sự hướng dẫn của thầy Trần Hải Anh.	Tran Trung Nghia is doing his project under the supervision of Mr. Tran Hai Anh.	Tran Trung Nghia;Tran Hai Anh
+g17	term_vnu	yes	Đại học Quốc gia Hà Nội và Đại học Bách khoa Hà Nội đều ở thủ đô.	Vietnam National University, Hanoi and Hanoi University of Science and Technology are both in the capital.	Vietnam National University, Hanoi;Hanoi University of Science and Technology
+g18	term_vnu	yes	Chị tôi tốt nghiệp đại học quốc gia hà nội năm ngoái.	My sister graduated from Vietnam National University, Hanoi last year.	Vietnam National University, Hanoi
+g19	name_term	yes	Tôi là Trần Trung Nghĩa, sinh viên Trường Công nghệ Thông tin và Truyền thông.	I am Tran Trung Nghia, a student of the School of Information and Communication Technology.	Tran Trung Nghia;School of Information and Communication Technology
+g20	name_term	yes	Thầy Trần Hải Anh dạy ở Đại học Bách khoa Hà Nội đã nhiều năm.	Mr. Tran Hai Anh has taught at Hanoi University of Science and Technology for many years.	Tran Hai Anh;Hanoi University of Science and Technology
+n01	generic	yes	Bách khoa toàn thư là nguồn tham khảo rất hữu ích.	An encyclopedia is a very useful reference.
+n02	generic	yes	Em học bách khoa vì thích kỹ thuật.	I study at Bach Khoa because I like engineering.
+n03	generic	yes	Hà Nội có nhiều trường đại học lớn.	Hanoi has many large universities.
+p01	phrase	yes	Tôi đang làm đồ án tốt nghiệp về dịch giọng nói.	I am working on my graduation project about speech translation.		graduation project
+p02	phrase	yes	Đồ án tốt nghiệp phải nộp trước ngày hai mươi tháng Mười Hai.	The graduation project must be submitted before December twentieth.		graduation project
+p03	phrase	yes	Giảng viên hướng dẫn của tôi rất nhiệt tình.	My supervisor is very enthusiastic.		supervisor
+p04	phrase	yes	Em sẽ gửi bản nháp cho giảng viên hướng dẫn tối nay.	I will send the draft to my supervisor tonight.		supervisor

@@ -168,16 +168,17 @@ Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch b
 - Nếu một placeholder bị mất hoặc biến dạng, câu đó được dịch lại không dùng bảng. Placeholder không bao giờ lọt ra bản dịch hay giọng đọc.
 - Câu không chứa thuật ngữ nào được dịch y như trước.
 
-**Kết quả đo** (`results/mt_glossary_vi_en.csv`, bộ 27 câu `eval/data/mt_glossary_vi_en.tsv`, chưa duyệt):
+**Kết quả đo** (`results/mt_glossary_vi_en_reviewed.csv`, bộ 27 câu `eval/data/mt_glossary_vi_en.tsv`; **tham chiếu đã được tác giả duyệt ngày 2026-11-16**; số trước khi duyệt ở `results/mt_glossary_vi_en.csv`):
 
 | Bộ dịch | Thuật ngữ dịch đúng | BLEU bộ thuật ngữ |
 |---|---|---|
-| Argos | 0% → 100% | 18,6 → 57,9 |
-| NLLB-600M | 12% → 100% | |
-| M2M100-418M | 8% → 100% | |
+| Argos | 0% → 100% | 20,0 → 58,1 |
+| NLLB-600M | 12% → 100% | 28,3 → 58,9 |
+| M2M100-418M | 8% → 100% | 27,3 → 56,4 |
 
 - 0 placeholder lọt ra.
-- FLEURS 100/100 câu giống hệt trước; mt_custom có BLEU tăng (42,5 → 44,4).
+- FLEURS 100/100 câu giống hệt trước; mt_custom (đã duyệt) có BLEU tăng: Argos 42,5 → 44,4, NLLB 51,2 → 53,6, M2M100 44,6 → 47,2.
+- Khi duyệt, bản dịch không đổi; điểm BLEU của bộ thuật ngữ đổi chỉ vì sửa 6 câu tham chiếu (trước khi duyệt Argos là 18,6 → 57,9).
 - Bước khớp tốn khoảng 0,004 ms mỗi câu.
 - Google: không đo được (bị chặn vì gọi quá nhiều).
 
@@ -409,7 +410,7 @@ uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # 
 **Dữ liệu:**
 - FLEURS (CC-BY-4.0): câu nguồn và câu đích ghép theo id câu FLoRes. Cả 347 câu của `vi_vn` test đều có trong `en_us` test.
 - Phía tiếng Anh chỉ cần file chữ: tải `data/en_us/test.tsv` (368 KB) từ `google/fleurs` về `~/data/fleurs_en/test.tsv`.
-- `eval/data/mt_custom_vi_en.tsv`: 25 câu tự viết có tên riêng, số, ngày giờ, đơn vị, từ mượn. Bản dịch tham chiếu là bản nháp **cần duyệt**. Bench ghi `corpus=custom_unreviewed` cho tới khi mọi câu có `reviewed=yes`, và kết quả của tập này không được dùng để kết luận.
+- `eval/data/mt_custom_vi_en.tsv`: 25 câu tự viết có tên riêng, số, ngày giờ, đơn vị, từ mượn. Bản dịch tham chiếu do Claude soạn, **đã được tác giả duyệt ngày 2026-11-16** (cả 25 câu `reviewed=yes`; câu nguồn c01 sửa "Bách Khoa" thành "Bách khoa"). Bench ghi `corpus=custom` khi mọi câu là `yes`; một câu mới thêm với `reviewed=no` làm nhãn quay về `custom_unreviewed`. Số đo trên bộ đã duyệt: `results/mt_vi_en_models_reviewed.csv`.
 
 **Hạn chế:**
 - FLoRes vốn được dịch từ tiếng Anh sang các ngôn ngữ khác, nên chiều vi→en dùng câu nguồn kiểu "văn dịch" (translationese).
@@ -554,7 +555,7 @@ Dấu câu giữa câu là phần đáng giá nhất (+5,2 và +5,5 BLEU so vớ
 - **Cắt đoạn như app làm mất điểm:** WER tăng từ 13,0% lên 15,9%, và câu bị cắt giữa chừng nên khó dịch. Argos giảm từ 15,8 xuống 13,0 BLEU, NLLB từ 21,3 xuống 16,6. Đây là khoảng mất mà các số `asr` trước đây không thấy.
 - Bảng trên đo với webrtcvad, mặc định khi đó. **Với mặc định mới (Silero + bộ lọc ASR, `results/mt_vi_en_seg_silero.csv`):** Argos đạt 12,35 / 43,4 (`off`) và **15,15 / 45,5** (`vibert-capu`), tức **thấp hơn khoảng 0,7 BLEU** so với webrtc. WER nguồn gần như không đổi (15,9%). Lý do: Silero cắt nhiều đoạn hơn (843 đoạn, trung bình 13,3 từ, so với 761 đoạn, 14,8 từ), nên câu bị chia nhỏ hơn. Đổi lại, trên audio có nhiễu, Silero giảm câu ma 75–100% (mục 4, "Chống câu ma"). Muốn bù khoản mất này thì gom đoạn ngắn trước khi dịch (mục 9).
 - **Đạt mục tiêu ≤500 ms/đoạn:** Argos có hoặc không có `vibert-capu`. NLLB **không đạt**: trung bình khoảng 0,57 s, P95 khoảng 1,2 s.
-- **Bất thường:** trên bộ 25 câu tự viết (chưa duyệt), `sent` làm *giảm* điểm (Argos từ 31,5 xuống 28,2). Xem mẫu thì thấy câu có chữ hoa đầu và dấu chấm cuối khiến Argos chuyển sang thì quá khứ ("I was", "began"), có lẽ vì giống văn tin tức. Vì vậy `sent` không phải lựa chọn an toàn. Trên bộ này, `vibert-capu` đưa Argos từ 31,5 lên 40,9 và NLLB từ 35,6 lên 48,6, nhưng bộ này chưa được dùng để kết luận.
+- **Bất thường:** trên bộ 25 câu tự viết (đo khi tham chiếu chưa duyệt; khi duyệt, tham chiếu của bộ này không đổi), `sent` làm *giảm* điểm (Argos từ 31,5 xuống 28,2). Xem mẫu thì thấy câu có chữ hoa đầu và dấu chấm cuối khiến Argos chuyển sang thì quá khứ ("I was", "began"), có lẽ vì giống văn tin tức. Vì vậy `sent` không phải lựa chọn an toàn. Trên bộ này, `vibert-capu` đưa Argos từ 31,5 lên 40,9 và NLLB từ 35,6 lên 48,6, nhưng bộ này chưa được dùng để kết luận.
 - `src_wer` của `text_norm` + `vibert-capu` là 0,0002 thay vì 0, vì nhãn `$MERGE_SPACE` có lúc ghép hai từ làm một.
 
 ### 6.3 Số đo tay cũ (cấu hình MVP: Whisper `small`/`medium`, webrtcvad, chưa lọc câu ma, chưa khôi phục)
@@ -599,6 +600,7 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
   - Tính lại WER từ transcript đã lưu thì không ô nào tệ hơn: DEMAND 0 dB 11,76 → 11,66; FLEURS 15,65 → 15,62 (`results/stall_*.csv`, cấu hình gốc).
 - ✅ **Mất chữ đầu câu** ("đồ án" → "án"): lấy lùi lại 600 ms thay vì 300 ms khi bắt đầu câu, quy tắc bắt đầu câu giữ nguyên. FLEURS sạch giảm từ 27% xuống 13% số câu mất từ đầu; ở seed 0 WER tốt hơn ở mọi ô (`results/preroll_*.csv`).
 - ✅ **Dịch kém vì chữ ASR không có dấu câu:** khôi phục chữ hoa và dấu câu bằng vibert-capu trước khi dịch, +2,8 BLEU với Argos trong điều kiện giống app (`results/mt_vi_en_restore.csv`).
+- ✅ **Tham chiếu dịch tự viết đã duyệt:** 25 câu `mt_custom_vi_en.tsv` và 27 câu `mt_glossary_vi_en.tsv` **đã được tác giả duyệt ngày 2026-11-16** (sửa 6 tham chiếu và 1 câu nguồn). Số đo trên bộ đã duyệt: `results/mt_vi_en_models_reviewed.csv`, `results/mt_glossary_vi_en_reviewed.csv`.
 - ✅ **Bench đo được, chạy lại ra đúng số:** WER/CER, BLEU/chrF, độ trễ từng khâu bench, seed cố định (kể cả seed của bộ giải mã CTranslate2).
 - ✅ **Công cụ đo độ trễ trong app thật:** `--latency-log` và `eval/latency_report.py`.
 
@@ -630,7 +632,6 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
 6. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần. Tạm thời phải đeo tai nghe; chưa kiểm chứng lại.
 7. **Mới có một cặp ngôn ngữ Việt → Anh** trên giao diện.
 8. **TTS và dịch dự phòng dùng dịch vụ không chính thức, cần internet.**
-9. **25 câu tham chiếu dịch tự viết** (`eval/data/mt_custom_vi_en.tsv`) chưa được duyệt, nên kết quả trên bộ này chưa dùng để kết luận.
 
 ## 9. Hướng phát triển
 
@@ -682,7 +683,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ├── eval/mt_bench.py        bench dịch: BLEU/chrF, độ trễ dịch, lỗi lan truyền ASR → dịch, cắt đoạn như app, khôi phục dấu câu
 ├── eval/mt_oracle_ablation.py   mất điểm dịch do chữ hoa hay do dấu câu (biến thể oracle của câu nguồn)
 ├── eval/latency_report.py   bảng TB / P95 / max từng khâu từ file --latency-log
-├── eval/data/              tập câu tự viết cho bench dịch (tham chiếu cần duyệt)
+├── eval/data/              tập câu tự viết cho bench dịch (tham chiếu đã được tác giả duyệt)
 ├── scripts/convert_phowhisper.py   convert PhoWhisper sang CTranslate2 (chạy một lần)
 ├── scripts/convert_mt_model.py     convert NLLB-200 / M2M100 sang CTranslate2 (chạy một lần)
 ├── scripts/convert_capu_model.py   convert bộ khôi phục chữ hoa/dấu câu vibert-capu sang CTranslate2 (chạy một lần)
