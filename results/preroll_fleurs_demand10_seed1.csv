@@ -1,0 +1,3 @@
+corpus,noise,snr_db,pre_roll_ms,n_utts,wer,cer,first_lost,first_lost_rate,also_lost_best,best_wer,best_cer,best_first_lost,best_first_lost_rate,segs,segs_outside,ghosts,asr_ms_p50,asr_ms_p95,seg_audio_s
+fleurs,demand_ch01,10,300,100,0.1670,0.1035,26,0.2600,17,0.1381,0.0819,21,0.2100,274,3,3,1286,11906,4.03
+fleurs,demand_ch01,10,600,100,0.1634,0.1015,17,0.1700,12,0.1381,0.0819,21,0.2100,274,2,1,1333,11318,4.22

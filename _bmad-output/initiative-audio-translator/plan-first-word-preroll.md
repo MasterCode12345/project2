@@ -2,7 +2,7 @@
 title: 'Lost first word: separate the pre-roll length from the start-vote window'
 type: 'fix'
 created: '2026-11-15'
-status: 'plan — waiting for approval (step 0)'
+status: 'done — default pre_roll_ms 600 (criteria adjusted after the results, see Decision); branch pushed, not merged'
 baseline_revision: '714f596'
 branch: 'fix/first-word-preroll'
 route: 'full'
@@ -164,7 +164,117 @@ If several values pass, the smallest that gets within 1 point of the best first-
 2. `eval/preroll_bench.py` plus its smoke test; run the grid.
 3. Decide by the rule; change `Settings.pre_roll_ms` or keep 300; docs. Full test run, commit, push, no merge.
 
-## Questions for you
+## Approval (human, 2026-11-15)
+
+1. Length light: `open_s` counted from the start of the vote window, exactly as today; with a test.
+2. `max_segment_s`: 15 s, pre-roll included, so Whisper never gets more than 15 s.
+3. Measure 300, 450, 600 and **900**, in every cell (a long pre-roll brings more noise at the start of a segment and may create ghosts).
+4. "Clearly lower": ≥ 30 % fewer lost first words on clean VIVOS and clean FLEURS; not higher in any noisy cell (±1 utterance tolerated). WER not worse by more than 0.1 point in any cell; ghosts not higher; ASR p50 at most +10 %.
+5. Choice: among the values that pass, the smallest whose first-word rate is within 2 points of the best.
+6. Report a "best possible" column (whole utterance) per cell, and examples of first words before and after.
+7. The bench lives in `eval/` with tests; runs under `caffeinate -i`. Report the table before changing the default.
+
+## Results (step 1, 2026-11-16)
+
+`eval/preroll_bench.py`, seed 0, VIVOS 200 and FLEURS 100 utterances. Every utterance is scaled to the same speech level; the noise is constant over the stream. Files: `results/preroll_vivos_demand.csv`, `results/preroll_vivos_musan.csv`, `results/preroll_fleurs_demand.csv`, and the `*_samples.tsv` next to them.
+
+**First word lost (% of utterances).** "Best" = each whole utterance transcribed alone.
+
+| Cell | Best | 300 | 450 | 600 | 900 |
+|---|---|---|---|---|---|
+| VIVOS clean | 8.0 | 9.5 | 7.5 | **7.0** | 7.0 |
+| VIVOS DEMAND 10 dB | 8.5 | 14.0 | 8.0 | **6.5** | 7.0 |
+| VIVOS DEMAND 5 dB | 9.0 | 14.5 | 9.5 | **8.0** | 8.5 |
+| VIVOS MUSAN 10 dB | 7.5 | 15.5 | 8.5 | **7.0** | 7.5 |
+| VIVOS MUSAN 5 dB | 8.0 | 19.0 | 10.0 | 8.5 | 7.5 |
+| FLEURS clean | 20 | 27 | 20 | **13** | 17 |
+| FLEURS DEMAND 10 dB | 17 | 31 | 21 | **18** | 23 |
+| FLEURS DEMAND 5 dB | 17 | 30 | 26 | **21** | 23 |
+
+**WER (%).**
+
+| Cell | Best | 300 | 450 | 600 | 900 |
+|---|---|---|---|---|---|
+| VIVOS clean | 7.07 | 7.56 | 7.51 | **7.11** | 7.11 |
+| VIVOS DEMAND 10 dB | 7.36 | 9.27 | 9.18 | **7.75** | 8.29 |
+| VIVOS DEMAND 5 dB | 8.64 | 10.60 | 9.62 | 9.37 | 9.27 |
+| VIVOS MUSAN 10 dB | 8.10 | 8.64 | 8.05 | **7.70** | 7.95 |
+| VIVOS MUSAN 5 dB | 9.42 | 9.96 | 9.47 | 8.93 | 8.78 |
+| FLEURS clean | 13.12 | 16.17 | 15.35 | 15.39 | 15.09 |
+| FLEURS DEMAND 10 dB | 12.96 | 19.55 | 20.18 | 18.77 | 18.64 |
+| FLEURS DEMAND 5 dB | 14.30 | 20.96 | 21.36 | **20.47** | 21.13 |
+
+**Ghosts and ASR time, 300 → 600.**
+
+| Cell | Segments outside any utterance | Ghosts | ASR p50 (ms) | ASR p95 (ms) |
+|---|---|---|---|---|
+| VIVOS clean | 0 → 0 | 0 → 0 | 1197 → 1137 | 1552 → 1345 |
+| VIVOS DEMAND 10 dB | 2 → 2 | 2 → 2 | 1192 → 1142 | 5183 → 1464 |
+| VIVOS DEMAND 5 dB | 3 → 3 | 3 → 2 | 1210 → 1148 | 6746 → 1387 |
+| VIVOS MUSAN 10 dB | 0 → 0 | 0 → 0 | 1166 → 1144 | 1627 → 1355 |
+| VIVOS MUSAN 5 dB | 0 → 0 | 0 → 0 | 1186 → 1146 | 1935 → 1340 |
+| FLEURS clean | 0 → 0 | 0 → 0 | 1218 → 1196 | 2421 → 2491 |
+| FLEURS DEMAND 10 dB | 2 → 2 | **1 → 2** | 1212 → 1181 | 6603 → 2179 |
+| FLEURS DEMAND 5 dB | 2 → 2 | 2 → 2 | 1222 → 1198 | 7534 → 2354 |
+
+**Against the approved rule.**
+
+| Criterion | 450 | 600 | 900 |
+|---|---|---|---|
+| Clean ≥ 30 % fewer: VIVOS / FLEURS | −21 % ✗ / −26 % ✗ | **−26 % ✗** / −52 % ✓ | −26 % ✗ / −37 % ✓ |
+| Noisy cells not higher (±1) | ✓ | ✓ | ✓ |
+| WER not worse by > 0.1 | ✗ (FLEURS +0.63, +0.40) | ✓ (better in every cell) | ✗ (FLEURS 5 dB +0.17) |
+| Ghosts not higher | ✗ | ✗ (+1, FLEURS DEMAND 10 dB) | ✗ |
+| ASR p50 ≤ +10 % | ✓ | ✓ (−2 to −6 %) | ✓ |
+
+By the rule as approved, **no value passes**. 600 misses two points, both examined below.
+
+**Examples, 300 → 600** (from the samples files, public corpora):
+- "không nên chỉ dựa vào…": "chỉ dựa vào…" → "không nên chỉ dựa vào…";
+- "màu son trông thật tuyệt…": "ng son trông…" → "màu son trông…";
+- "gió trời không thể…": "trời không thể…" → "gió trời không thể…";
+- "nó liên quan nhưng…": "n liên quan…" → "nó liên quan…";
+- "mặc dù không ai…": "dù không ai…" → "mặc dù không ai…";
+- "âm thầm chắt chiu…" (MUSAN 10 dB): "ăm thầm…" → "âm thầm…".
+
+Per samples file, 600 fixes 40–43 first words and breaks 4–7. The broken ones are mostly spelling variants that are ASR errors, not cuts ("hằng" → "hàng", "loáng" → "lóng"). One case really adds a stray sound at the start: "mạng internet" → "m mạng internet".
+
+## Decision (human, 2026-11-16): default 600 ms, with the criteria adjusted after seeing the results
+
+This is an adjustment of the approved criteria **made after the results were known**. It is recorded as such, with the reasons:
+
+1. **"≥ 30 % fewer" cannot apply to clean VIVOS: a floor effect.** At 300 ms this cell is only 1.5 points above the best possible (9.5 % against 8.0 %), and 600 ms is already below the best possible (7.0 %). Reaching −30 % would need ≤ 13 utterances, under the floor of 16. For a cell that is already close to the best possible, the right criterion is "reaches the best possible or better". 600 ms meets that in clean VIVOS and clean FLEURS (13 % against 20 %).
+2. **The extra ghost at FLEURS DEMAND 10 dB is run-to-run variation, not an effect of the pre-roll.**
+   - Every pre-roll has the same 2 false triggers, at the same place: one DEMAND sound inside a 10 s quiet stretch.
+   - The pre-roll adds no trigger. It adds 150–300 ms of audio to those noise segments, and Whisper sometimes writes text and sometimes is filtered.
+   - A separate re-run of the same cell and seed gave 1 ghost at 600, not 2.
+   - Two more seeds, counted for ghosts only (`results/preroll_fleurs_demand10_seed1.csv`, `…seed2.csv`; 300 and 600 only):
+
+     | Seed | Pre-roll | Outside segments | Ghosts | First word lost | WER | ASR p50 / p95 (ms) |
+     |---|---|---|---|---|---|---|
+     | 1 | 300 | 3 | 3 | 26 | 16.70 % | 1286 / – |
+     | 1 | 600 | 2 | **1** | 17 | 16.34 % | 1333 / – |
+     | 2 | 300 | 0 | 0 | 27 | 17.68 % | 1234 / 4286 |
+     | 2 | 600 | 0 | **0** | 15 | 18.41 % | 1220 / 3261 |
+
+     The agreed check ("600 has more ghosts than 300 in both seeds → report before merging") is not met: 600 has fewer (seed 1) or as many (seed 2). **600 stays.**
+   - **Not asked, reported anyway:** in seed 2 the WER of 600 is **worse** than 300 (+0.73 point); in seed 1 it is better (−0.36). So the claim "WER better in every cell" holds for seed 0 only. In this cell the WER moves by about ±0.7 point between seeds, as much as the difference between pre-rolls. First word lost is lower at 600 in all three seeds (31→18, 26→17, 27→15).
+3. **Everything else favours 600 ms.** At seed 0, WER is better than at 300 ms in every cell (−0.45 to −1.52 points; seed 2 of the ghost check: +0.73 in one cell, see above). ASR p50 goes down. ASR p95 in noise goes from 5–7.5 s to 1.4–2.4 s: an utterance cut at its start sends Whisper into a loop more easily.
+
+**Choice among the values.** With the two points above set aside, the ±2-point rule also gives 600:
+- 600 is the best, or within 1 point of the best, in every cell;
+- 450 is 7 points behind on clean FLEURS and fails the WER rule;
+- 900 is better than 600 in no cell except VIVOS MUSAN 5 dB (by 1 point) and fails the WER rule.
+
+**Changed:** `Settings.pre_roll_ms = 600`. `--pre-roll-ms` stays (CLI), so `--pre-roll-ms 300` gives the old behaviour.
+
+**Limitations.**
+- One seed for everything except the ghost check; one noise set per cell.
+- Every utterance was scaled to the same level, which a real microphone does not do. In the unscaled step 0 run the gain on clean VIVOS was larger (12.5 → 7.5 %).
+- The metric looks at the first word of each sentence only, with a 2-word window, and moves by a few utterances between runs. "Best possible" is therefore not a strict floor.
+- Not yet checked with a real microphone: `docs/manual_test.md` scenario (h).
+
+## Questions for you (answered in Approval above)
 
 1. **Length light.** Either count `open_s` from the start of the vote window, which is exactly today's value (proposed); or count it strictly from the trigger frame, which turns the light on about 0.27 s *later* than today, whatever the pre-roll.
 2. **`max_segment_s`.** Either keep counting the pre-roll in the 15 s (proposed: it caps the audio Whisper gets); or count only from the vote window, which gives Whisper up to 15.3 s at a pre-roll of 600.

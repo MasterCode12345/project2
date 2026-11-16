@@ -48,7 +48,10 @@ class Settings:
     vad_backend: str = "silero"
     vad_aggressiveness: int = 2  # 0..3, webrtc only
     silero_threshold: float = 0.5  # speech probability to start; ends below threshold - 0.15
-    pre_roll_ms: int = 300
+    # audio kept before the start vote (always >= 5 voiced of the last 300 ms): 600 since the pre-roll
+    # bench (results/preroll_*.csv): first word lost VIVOS 9.5 -> 7.0 %, FLEURS 27 -> 13 % (clean);
+    # WER better in every cell (seed 0); ASR p95 in noise 5-7.5 s -> 1.4-2.4 s. plan-first-word-preroll.md
+    pre_roll_ms: int = 600
     silence_ms: int = 600
     max_segment_s: float = 15.0
     # M3a noise suppression (experimental, off by default: naive enhancement

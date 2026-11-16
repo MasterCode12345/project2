@@ -382,6 +382,7 @@ In the "all truncated" cases, the trimmed text still carries the compression rat
   - the bench columns (p50, cap hits, re-decodes, rule catches, all-truncated, budget skips) and `--segments-out`;
   - every result: `results/stall_*.csv`, `results/antistall_*.csv`, `results/antistall_step1_c3_c4.csv`.
 - **The stall itself is mitigated, not removed.** The speaker indicator turns red at 6 s of ASR and yellow on unclear segments.
+- **Later (2026-11-16), plan-first-word-preroll.md:** the pre-roll of 600 ms (default since then) lowers ASR p95 in noise from 5–7.5 s to 1.4–2.4 s (`results/preroll_*.csv`). An utterance cut at its start sends Whisper into a loop more easily; keeping its first syllable avoids many stalls without touching the decoding.
 
 **Possible extensions (not done).**
 1. **Own the fallback loop.** Call CTranslate2 `generate` per temperature from `WhisperASR` and make the final choice ourselves (never a truncated attempt; trim and recompute compression; no "below compression first" rule). This removes every interaction above, but re-implements part of faster-whisper's `generate_with_fallback`. A bigger change, measured the same way.

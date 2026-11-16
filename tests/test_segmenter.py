@@ -309,7 +309,7 @@ def test_cli_pre_roll_flag_reaches_settings_and_is_cli_only():
     from audio_translator import cli
     from audio_translator.config import Settings
 
-    assert Settings().pre_roll_ms == 300
+    assert Settings().pre_roll_ms == 600  # since the pre-roll bench
     assert cli.build_parser().parse_args([]).pre_roll_ms == Settings().pre_roll_ms
     assert cli.build_parser().parse_args(["--pre-roll-ms", "600"]).pre_roll_ms == 600
     for bad in ("0", "10", "5000", "abc"):
