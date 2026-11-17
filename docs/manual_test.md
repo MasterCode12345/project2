@@ -189,6 +189,20 @@ uv run audio-translator --asr-anti-stall c4a --latency-log "$LOG"
 - Đọc lại 10 câu của (a), rồi chạy `uv run python eval/latency_report.py "$LOG"`.
 - Dòng `config:` phải ghi `asr_decode=cap20+32,budget4s,reject:trunc`. Nếu ghi `base` thì chống kẹt chưa được bật.
 
+**Bật/tắt bằng ô trên giao diện** (không cần cờ):
+
+```sh
+LOG=~/gr2_manual/latency_antistall_gui_$(date +%Y%m%d_%H%M).csv; echo "$LOG"
+uv run audio-translator --latency-log "$LOG"
+```
+
+1. Mở **Cài đặt**: ô **Chống kẹt nhận dạng (thử nghiệm)** phải đang **tắt**. Rê chuột lên ô để đọc tooltip.
+2. **Phiên 1:** bấm **▶ Bắt đầu**, đọc 2 câu của (a), bấm **■ Dừng**. Trong lúc chạy, ô phải bị khóa (màu xám).
+3. **Phiên 2:** đánh dấu ô, bấm **▶ Bắt đầu**, đọc 2 câu, bấm **■ Dừng**. App không được nạp lại model (không có dòng "Đang tải model…").
+4. **Phiên 3:** bỏ đánh dấu, bấm **▶ Bắt đầu**, đọc 2 câu, bấm **■ Dừng**, rồi đóng app.
+5. Chạy `uv run python eval/latency_report.py "$LOG"`: phải có dòng `anti-stall per session: 1=off, 2=c4b, 3=off`. Dòng `config:` của phiên 2 ghi `asr_decode=cap20+32,budget4s,reject:trunc+loop anti_stall=c4b`.
+6. Mở lại app với `--asr-anti-stall c4a`: ô phải hiện đã chọn. Bắt đầu một phiên mà không bấm vào ô thì báo cáo ghi `anti_stall=c4a`.
+
 ## (f) Chế độ thu gọn trong cuộc gọi Meet
 
 Mục đích: dùng app ngay trong cuộc gọi mà không che màn hình Meet, và ghi lại cửa sổ nổi có hiện được khi Meet ở chế độ toàn màn hình hay không.
@@ -295,6 +309,14 @@ Nguồn nhiễu ở (c): <...>
 - Đèn có lúc nào nhấp nháy khó chịu không? <...>
 - Chữ trên đèn có đọc kịp khi đang nói không? <...>
 
+## (e) Ô chống kẹt trên giao diện
+| Bước | Kỳ vọng | Thực tế | Đúng? |
+|---|---|---|---|
+| 1. Mở app | ô tắt, tooltip đọc được | | |
+| 2–4. Ba phiên tắt → bật → tắt | ô bị khóa khi chạy; không nạp lại model | | |
+| 5. `latency_report` | `anti-stall per session: 1=off, 2=c4b, 3=off` | | |
+| 6. `--asr-anti-stall c4a` | ô đã chọn; báo cáo ghi `anti_stall=c4a` | | |
+
 ## (f) Chế độ thu gọn
 | Bước | Kỳ vọng | Thực tế | Đúng? |
 |---|---|---|---|
@@ -327,7 +349,7 @@ Nguồn nhiễu ở (c): <...>
 3. `~/gr2_manual/latency_noisy_<ngày_giờ>.csv`
 4. `~/gr2_manual/latency_light_<ngày_giờ>.csv`
 5. `~/gr2_manual/latency_cap_<ngày_giờ>.csv` (nếu làm (e))
-6. `~/gr2_manual/latency_compact_<ngày_giờ>.csv` (kịch bản (f))
+6. `~/gr2_manual/latency_compact_<ngày_giờ>.csv` (kịch bản (f)); `latency_antistall_gui_<ngày_giờ>.csv` nếu làm phần ô chống kẹt của (e)
 7. `~/gr2_manual/latency_preroll600_<ngày_giờ>.csv` và `latency_preroll300_<ngày_giờ>.csv` (kịch bản (h))
 8. `~/gr2_manual/ket_qua.md` (bảng đã điền)
 

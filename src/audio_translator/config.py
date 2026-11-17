@@ -176,6 +176,36 @@ ANTI_STALL_PRESETS: dict[str, dict] = {
 }
 
 
+# The Settings fields of the decoding options (asr.DECODING_OPTIONS = these without "asr_"). A model
+# that is already loaded gets them again at every session start (WhisperASR.set_decoding).
+ANTI_STALL_FIELDS = ("asr_max_tokens_per_s", "asr_max_tokens_base", "asr_temperatures",
+                     "asr_fallback_max_tokens_per_s", "asr_first_min_tokens", "asr_decode_budget_s",
+                     "asr_cap_tail_strip", "asr_reject_truncated_t0", "asr_reject_loop_t0",
+                     "asr_reject_truncated_all")
+
+
+def _preset_values(name: str) -> dict:
+    base, over = Settings(), ANTI_STALL_PRESETS[name]
+    return {f: over.get(f, getattr(base, f)) for f in ANTI_STALL_FIELDS}
+
+
+def anti_stall_preset(settings) -> str:
+    """The ``ANTI_STALL_PRESETS`` entry the decoding fields of ``settings`` match ("off", "c4a",
+    "c4b"), or "custom" (other values, only reachable from code or the bench)."""
+    have = {f: getattr(settings, f) for f in ANTI_STALL_FIELDS}
+    for name in ANTI_STALL_PRESETS:
+        if have == _preset_values(name):
+            return name
+    return "custom"
+
+
+def apply_anti_stall_preset(settings, name: str) -> None:
+    """Set every decoding field of ``settings`` to the preset ``name`` (fields it does not name go
+    back to their defaults)."""
+    for f, v in _preset_values(name).items():
+        setattr(settings, f, v)
+
+
 def glossary_settings(args) -> dict:
     """Settings fields from the --glossary [PATH] / --no-glossary flags (CLI and GUI)."""
     out: dict = {}

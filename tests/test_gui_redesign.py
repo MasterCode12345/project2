@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton, QToolButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QLabel, QPushButton, QToolButton  # noqa: E402
 
 from audio_translator.config import Settings  # noqa: E402
 from audio_translator.models import (  # noqa: E402
@@ -270,6 +270,59 @@ def test_dropdowns_start_from_the_orchestrator_settings(make):
     assert (args.translator, args.ns) == ("nllb-600m", "logmmse")
 
 
+def stopped(w):
+    w.on_event(Event(STATUS, "Stopped", 1, data={"state": STOPPED}))
+
+
+def test_anti_stall_box_starts_from_the_settings_and_c4a_is_kept_until_clicked(make):
+    from audio_translator.config import ANTI_STALL_PRESETS, anti_stall_preset
+    from audio_translator.gui_strings import VI
+
+    w, orch = make()
+    box = w.anti_stall_check
+    assert box.text() == "Chống kẹt nhận dạng (thử nghiệm)" and not box.isChecked() and box.isEnabled()
+    assert box.toolTip() == VI["anti_stall_tip"] and "36 s" in box.toolTip() and "7,5 s" in box.toolTip()
+    run(w, orch)
+    assert anti_stall_preset(orch.settings) == "off"  # default: off
+    stopped(w)
+    box.click()  # the user checks it: c4b from the next start
+    run(w, orch)
+    assert anti_stall_preset(orch.settings) == "c4b"
+    stopped(w)
+    box.click()  # and unchecks it again: off
+    run(w, orch)
+    assert anti_stall_preset(orch.settings) == "off"
+
+    w2, orch2 = make(Settings(**ANTI_STALL_PRESETS["c4b"]))  # --asr-anti-stall c4b
+    assert w2.anti_stall_check.isChecked()
+    w3, orch3 = make(Settings(**ANTI_STALL_PRESETS["c4a"]))  # --asr-anti-stall c4a
+    assert w3.anti_stall_check.isChecked()
+    run(w3, orch3)
+    assert anti_stall_preset(orch3.settings) == "c4a"  # untouched: c4a stays
+    stopped(w3)
+    w3.anti_stall_check.click()
+    w3.anti_stall_check.click()  # unchecked, then checked again by the user: the box means c4b
+    run(w3, orch3)
+    assert anti_stall_preset(orch3.settings) == "c4b"
+    assert Settings().asr_max_tokens_per_s is None  # defaults unchanged
+
+
+def test_anti_stall_box_is_locked_while_a_session_runs(make):
+    from audio_translator.config import anti_stall_preset
+
+    w, orch = make()
+    box = w.anti_stall_check
+    run(w, orch)
+    for state in (STARTING, RUNNING, STOPPING):
+        w.on_event(Event(STATUS, state, 1, data={"state": state}))
+        assert not box.isEnabled() and not w.settings_note.isHidden()
+        box.click()  # a disabled box ignores clicks
+        assert not box.isChecked()
+    assert anti_stall_preset(orch.settings) == "off"  # nothing applied while running
+    stopped(w)
+    assert box.isEnabled() and w.settings_note.isHidden()
+
+
 @pytest.mark.parametrize("message", [
     "Offline translation model nllb-600m unavailable (not converted); using Google Translate",
     "Offline translation unavailable (download failed); using Google Translate",
@@ -311,8 +364,9 @@ def visible_strings(*roots):
     out = []
     for root in roots:
         out.append(root.windowTitle())
-        for wdg in [root, *root.findChildren(QLabel), *root.findChildren(QPushButton), *root.findChildren(QToolButton)]:
-            if isinstance(wdg, (QLabel, QPushButton, QToolButton)):
+        for wdg in [root, *root.findChildren(QLabel), *root.findChildren(QPushButton), *root.findChildren(QToolButton),
+                    *root.findChildren(QCheckBox)]:
+            if isinstance(wdg, (QLabel, QPushButton, QToolButton, QCheckBox)):
                 out.append(wdg.text())
         for combo in root.findChildren(QComboBox):
             if combo in (getattr(root, "input_combo", None), getattr(root, "output_combo", None),

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import math
 import re
 import threading
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -422,6 +423,81 @@ def decode_label(per_s: float | None, base: int, temps: tuple[float, ...] | None
     return ",".join(parts) or "base"
 
 
+# WhisperASR's decoding options; Settings holds them as "asr_" + name (config.ANTI_STALL_FIELDS).
+DECODING_OPTIONS = ("max_tokens_per_s", "max_tokens_base", "temperatures", "fallback_max_tokens_per_s",
+                    "first_min_tokens", "decode_budget_s", "cap_tail_strip", "reject_truncated_t0",
+                    "reject_loop_t0", "reject_truncated_all")
+
+
+def decoding_from_settings(settings) -> dict:
+    """``WhisperASR`` decoding options from ``Settings`` (the ``asr_*`` fields): used when a recognizer
+    is built and again at every session start (``WhisperASR.set_decoding``)."""
+    return {o: getattr(settings, "asr_" + o) for o in DECODING_OPTIONS}
+
+
+@dataclass(frozen=True)
+class Decoding:
+    """One immutable set of decoding options (bounded decoding and anti-stall; None/False = off).
+
+    ``WhisperASR`` swaps it as a whole (``set_decoding``); a ``transcribe`` call reads it once at
+    its start, so a change made meanwhile applies from the next call on, never halfway."""
+
+    max_tokens_per_s: float | None = None  # real-token cap of every attempt per second of audio (+ base)
+    max_tokens_base: int = 32
+    temperatures: tuple[float, ...] | None = None  # None = faster-whisper's 0.0..1.0 step 0.2
+    fallback_max_tokens_per_s: float | None = None  # cap of the fallback attempts only (C)
+    first_min_tokens: int | None = None  # temperature-0 limit at least this (C+)
+    decode_budget_s: float | None = None  # no more retries after this per segment (C2)
+    cap_tail_strip: bool = False  # strip a junk tail when a capped attempt reached its limit (B)
+    reject_truncated_t0: bool = False  # C3a
+    reject_loop_t0: bool = False  # C3b / C4b
+    reject_truncated_all: bool = False  # C4
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "temperatures", tuple(self.temperatures) if self.temperatures else None)
+
+    @property
+    def uses_limiter(self) -> bool:
+        return bool(self.max_tokens_per_s or self.fallback_max_tokens_per_s or self.first_min_tokens
+                    or self.decode_budget_s or self.cap_tail_strip or self.reject_truncated_t0
+                    or self.reject_loop_t0 or self.reject_truncated_all)
+
+    @property
+    def label(self) -> str:
+        """``decode_label`` of these options (``base`` = faster-whisper defaults)."""
+        return decode_label(self.max_tokens_per_s, self.max_tokens_base, self.temperatures,
+                            fallback_per_s=self.fallback_max_tokens_per_s, first_min=self.first_min_tokens,
+                            budget_s=self.decode_budget_s, tail=self.cap_tail_strip,
+                            reject=("trunc" if self.reject_truncated_all else "t0trunc" if self.reject_truncated_t0
+                                    else "") + ("+loop" if self.reject_loop_t0 else ""))
+
+    def _cap(self, audio_s: float, per_s: float | None) -> int | None:
+        return min(MAX_NEW_TOKENS, math.ceil(audio_s * per_s) + self.max_tokens_base) if per_s else None
+
+    def attempt_limits(self, audio_s: float) -> tuple[int | None, int | None]:
+        """(temperature-0 limit, fallback limit) in **real** tokens for ``audio_s`` of audio (None = none).
+
+        ``max_tokens_per_s`` caps every attempt; ``fallback_max_tokens_per_s`` the retries only;
+        ``first_min_tokens`` gives temperature 0 at least that many."""
+        fb = self._cap(audio_s, self.fallback_max_tokens_per_s or self.max_tokens_per_s)
+        t0 = self._cap(audio_s, self.max_tokens_per_s)
+        if self.first_min_tokens:
+            per_s = self.fallback_max_tokens_per_s or self.max_tokens_per_s or 0
+            t0 = min(MAX_NEW_TOKENS, max(self.first_min_tokens, self._cap(audio_s, per_s) or 0))
+        return t0, fb
+
+
+def anti_stall_label(decoding: Decoding, limiter_attached: bool) -> str:
+    """"off", "c4a", "c4b" or "custom" (latency log): what really decodes. A preset name only while
+    its ``DecodeLimiter`` is attached; without one the decoding is faster-whisper's own ("off")."""
+    from .config import Settings, anti_stall_preset
+
+    name = anti_stall_preset(Settings(**{"asr_" + o: getattr(decoding, o) for o in DECODING_OPTIONS}))
+    if name != "off" and decoding.uses_limiter and not limiter_attached:
+        return "off" if decoding.temperatures is None else "custom"
+    return name
+
+
 class Recognizer(Protocol):
     def load(self) -> None: ...
 
@@ -429,6 +505,12 @@ class Recognizer(Protocol):
 
 
 class WhisperASR:
+    """faster-whisper recognizer. The decoding options (bounded decoding, anti-stall) live in one
+    immutable ``Decoding`` that ``set_decoding`` can swap on a model that is already loaded: the
+    orchestrator does so at every session start, so a cached model always decodes with the current
+    settings (plan-gui-anti-stall.md). A ``transcribe`` call that is running keeps the options and
+    the ``DecodeLimiter`` it started with (its own view of the model)."""
+
     def __init__(
         self,
         model_size: str = "medium",
@@ -457,28 +539,25 @@ class WhisperASR:
         self.beam_size = beam_size
         self.initial_prompt = initial_prompt or None
         self.segment_filter = segment_filter  # None: keep every segment (previous behaviour)
-        # Bounded decoding (None = faster-whisper defaults): output-token cap per second of audio,
-        # and the temperature fallback ladder.
-        self.max_tokens_per_s = max_tokens_per_s
-        self.max_tokens_base = max_tokens_base
-        self.temperatures = tuple(temperatures) if temperatures else None
-        # Anti-stall per attempt (DecodeLimiter; None/False = off): cap only the fallback attempts
-        # (C); also give the temperature-0 attempt a wide limit >= first_min_tokens (C+); stop
-        # retrying after decode_budget_s per segment (C2); strip a junk tail when a capped
-        # attempt reached its limit (B).
-        self.fallback_max_tokens_per_s = fallback_max_tokens_per_s
-        self.first_min_tokens = first_min_tokens
-        self.decode_budget_s = decode_budget_s
-        self.cap_tail_strip = cap_tail_strip
-        self.reject_truncated_t0 = reject_truncated_t0
-        self.reject_loop_t0 = reject_loop_t0
-        self.reject_truncated_all = reject_truncated_all
+        # Bounded decoding and anti-stall (None/False = faster-whisper's own decoding); readable and
+        # settable one by one as attributes too (see the properties below the class).
+        self._decoding = Decoding(
+            max_tokens_per_s=max_tokens_per_s, max_tokens_base=max_tokens_base, temperatures=temperatures,
+            fallback_max_tokens_per_s=fallback_max_tokens_per_s, first_min_tokens=first_min_tokens,
+            decode_budget_s=decode_budget_s, cap_tail_strip=cap_tail_strip, reject_truncated_t0=reject_truncated_t0,
+            reject_loop_t0=reject_loop_t0, reject_truncated_all=reject_truncated_all)
         self.last_all_truncated = False  # C4: every attempt of the last call stopped at its limit
         self.last_hit_limit = False  # the last real attempt of the last call reached its token limit
         self.dropped: list[tuple[str, str]] = []  # (reason, text) of the last call; "repetition": shortened, kept
         self.last_temperature = 0.0  # highest decoding temperature of the last call (> 0: fallback used)
+        self.last_anti_stall = ""  # anti_stall_label of the last call: what really decoded it
         self._model = None
-        self._lock = threading.Lock()
+        self._raw = None  # the model's own CTranslate2 object (no DecodeLimiter around it)
+        self._tokenizer = None
+        self._lock = threading.Lock()  # load()
+        # (_decoding, _model.model) change together under this lock; never held while decoding, so
+        # set_decoding never waits for a running transcribe call.
+        self._state_lock = threading.Lock()
 
     @property
     def loaded(self) -> bool:
@@ -489,91 +568,133 @@ class WhisperASR:
             if self._model is None:
                 from faster_whisper import WhisperModel
 
-                self._model = WhisperModel(
+                model = WhisperModel(
                     resolve_model(self.model_size), device=self.device, compute_type=self.compute_type
                 )
-                if self.uses_limiter:
-                    lim = DecodeLimiter(self._model.model)
-                    lim.reject_truncated_t0, lim.reject_loop_t0 = self.reject_truncated_t0, self.reject_loop_t0
-                    lim.reject_truncated_all = self.reject_truncated_all
-                    tok = getattr(self._model, "hf_tokenizer", None)
-                    if tok is not None:
-                        eot = tok.token_to_id("<|endoftext|>") or 50257
-                        lim.decode_text = lambda ids, _t=tok, _e=eot: _t.decode([i for i in ids if i < _e])
-                    self._model.model = lim
+                with self._state_lock:
+                    self._raw = model.model
+                    self._tokenizer = getattr(model, "hf_tokenizer", None)
+                    model.model = self._attachment(self._decoding)
+                    self._model = model
+
+    def _base_model(self):
+        """The CTranslate2 object without a limiter (also for a ``_model`` set from outside, in tests)."""
+        if self._raw is None and self._model is not None:
+            m = getattr(self._model, "model", None)
+            self._raw = m._inner if isinstance(m, DecodeLimiter) else m
+        return self._raw
+
+    def _attachment(self, decoding: Decoding):
+        """What ``WhisperModel.model`` must be for ``decoding``: a **new** ``DecodeLimiter`` around the
+        CTranslate2 model, or the CTranslate2 model itself. A limiter in use is never changed."""
+        raw = self._base_model()
+        if not decoding.uses_limiter:
+            return raw
+        lim = DecodeLimiter(raw)
+        lim.reject_truncated_t0, lim.reject_loop_t0 = decoding.reject_truncated_t0, decoding.reject_loop_t0
+        lim.reject_truncated_all = decoding.reject_truncated_all
+        tok = self._tokenizer
+        if tok is not None:
+            eot = tok.token_to_id("<|endoftext|>") or 50257
+            lim.decode_text = lambda ids, _t=tok, _e=eot: _t.decode([i for i in ids if i < _e])
+        return lim
+
+    def set_decoding(self, **options) -> bool:
+        """Change decoding options (``DECODING_OPTIONS``) on a loaded or not yet loaded model; False
+        when nothing changed (the attached limiter is then kept as it is).
+
+        The new options and a new limiter (or none) replace the old ones in one step. A ``transcribe``
+        call that is running keeps what it started with, to its last attempt; the next call uses the
+        new ones. Never waits for a running call."""
+        unknown = sorted(set(options) - set(DECODING_OPTIONS))
+        if unknown:
+            raise TypeError(f"unknown decoding option(s): {', '.join(unknown)}")
+        with self._state_lock:
+            new = replace(self._decoding, **options)
+            if new == self._decoding:
+                return False
+            if self._model is not None:
+                self._model.model = self._attachment(new)
+            self._decoding = new
+        return True
+
+    @property
+    def decoding(self) -> Decoding:
+        """The options the next ``transcribe`` call uses."""
+        return self._decoding
 
     @property
     def uses_limiter(self) -> bool:
-        return bool(self.max_tokens_per_s or self.fallback_max_tokens_per_s or self.first_min_tokens
-                    or self.decode_budget_s or self.cap_tail_strip or self.reject_truncated_t0
-                    or self.reject_loop_t0 or self.reject_truncated_all)
+        return self._decoding.uses_limiter
 
     @property
     def limiter(self) -> "DecodeLimiter | None":
+        """The limiter attached for the next calls (None: faster-whisper decodes on its own)."""
         m = getattr(self._model, "model", None) if self._model is not None else None
         return m if isinstance(m, DecodeLimiter) else None
 
-    def attempt_limits(self, audio_s: float) -> tuple[int | None, int | None]:
-        """(temperature-0 limit, fallback limit) in **real** tokens for ``audio_s`` of audio (None = none).
+    @property
+    def anti_stall(self) -> str:
+        """"off", "c4a", "c4b" or "custom": the anti-stall the loaded model really runs now (a preset
+        name only while its limiter is attached). Read at session start for the latency log."""
+        with self._state_lock:
+            decoding = self._decoding
+            attached = self._model is not None and isinstance(getattr(self._model, "model", None), DecodeLimiter)
+        return anti_stall_label(decoding, attached)
 
-        ``max_tokens_per_s`` caps every attempt; ``fallback_max_tokens_per_s`` the retries only;
-        ``first_min_tokens`` gives temperature 0 at least that many."""
-        def cap(per_s):
-            return min(MAX_NEW_TOKENS, math.ceil(audio_s * per_s) + self.max_tokens_base) if per_s else None
-
-        fb = cap(self.fallback_max_tokens_per_s or self.max_tokens_per_s)
-        t0 = cap(self.max_tokens_per_s)
-        if self.first_min_tokens:
-            per_s = self.fallback_max_tokens_per_s or self.max_tokens_per_s or 0
-            t0 = min(MAX_NEW_TOKENS, max(self.first_min_tokens, cap(per_s) or 0))
-        return t0, fb
+    def attempt_limits(self, audio_s: float, decoding: Decoding | None = None) -> tuple[int | None, int | None]:
+        """(temperature-0 limit, fallback limit) in **real** tokens for ``audio_s`` of audio (None = none),
+        for ``decoding`` (default: the current options). See ``Decoding.attempt_limits``."""
+        return (decoding if decoding is not None else self._decoding).attempt_limits(audio_s)
 
     @property
     def decode(self) -> str:
         """Label of the decoding options in use (``base`` = faster-whisper defaults)."""
-        return decode_label(self.max_tokens_per_s, self.max_tokens_base, self.temperatures,
-                            fallback_per_s=self.fallback_max_tokens_per_s, first_min=self.first_min_tokens,
-                            budget_s=self.decode_budget_s, tail=self.cap_tail_strip,
-                            reject=("trunc" if self.reject_truncated_all else "t0trunc" if self.reject_truncated_t0 else "")
-                            + ("+loop" if self.reject_loop_t0 else ""))
+        return self._decoding.label
 
     def max_new_tokens(self, audio_s: float) -> int | None:
         """Real-token cap of every attempt for ``audio_s`` seconds of audio (None = no cap).
         Applied through ``DecodeLimiter`` (real tokens), not faster-whisper's ``max_new_tokens``,
         which CTranslate2 turns into about half as many tokens (plan-asr-anti-stall.md, C4)."""
-        if not self.max_tokens_per_s:
-            return None
-        return min(MAX_NEW_TOKENS, math.ceil(audio_s * self.max_tokens_per_s) + self.max_tokens_base)
+        return self._decoding._cap(audio_s, self._decoding.max_tokens_per_s)
 
-    def decode_options(self, audio_s: float) -> dict:
+    def decode_options(self, audio_s: float, decoding: Decoding | None = None) -> dict:
         """Extra ``WhisperModel.transcribe`` options; empty when bounded decoding is off."""
-        kw: dict = {}
-        if self.temperatures:
-            kw["temperature"] = list(self.temperatures)
-        return kw
+        d = decoding if decoding is not None else self._decoding
+        return {"temperature": list(d.temperatures)} if d.temperatures else {}
 
     def transcribe_segments(self, audio: np.ndarray, sample_rate: int) -> list:
         """Raw faster-whisper segments (text, no_speech_prob, avg_logprob, compression_ratio, …)."""
         if sample_rate != 16000:
             raise ValueError("WhisperASR expects 16 kHz audio")
         self.load()
+        with self._state_lock:
+            decoding = self._decoding
+            # This call's own view of the model: faster-whisper reads ``.model`` again for every
+            # attempt, so a limiter swapped by set_decoding meanwhile must not reach this call. The
+            # copy is shallow (the weights are shared); WhisperModel keeps no state of its own per call.
+            model = copy.copy(self._model)
+        lim = model.model if isinstance(getattr(model, "model", None), DecodeLimiter) else None
         pcm = audio.astype(np.float32) / 32768.0 if audio.dtype == np.int16 else audio.astype(np.float32)
-        lim = self.limiter
+        audio_s = pcm.size / sample_rate
         if lim is not None:
-            lim.begin(*self.attempt_limits(pcm.size / sample_rate), self.decode_budget_s)
-        segments, _info = self._model.transcribe(
+            lim.begin(*self.attempt_limits(audio_s, decoding), decoding.decode_budget_s)
+        segments, _info = model.transcribe(
             pcm,
             language=self.language,
             beam_size=self.beam_size,
             vad_filter=False,  # M3 already segmented
             condition_on_previous_text=False,
             initial_prompt=self.initial_prompt,
-            **self.decode_options(pcm.size / sample_rate),
+            **self.decode_options(audio_s, decoding),
         )
         segments = list(segments)
+        # Everything below reads this call's own ``lim`` and ``decoding``, never ``self.limiter``:
+        # a limiter removed or replaced meanwhile changes nothing here.
         self.last_temperature = max((getattr(x, "temperature", 0.0) or 0.0 for x in segments), default=0.0)
         self.last_hit_limit = bool(lim is not None and lim.calls and lim.calls[-1][2] >= lim.calls[-1][3])
-        self.last_all_truncated = bool(lim is not None and self.reject_truncated_all and lim.all_truncated)
+        self.last_all_truncated = bool(lim is not None and decoding.reject_truncated_all and lim.all_truncated)
+        self.last_anti_stall = anti_stall_label(decoding, lim is not None)
         if self.last_all_truncated:
             # C4, every attempt stopped at its limit: faster-whisper chose the best of them (marking
             # keeps their order). Undo the marking so the ASR filter judges the real log-prob, and
@@ -584,7 +705,7 @@ class WhisperASR:
                     seg.text = trim_truncated_tail(seg.text)
                 except AttributeError:
                     pass
-        if self.cap_tail_strip and self.last_hit_limit:
+        if decoding.cap_tail_strip and self.last_hit_limit:
             for seg in segments:  # B: only when the attempt really reached its limit
                 try:
                     seg.text = strip_cap_tail(seg.text)
@@ -607,3 +728,18 @@ class WhisperASR:
             else:
                 self.dropped.append((why, text))
         return " ".join(kept).strip()
+
+
+def _decoding_option(name: str) -> property:
+    def get(self):
+        return getattr(self._decoding, name)
+
+    def set_(self, value):
+        self.set_decoding(**{name: value})
+
+    return property(get, set_, doc=f"Decoding option ``{name}`` (setting it is ``set_decoding({name}=…)``).")
+
+
+for _name in DECODING_OPTIONS:  # wa.max_tokens_per_s, wa.reject_loop_t0, … read and set like plain attributes
+    setattr(WhisperASR, _name, _decoding_option(_name))
+del _name

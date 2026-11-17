@@ -216,18 +216,13 @@ class Orchestrator:
             "model": name, "status": status, "detail": detail, "selected": name == self._selected}))
 
     def _make_recognizer(self, name: str):
-        from .asr import WhisperASR, filter_from_settings
+        from .asr import WhisperASR, decoding_from_settings, filter_from_settings
 
         s = self.settings
         return WhisperASR(name, language=s.source_lang, device=s.asr_device,
                           compute_type=s.compute_type, beam_size=s.beam_size,
                           initial_prompt=s.asr_initial_prompt, segment_filter=filter_from_settings(s),
-                          max_tokens_per_s=s.asr_max_tokens_per_s, max_tokens_base=s.asr_max_tokens_base,
-                          temperatures=s.asr_temperatures,
-                          fallback_max_tokens_per_s=s.asr_fallback_max_tokens_per_s,
-                          first_min_tokens=s.asr_first_min_tokens, decode_budget_s=s.asr_decode_budget_s,
-                          cap_tail_strip=s.asr_cap_tail_strip, reject_truncated_t0=s.asr_reject_truncated_t0,
-                          reject_loop_t0=s.asr_reject_loop_t0, reject_truncated_all=s.asr_reject_truncated_all)
+                          **decoding_from_settings(s))
 
     def _release_model(self) -> None:
         name, self._pinned = self._pinned, None
@@ -342,6 +337,13 @@ class Orchestrator:
                             self._pending = None
                     name = self._selected
                     rec = self._models.get(name, pin=True)
+                # A cached model keeps the options it was loaded with: give the model this session
+                # really uses (also a fallback) the current decoding settings (anti-stall, GUI checkbox).
+                set_decoding = getattr(rec, "set_decoding", None)
+                if set_decoding is not None:
+                    from .asr import decoding_from_settings
+
+                    set_decoding(**decoding_from_settings(s))
                 with self._lock:
                     self._pinned = name
                     self._asr = rec
@@ -651,6 +653,8 @@ class Orchestrator:
         self._lat_session = {
             "asr_model": model,  # the model that really runs (a fallback, not the selection)
             "asr_decode": getattr(asr, "decode", ""),  # bounded decoding in use (base = off)
+            # off / c4a / c4b / custom from the model's real state (a preset only with its limiter attached)
+            "asr_anti_stall": getattr(asr, "anti_stall", ""),
             "vad": s.vad_backend if self._vad_factory is None else "injected",
             "asr_filter": "on" if filt is not None else ("off" if hasattr(asr, "segment_filter") else ""),
             "restore": restore,
