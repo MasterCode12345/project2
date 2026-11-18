@@ -43,6 +43,9 @@ VI = {
     "model": "Model nhận dạng:",
     "translator": "Bộ dịch:",
     "noise": "Lọc nhiễu:",
+    "anti_stall": "Chống kẹt nhận dạng (thử nghiệm)",
+    "anti_stall_tip": ("Giảm thời gian kẹt nhận dạng lâu nhất (khoảng 36 s xuống khoảng 7,5 s trong bench), "
+                       "nhưng trong nhiễu rất nặng có thể mất vài câu. Có hiệu lực từ lần Bắt đầu tiếp theo."),
     "default_input": "(Mặc định của hệ thống)",
     "no_output": "(chọn thiết bị đầu ra)",
     "fixed_model": "(cố định)",

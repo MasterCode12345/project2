@@ -382,6 +382,7 @@ In the "all truncated" cases, the trimmed text still carries the compression rat
   - the bench columns (p50, cap hits, re-decodes, rule catches, all-truncated, budget skips) and `--segments-out`;
   - every result: `results/stall_*.csv`, `results/antistall_*.csv`, `results/antistall_step1_c3_c4.csv`.
 - **The stall itself is mitigated, not removed.** The speaker indicator turns red at 6 s of ASR and yellow on unclear segments.
+- **Later (2026-11-17), plan-gui-anti-stall.md:** decided (the supervisor left it to the student): anti-stall is a GUI checkbox "Chống kẹt nhận dạng (thử nghiệm)", **off by default**; checked = `c4b`. A model that is already loaded gets the change at the next Start (`WhisperASR.set_decoding`), and the latency log column `asr_anti_stall` records it per session.
 - **Later (2026-11-16), plan-first-word-preroll.md:** the pre-roll of 600 ms (default since then) lowers ASR p95 in noise from 5–7.5 s to 1.4–2.4 s (`results/preroll_*.csv`). An utterance cut at its start sends Whisper into a loop more easily; keeping its first syllable avoids many stalls without touching the decoding.
 
 **Possible extensions (not done).**

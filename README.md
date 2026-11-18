@@ -117,8 +117,11 @@ Giao diện chỉ có chữ tiếng Việt, gom ở `gui_strings.py` để sau n
   - Mỗi câu là một khối: tiếng Việt chữ nhỏ màu xám, tiếng Anh chữ lớn, độ trễ ở bên phải.
   - Tự cuộn tới câu mới, trừ khi bạn đang cuộn lên đọc lại. Giữ 200 câu gần nhất.
   - Có nút **Sao chép tất cả** và **Xóa**, cùng dòng thống kê "Câu gần nhất · Trung vị phiên · Số câu".
-- **Cài đặt** (đóng sẵn): Micro, Đầu ra (micro ảo), Model nhận dạng, Bộ dịch, Lọc nhiễu.
+- **Cài đặt** (đóng sẵn): Micro, Đầu ra (micro ảo), Model nhận dạng, Bộ dịch, Lọc nhiễu, ô **Chống kẹt nhận dạng (thử nghiệm)**.
   - Các ô này bị khóa khi đang chạy, và có hiệu lực từ lần Bắt đầu tiếp theo.
+  - Ô chống kẹt mặc định **tắt**; bật tương ứng preset `c4b` (`--asr-anti-stall c4b`, plan `plan-asr-anti-stall.md`). Tooltip ghi đánh đổi: giảm lần kẹt lâu nhất (khoảng 36 s xuống khoảng 7,5 s trong bench) nhưng trong nhiễu rất nặng có thể mất vài câu.
+  - Mở app với `--asr-anti-stall c4b` hoặc `c4a` thì ô hiện đã chọn; với `c4a`, app giữ `c4a` cho tới khi bạn bấm vào ô.
+  - Model đã nạp sẵn (kể cả model dự phòng `small`) nhận cài đặt mới ngay ở lần Bắt đầu sau, không phải nạp lại. Một đoạn của phiên trước còn đang giải mã thì giữ luật cũ tới hết, rồi bị bỏ.
   - VAD, khôi phục dấu câu, bộ lọc ASR và giới hạn token chỉ chỉnh được bằng CLI.
 - **Nhật ký kỹ thuật** (ẩn sẵn): các dòng model, info, warning, error.
 
@@ -153,7 +156,7 @@ uv run python eval/latency_report.py "$LOG"
 - Mỗi lần chạy dùng một file mới có ngày giờ trong tên, để không ghi đè log cũ.
 - Lệnh thứ hai mở giao diện; lệnh thứ ba ở trên dùng CLI.
 - `latency_report.py` in TB / P50 / P95 / max từng khâu, số đoạn bị bỏ và mức đèn; thêm `--markdown` để in dạng bảng.
-- Cột `asr_decode` cho biết giới hạn giải mã có được bật không (`base` = tắt).
+- Cột `asr_decode` cho biết giới hạn giải mã có được bật không (`base` = tắt). Cột `asr_anti_stall` ghi chống kẹt thật sự chạy trong phiên đó (`off`, `c4a`, `c4b` hoặc `custom`; chỉ ghi tên preset khi limiter thật sự được gắn vào model). `latency_report.py` in dòng `anti-stall per session: 1=off, 2=c4b, …`.
 - **zsh:** các chú thích `# …` trong khối lệnh của README chỉ để đọc. Khi dán vào terminal, hãy bỏ phần đó (hoặc chạy `setopt interactivecomments` một lần), nếu không zsh sẽ báo lỗi.
 
 Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch bản 10 câu chuẩn bị sẵn): [docs/manual_test.md](docs/manual_test.md). File log chứa nguyên văn lời nói, nên để **ngoài repo**.
@@ -623,11 +626,13 @@ Các số này đo tay trước khi có bench, chỉ để tham khảo lịch s�
      - C4: trần tính bằng token thực, và không bao giờ chấp nhận một lượt bị cắt.
      - C4 hết kẹt dài (ASR lâu nhất 6–9,6 s, so với 35,9 s) nhưng làm mất trọn vài câu ở DEMAND 0 dB (+2,96 WER), vì faster-whisper vẫn chọn lượt bị cắt khi mọi lượt đều thất bại.
      - Mặc định giữ nguyên. Thử trong app bằng `--asr-anti-stall c4a`, kịch bản (e) trong `docs/manual_test.md`.
+   - **Quyết định (17/11/2026; giảng viên để sinh viên tự quyết):** chống kẹt là **ô tùy chọn trên giao diện, mặc định tắt** (preset `c4b`). Pre-roll 600 ms (mặc định từ 16/11) đã làm p95 ASR trong nhiễu giảm từ 5–7,5 s xuống 1,4–2,4 s (`results/preroll_*.csv`), vì câu bị cắt mất đầu dễ làm Whisper rơi vào vòng lặp.
      - Phát hiện phụ: CTranslate2 chỉ sinh `max_length // 2` token, nên các trần trước đây thực tế chỉ dùng khoảng một nửa số token.
    - Đèn báo cảnh báo người nói khi nhận dạng quá 3 s / 6 s.
 2. **Chưa có số độ trễ của app thật với cấu hình mới.** Các số cũ (2,6 s khi không gọi, 4,7–10,5 s qua Meet; mục 6.3) đo với Whisper `small`/`medium` và webrtcvad. Cần chạy [docs/manual_test.md](docs/manual_test.md).
 3. **Tiếng người nói ở nền vẫn bị dịch:** Silero nghe đúng là có giọng người (quán cà phê, phòng họp), nên 22–26/100 clip DEMAND vẫn ra chữ (`results/guard2_vivos_demand.csv`). Đây là bài toán chỉ nghe người dùng, chưa có hướng giải.
 4. **Cắt đoạn làm mất điểm dịch:** câu bị cắt giữa chừng khó dịch. Argos giảm từ 15,8 BLEU (cả bản ghi) xuống 13,0 (cắt đoạn, webrtc), Silero còn thấp hơn khoảng 0,7 vì cắt đoạn ngắn hơn (`results/mt_vi_en_restore.csv`, `results/mt_vi_en_seg_silero.csv`).
+   - **Quyết định (17/11/2026): không gom đoạn trước khi dịch.** Gom đoạn nghĩa là phải chờ thêm câu sau mới dịch, nên làm tăng độ trễ. Ưu tiên độ trễ (giảng viên đã duyệt độ trễ hiện tại), và chất lượng dịch khi dùng thật đã đạt yêu cầu. Để làm hướng mở rộng (mục 9).
 5. **Nhận dạng vẫn còn sai** (WER 16,7% trên FLEURS), nhất là dấu thanh và tên riêng. `phowhisper-medium` tốt hơn (13,0%) nhưng chậm gần gấp đôi.
 6. **Nghi có vòng lặp âm thanh khi gọi:** micro thu lại tiếng phát từ loa, làm một câu xuất hiện hai lần. Tạm thời phải đeo tai nghe; chưa kiểm chứng lại.
 7. **Mới có một cặp ngôn ngữ Việt → Anh** trên giao diện.
@@ -649,7 +654,8 @@ Theo định hướng của giảng viên: **ưu tiên làm cho nhận dạng Vi
 - [x] Đèn báo cho người nói (xanh / vàng / đỏ), chỉ quan sát (mục 4, "Đèn báo cho người nói").
 - [x] Đo chống kẹt nhận dạng: trần token và dãy temperature ngắn (`results/stall_*.csv`). Chưa đạt tiêu chí WER nên mặc định vẫn tắt.
 - [ ] Chống kẹt mà không làm đổi chữ: bỏ đuôi "a." / dấu chấm sau trần token, hoặc chỉ giới hạn các lượt giải mã lại.
-- [ ] Giảm mất điểm do cắt đoạn: dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
+- [x] Ô **Chống kẹt nhận dạng (thử nghiệm)** trên giao diện, mặc định tắt (preset `c4b`); model đã nạp nhận cài đặt mới ở lần Bắt đầu sau.
+- [ ] *Hướng mở rộng, chưa làm (quyết định 17/11: ưu tiên độ trễ):* giảm mất điểm do cắt đoạn bằng cách dịch khi đoạn đã đủ câu, hoặc gom đoạn ngắn trước khi dịch.
 - [ ] Chỉ nghe người dùng (bỏ tiếng người nói ở nền).
 - [ ] **Đa ngôn ngữ:** chọn ngôn ngữ nguồn và đích trên giao diện, Việt ↔ Anh hai chiều rồi tới các ngôn ngữ khác (Whisper hỗ trợ khoảng 99 ngôn ngữ, Argos khoảng 50, Edge TTS rất nhiều giọng). Đổi ngôn ngữ thì tự tạo phiên mới.
 - [ ] Giảm độ trễ: phát TTS dần theo từng phần, chỉnh thời gian chờ im lặng, giảm beam size; thêm TTS offline (Piper).

@@ -15,6 +15,7 @@ import threading
 from PySide6.QtCore import QObject, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QFormLayout,
     QHBoxLayout,
@@ -27,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from .asr import LOCAL_MODELS
-from .config import ANTI_STALL_PRESETS, Settings, glossary_settings
+from .config import ANTI_STALL_PRESETS, Settings, anti_stall_preset, apply_anti_stall_preset, glossary_settings
 from .gui_strings import (MODEL_NOT_CONVERTED, MODEL_NOT_DOWNLOADED, MODEL_STATUS, NOISE, TRANSLATOR_SHORT,
                           TRANSLATORS, VI, error_headline, is_google_fallback, model_event_text, status_text)
 from .gui_widgets import Banner, CollapsibleSection, CompactWindow, LightWidget, TranscriptView
@@ -143,6 +144,11 @@ class MainWindow(QMainWindow):
         self.noise_combo = QComboBox()
         for value, label in NOISE:
             self.noise_combo.addItem(label, value)
+        # Anti-stall (experimental, off by default): checked = preset c4b. ``clicked`` fires only on
+        # user interaction, so a preset opened from the command line (c4a) is kept until clicked.
+        self.anti_stall_check = QCheckBox(VI["anti_stall"])
+        self.anti_stall_check.setToolTip(VI["anti_stall_tip"])
+        self.anti_stall_check.clicked.connect(self._on_anti_stall_clicked)
         self._init_from_settings()
         self.settings_note = QLabel(VI["settings_locked"])
         self.settings_note.setStyleSheet("color: #8a8a8a;")
@@ -154,6 +160,7 @@ class MainWindow(QMainWindow):
         form.addRow(VI["model"], self.model_combo)
         form.addRow(VI["translator"], self.translator_combo)
         form.addRow(VI["noise"], self.noise_combo)
+        form.addRow("", self.anti_stall_check)
         settings_box = QWidget()
         settings_col = QVBoxLayout(settings_box)
         settings_col.setContentsMargins(12, 0, 0, 0)
@@ -199,13 +206,22 @@ class MainWindow(QMainWindow):
         return getattr(self.orch, "settings", None) or self.settings
 
     def _init_from_settings(self) -> None:
-        """Dropdowns start from the orchestrator's settings (e.g. ``--translator nllb-600m``)."""
+        """Dropdowns and the anti-stall box start from the orchestrator's settings (e.g.
+        ``--translator nllb-600m``, ``--asr-anti-stall c4b``)."""
         s = self._orch_settings()
         for combo, value in ((self.translator_combo, getattr(s, "translator", None)),
                              (self.noise_combo, getattr(s, "ns_mode", None))):
             idx = combo.findData(value)
             if idx >= 0:
                 combo.setCurrentIndex(idx)
+        # off: unchecked; c4b, c4a or other non-default decoding fields: checked, and kept as they
+        # are until the user clicks the box (then c4b or off).
+        self.anti_stall_check.setChecked(anti_stall_preset(s) != "off")
+        self._anti_stall_clicked = False
+
+    @Slot()
+    def _on_anti_stall_clicked(self) -> None:
+        self._anti_stall_clicked = True
 
     def _apply_settings(self) -> None:
         """Only while stopped, right before start(): the orchestrator reads both at session start."""
@@ -214,6 +230,8 @@ class MainWindow(QMainWindow):
             return
         s.translator = self.translator_combo.currentData()
         s.ns_mode = self.noise_combo.currentData()
+        if self._anti_stall_clicked:  # untouched: whatever the settings had (e.g. c4a) stays
+            apply_anti_stall_preset(s, "c4b" if self.anti_stall_check.isChecked() else "off")
 
     # ------------------------------------------------------------- actions
     @Slot()
@@ -367,7 +385,8 @@ class MainWindow(QMainWindow):
             b.setText(label)
             b.setEnabled(state != STOPPING)
         stopped = state in (STOPPED, IDLE)
-        for w in (self.input_combo, self.output_combo, self.translator_combo, self.noise_combo):
+        for w in (self.input_combo, self.output_combo, self.translator_combo, self.noise_combo,
+                  self.anti_stall_check):
             w.setEnabled(stopped)
         self.model_combo.setEnabled(self._has_models and stopped)
         self.settings_note.setVisible(not stopped)

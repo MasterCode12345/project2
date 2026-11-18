@@ -75,16 +75,37 @@ def health_counts(rows: list[dict]) -> list[tuple[str, int, int, str]]:
     return out
 
 
+def anti_stall_by_session(rows: list[dict]) -> list[tuple[str, str]]:
+    """(session, asr_anti_stall) in session order, e.g. ("2", "c4b"); "file#id" over several files;
+    [] for logs written before the column existed."""
+    seen: dict[tuple[str, str], str] = {}
+    for r in rows:
+        seen.setdefault((r["_file"], r.get("session_id", "")), r.get("asr_anti_stall", "") or "?")
+    if all(v == "?" for v in seen.values()):
+        return []
+    files = {f for f, _ in seen}
+
+    def order(key):
+        f, sid = key
+        return (f, int(sid) if sid.isdigit() else 0, sid)
+
+    return [(sid if len(files) == 1 else f"{f}#{sid}", v) for (f, sid), v in sorted(seen.items(), key=lambda kv: order(kv[0]))]
+
+
 def report(rows: list[dict], markdown: bool = False) -> str:
     lines = []
     played = sum(r.get("status") == PLAYED for r in rows)
     dropped = sum(r.get("status") == DROPPED for r in rows)
-    configs = sorted({tuple(r.get(k, "") or "?" for k in ("asr_model", "asr_decode", "vad", "asr_filter", "restore",
-                                                         "translator")) for r in rows})
+    configs = sorted({tuple(r.get(k, "") or "?" for k in ("asr_model", "asr_decode", "asr_anti_stall", "vad",
+                                                         "asr_filter", "restore", "translator")) for r in rows})
     sessions = sorted({(r["_file"], r.get("session_id", "")) for r in rows})
     lines.append(f"{len(rows)} segment(s) in {len(sessions)} session(s): {played} played, {dropped} dropped")
     for c in configs:
-        lines.append("config: asr_model={} asr_decode={} vad={} asr_filter={} restore={} translator={}".format(*c))
+        lines.append("config: asr_model={} asr_decode={} anti_stall={} vad={} asr_filter={} restore={} "
+                     "translator={}".format(*c))
+    anti = anti_stall_by_session(rows)
+    if anti:
+        lines.append("anti-stall per session: " + ", ".join(f"{s}={a}" for s, a in anti))
     words = [int(r["n_words_vi"]) for r in rows if r.get("status") == PLAYED and r.get("n_words_vi")]
     if words:
         lines.append(f"words per played segment (vi): mean {np.mean(words):.1f}, max {max(words)}")

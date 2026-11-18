@@ -677,7 +677,7 @@ def test_real_model_generates_exactly_the_configured_tokens():
         for prompt in (None, "Xin chào, sau đây là đoạn hội thoại bằng tiếng Việt."):
             a.initial_prompt = prompt
             a.first_min_tokens = None
-            a.attempt_limits = lambda audio_s, _n=n: (_n, _n)
+            a.attempt_limits = lambda audio_s, decoding=None, _n=n: (_n, _n)
             a.transcribe_segments(audio, 16000)
             t, generated, limit = a.limiter.calls[0][1:]
             assert (t, generated, limit) == (0.0, n, n), (prompt, n)
