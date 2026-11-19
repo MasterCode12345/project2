@@ -8,25 +8,43 @@ translation (Argos vi→en model on CTranslate2; Google Translate as fallback) �
 
 ## Requirements
 
-- macOS (Apple Silicon or Intel)
-- [uv](https://docs.astral.sh/uv/) (`brew install uv`) — the project pins Python 3.12
-- Network access for Edge TTS (and for the one-time translation-model download)
+- macOS (Apple Silicon or Intel) and [Homebrew](https://brew.sh)
+- [uv](https://docs.astral.sh/uv/); the project pins Python 3.12, which uv downloads by itself if it is missing
+- Network access: once for the model downloads, and **on every run** for Edge TTS
+- Disk: about 1.4 GB for `.venv`, 0.65 GB for the converted models and the translation model, plus about 1.3 GB while converting (the original checkpoints stay in `~/.cache/huggingface`; the app does not need them afterwards)
 
 ## Install
 
+Checked step by step on a fresh clone with empty model caches (2026-11-19). The command blocks carry no `#` comments: pasted into zsh, a `#` is passed as an argument, not read as a comment.
+
 ```sh
-brew install blackhole-2ch    # virtual audio device; a reboot/log-out may be needed
+brew install uv blackhole-2ch
+git clone https://github.com/MasterCode12345/project2.git
+cd project2
 uv sync
-uv run audio-translator --cli --list-devices   # "BlackHole 2ch" should be listed
+uv run audio-translator --cli --list-devices
+uv run audio-translator --cli --list-models
 ```
+
+- BlackHole is an audio driver: its installer asks for your password, and a restart (or log-out) may be needed before **BlackHole 2ch** shows up in `--list-devices`, under both Input and Output.
+- Device names follow the macOS language ("MacBook Pro Microphone", "Micrô MacBook Pro" in Vietnamese). `--input` / `--output` take any part of a name, case-insensitive, e.g. `--input "MacBook Pro"`.
+- On a fresh machine `--list-models` shows every model as `not-downloaded`, with the convert command for `phowhisper-small`.
 
 The default ASR model is `phowhisper-small` (Vietnamese fine-tune of Whisper,
 FLEURS WER 16.7% vs 27.3% for `small`, `results/asr_fleurs_demand.csv`). Convert it once
-(torch/transformers are only installed for this command):
+(torch/transformers are only installed for this command). It downloads 971 MB, writes 464 MB and took about 1 min 15 s:
 
 ```sh
 uv run --with transformers --with torch python scripts/convert_phowhisper.py small
 ```
+
+Casing and punctuation restoration (vibert-capu) is converted the same way. It downloads 462 MB, writes 113 MB, checks itself against PyTorch and took about 1 min. Without it the app translates the raw ASR text (`--restore auto`):
+
+```sh
+uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
+```
+
+Run `--list-models` again: `phowhisper-small` must now say `downloaded`.
 
 If it is not converted, the app warns (red line in the GUI, WARNING in the CLI) with this
 command and runs Whisper `small` (downloaded on first use, ≈ 485 MB) for the session.
@@ -65,7 +83,7 @@ Only multilingual Whisper models are offered (`.en` / `distil-*` are English-onl
 | `phowhisper-medium` (converted locally) | 1.5 GB |
 
 ```sh
-uv run audio-translator --cli --list-models   # size + not-downloaded / downloaded per model
+uv run audio-translator --cli --list-models
 ```
 
 A model that is not downloaded is fetched from Hugging Face on first use
@@ -109,7 +127,7 @@ Press **▶ Bắt đầu** (Start), speak Vietnamese, then press **■ Dừng** 
 CLI:
 
 ```sh
-uv run audio-translator --cli [--input "MacBook Pro Microphone"] [--output BlackHole] [--model medium] [--list-models]
+uv run audio-translator --cli [--input "MacBook Pro"] [--output BlackHole] [--model medium] [--list-models]
 ```
 
 Ctrl+C stops the session (press twice to abort while the model is loading).
@@ -134,16 +152,29 @@ uv run audio-translator --cli --translator google
 
 ## Use it in a chat app
 
-In Zoom / Meet / Discord / Teams, open audio settings and select
-**"BlackHole 2ch" as the microphone**. Translated speech is written only to
-BlackHole; it is never played on your own speakers.
+- **In the app:** microphone = your real mic (Mac or headset), **not BlackHole**; output = **BlackHole 2ch**.
+- **In macOS** (System Settings → Sound → Input): keep the real mic. Do not make BlackHole the system's default input. With no mic chosen the app listens to the default input, so it would then pick up its own translated speech.
+- **Google Meet** (Chrome): ⋮ → Settings → Audio:
+  - **Microphone = BlackHole 2ch**;
+  - **Speakers = headphones**;
+  - turn noise cancellation off if offered, since it can cut the English voice;
+  - Chrome needs microphone permission.
+- **Zoom:** Settings → Audio:
+  - **Microphone = BlackHole 2ch**;
+  - **Speaker = headphones**;
+  - untick "Automatically adjust microphone volume";
+  - set "Suppress background noise" to its lowest level.
+- **Wear headphones:** with loudspeakers, the real mic picks up the other side, and a sentence can be translated twice.
+- Translated speech is written only to BlackHole; it is never played on your own speakers, so you cannot hear it yourself. To check it, join the same call from a phone (scenario (b) in `docs/manual_test.md`).
 
-macOS will ask for microphone permission for your terminal the first time.
+Demo checklist (preparation, a 5-minute script, troubleshooting, in Vietnamese): `docs/demo_checklist.md`.
+
+macOS asks for microphone permission for the app that runs the command (Terminal, iTerm, VS Code) the first time. If it was denied, turn it back on in **System Settings → Privacy & Security → Microphone**. Press Start once before a real call: the first Start downloads the translation model (about 66 MB, network needed).
 
 ## Tests
 
 ```sh
-uv run pytest -q
+uv run --group eval pytest -q
 ```
 
-Tests use fake audio streams, ASR, translator and TTS — no devices or network needed.
+Tests use fake audio streams, ASR, translator and TTS — no devices or network needed. Keep `--group eval`: without it the two MT-bench test files are skipped silently. On a fresh clone: 466 passed, 1 skipped (that test needs the VIVOS data in `~/data/vivos`).

@@ -84,23 +84,86 @@ Python 3.12 · PySide6 (LGPL) · sounddevice · Silero / webrtcvad · soxr · mi
 
 ## 4. Cài đặt và chạy (macOS)
 
+Các bước dưới đây đã được làm lại từ đầu trên một bản clone mới, với cache model trống (19/11/2026). Mỗi dòng lệnh dán riêng được vào zsh: **không có chú thích `#` trong khối lệnh**, vì zsh mặc định coi `#` là tham số, không phải chú thích.
+
+**Cần có:**
+- macOS (Apple Silicon hoặc Intel) và [Homebrew](https://brew.sh).
+- Mạng: để tải model một lần, và **mỗi lần chạy** cho giọng đọc Edge TTS.
+- Ổ trống: `.venv` khoảng 1,4 GB, model đã convert và model dịch khoảng 0,65 GB. Trong lúc convert còn cần thêm khoảng 1,3 GB cho bản gốc tải về; bản này nằm lại trong `~/.cache/huggingface`, và app không cần đến nó nữa sau khi convert xong.
+
+**1. Cài uv và BlackHole:**
 ```sh
-brew install uv blackhole-2ch        # có thể cần khởi động lại máy sau khi cài BlackHole
-git clone https://github.com/MasterCode12345/project2.git && cd project2
+brew install uv blackhole-2ch
+```
+- BlackHole là driver âm thanh, nên trình cài sẽ hỏi mật khẩu máy. Cài xong nên khởi động lại máy (hoặc đăng xuất rồi đăng nhập lại) để macOS nhận thiết bị **BlackHole 2ch**.
+- Python 3.12 không cần cài riêng: `uv` tự tải về ở bước 2 nếu máy chưa có.
+
+**2. Lấy mã nguồn và cài thư viện:**
+```sh
+git clone https://github.com/MasterCode12345/project2.git
+cd project2
 uv sync
-uv run audio-translator --cli --list-devices   # phải thấy "BlackHole 2ch"
-uv run audio-translator --cli --list-models    # xem các model Whisper đã tải / convert hay chưa
 ```
 
-**Convert model một lần** (torch và transformers chỉ được cài tạm cho lệnh này):
+**3. Kiểm tra thiết bị âm thanh và model:**
 ```sh
-uv run --with transformers --with torch python scripts/convert_phowhisper.py small              # ASR mặc định
-uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu   # khôi phục dấu câu
+uv run audio-translator --cli --list-devices
+uv run audio-translator --cli --list-models
 ```
-- Chưa convert PhoWhisper thì app vẫn chạy: nó báo rõ (dòng đỏ trên giao diện, WARNING trong CLI) kèm lệnh convert, rồi dùng tạm Whisper `small` cho phiên đó.
+- `--list-devices` phải có dòng **BlackHole 2ch** ở cả phần Input lẫn Output. Nếu chưa có thì khởi động lại máy.
+- Tên thiết bị theo ngôn ngữ của macOS, ví dụ "Micrô MacBook Pro" trên macOS tiếng Việt, "MacBook Pro Microphone" trên macOS tiếng Anh. `--input` và `--output` nhận **một phần tên** và không phân biệt hoa thường, ví dụ `--input "MacBook Pro"`.
+- Trên máy mới, `--list-models` ghi `not-downloaded` cho mọi model, kèm lệnh convert cho `phowhisper-small`.
+
+**4. Convert model một lần** (torch và transformers chỉ được cài tạm cho các lệnh này):
+
+ASR mặc định (PhoWhisper-small). Lệnh tải 971 MB từ Hugging Face, ghi 464 MB; đo được khoảng 1 phút 15 giây:
+```sh
+uv run --with transformers --with torch python scripts/convert_phowhisper.py small
+```
+
+Khôi phục chữ hoa và dấu câu (vibert-capu). Lệnh tải 462 MB, ghi 113 MB, rồi tự kiểm tra lại với PyTorch; đo được khoảng 1 phút:
+```sh
+uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
+```
+
+- Chạy lại `uv run audio-translator --cli --list-models`: `phowhisper-small` phải chuyển sang `downloaded`.
+- Chưa convert PhoWhisper thì app vẫn chạy: nó báo rõ (dòng đỏ trên giao diện, WARNING trong CLI) kèm lệnh convert, rồi dùng tạm Whisper `small` (tự tải khoảng 485 MB ở lần đầu).
 - Chưa convert vibert-capu thì app dịch nguyên chữ ASR như trước, không báo gì, vì `--restore auto`.
 
-**Chạy giao diện:** `uv run audio-translator`, rồi bấm **▶ Bắt đầu**. Đầu ra mặc định là **BlackHole 2ch**, model mặc định là `phowhisper-small`. Muốn đổi micro, đầu ra, model, bộ dịch hay lọc nhiễu thì mở mục **Cài đặt**. Có thể mở sẵn với bộ dịch khác: `uv run audio-translator --translator nllb-600m`.
+**5. Chạy test** (không cần micro, BlackHole hay mạng):
+```sh
+uv run --group eval pytest -q
+```
+- Phải có `--group eval`: thiếu nó thì 2 file test của bench dịch bị bỏ qua mà không báo lỗi.
+- Lần kiểm tra trên bản clone mới cho kết quả **466 passed, 1 skipped**. Test bị bỏ qua cần dữ liệu VIVOS ở `~/data/vivos`.
+
+**6. Mở app:**
+```sh
+uv run audio-translator
+```
+- Bấm **▶ Bắt đầu**. Đầu ra mặc định là **BlackHole 2ch**, model mặc định là `phowhisper-small`.
+- Muốn đổi micro, đầu ra, model, bộ dịch, lọc nhiễu hay chống kẹt thì mở mục **Cài đặt**.
+- Có thể mở sẵn với bộ dịch khác: `uv run audio-translator --translator nllb-600m`.
+- **Lần Bắt đầu đầu tiên** tải model dịch Argos (khoảng 66 MB, cần mạng), có dòng "Downloading translation model (~66 MB)…". Nên bấm Bắt đầu một lần trước buổi dùng thật.
+- **Quyền micro:** lần đầu, macOS hỏi quyền micro cho ứng dụng đang chạy lệnh (Terminal, iTerm hoặc VS Code). Nếu lỡ bấm từ chối thì vào **Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Micrô** và bật lại cho ứng dụng đó.
+
+**7. Dùng trong cuộc gọi (Zoom / Meet):**
+- **Trong app:** Micro là micro thật (của Mac hoặc của tai nghe), **không phải BlackHole**; Đầu ra là **BlackHole 2ch**.
+- **Trong macOS** (Cài đặt hệ thống → Âm thanh → Đầu vào): giữ micro thật. Không đặt BlackHole làm micro mặc định của hệ thống. Nếu không chọn micro, app nghe micro mặc định, nên khi đó nó sẽ thu lại chính giọng dịch của mình.
+- **Google Meet** (Chrome): ⋮ → Cài đặt → Âm thanh:
+  - **Micrô = BlackHole 2ch**;
+  - **Loa = tai nghe**;
+  - tắt lọc tạp âm nếu có, vì nó có thể cắt mất giọng đọc tiếng Anh;
+  - Chrome phải được cấp quyền micro.
+- **Zoom:** Settings → Audio:
+  - **Microphone = BlackHole 2ch**;
+  - **Speaker = tai nghe**;
+  - bỏ chọn "Automatically adjust microphone volume";
+  - để "Suppress background noise" ở mức thấp nhất.
+- **Đeo tai nghe:** nếu dùng loa ngoài, micro thật thu lại tiếng người bên kia, và một câu có thể bị dịch hai lần (mục 8).
+- Giọng dịch chỉ đi vào BlackHole, không phát ra loa, nên bạn không tự nghe được nó. Muốn kiểm tra thì dùng một điện thoại vào cùng cuộc họp; xem kịch bản (b) trong [docs/manual_test.md](docs/manual_test.md).
+
+Checklist cho buổi demo (chuẩn bị, kịch bản 5 phút, xử lý sự cố): [docs/demo_checklist.md](docs/demo_checklist.md).
 
 ### Giao diện dùng trong cuộc gọi
 
@@ -157,7 +220,7 @@ uv run python eval/latency_report.py "$LOG"
 - Lệnh thứ hai mở giao diện; lệnh thứ ba ở trên dùng CLI.
 - `latency_report.py` in TB / P50 / P95 / max từng khâu, số đoạn bị bỏ và mức đèn; thêm `--markdown` để in dạng bảng.
 - Cột `asr_decode` cho biết giới hạn giải mã có được bật không (`base` = tắt). Cột `asr_anti_stall` ghi chống kẹt thật sự chạy trong phiên đó (`off`, `c4a`, `c4b` hoặc `custom`; chỉ ghi tên preset khi limiter thật sự được gắn vào model). `latency_report.py` in dòng `anti-stall per session: 1=off, 2=c4b, …`.
-- **zsh:** các chú thích `# …` trong khối lệnh của README chỉ để đọc. Khi dán vào terminal, hãy bỏ phần đó (hoặc chạy `setopt interactivecomments` một lần), nếu không zsh sẽ báo lỗi.
+- **zsh:** khối lệnh trong README không có chú thích `#`, nên dán thẳng vào zsh được. Nếu tự thêm chú thích vào lệnh, zsh sẽ coi `#` là tham số (trừ khi đã chạy `setopt interactivecomments`).
 
 Kịch bản thử thật (CLI, Google Meet, môi trường ồn; mỗi kịch bản 10 câu chuẩn bị sẵn): [docs/manual_test.md](docs/manual_test.md). File log chứa nguyên văn lời nói, nên để **ngoài repo**.
 
@@ -223,7 +286,7 @@ Theo góp ý của giảng viên, app có một đèn **xanh / vàng / đỏ** �
 - Mọi ngưỡng nằm trong `Settings` (`indicator_*`). Lý do chọn từng ngưỡng ở `_bmad-output/initiative-audio-translator/plan-speaker-indicator.md`.
 - Kịch bản thử: mục (d) của [docs/manual_test.md](docs/manual_test.md).
 
-**Dùng trong ứng dụng chat:** vào phần cài đặt âm thanh của Zoom / Meet / Discord và chọn **BlackHole 2ch** làm micro. Âm thanh đã dịch chỉ đi vào BlackHole, không bao giờ phát ra loa.
+**Dùng trong ứng dụng chat:** chọn **BlackHole 2ch** làm micro trong Zoom / Meet / Discord; chi tiết từng ứng dụng ở mục 4, bước 7. Âm thanh đã dịch chỉ đi vào BlackHole, không bao giờ phát ra loa.
 
 ### Lọc nhiễu (thử nghiệm)
 
@@ -256,10 +319,10 @@ Cách chấm (mỗi clip mô phỏng một đoạn của luồng âm thanh liên
 ```sh
 uv run --group eval python eval/denoise_bench.py --vivos-dir ~/data/vivos --noise-dir ~/data/musan/noise \
     --model small --limit 100 --out results/denoise.csv
-uv run --group eval python eval/denoise_bench.py --smoke --out /tmp/ns_smoke.csv   # chạy thử offline, dữ liệu tổng hợp
+uv run --group eval python eval/denoise_bench.py --smoke --out /tmp/ns_smoke.csv
 ```
 
-WER/CER được tính sau khi chuẩn hóa văn bản (chữ thường, bỏ dấu câu, giữ dấu thanh). Không đưa dataset vào repo.
+Lệnh `--smoke` chạy thử offline với dữ liệu tổng hợp. WER/CER được tính sau khi chuẩn hóa văn bản (chữ thường, bỏ dấu câu, giữ dấu thanh). Không đưa dataset vào repo.
 
 ### Model tiếng Việt (PhoWhisper) và câu mồi
 
@@ -281,10 +344,10 @@ Script tải `vinai/PhoWhisper-{small,medium}` ở revision cố định, ghi mo
 ```sh
 uv run --group eval python eval/asr_bench.py --corpus vivos --vivos-dir ~/data/vivos --noise-dir ~/data/demand_ch01 --out results/asr_vivos_demand.csv
 uv run --group eval python eval/asr_bench.py --corpus fleurs --fleurs-dir ~/data/fleurs_vi --noise-dir ~/data/demand_ch01 --out results/asr_fleurs_demand.csv
-uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv   # chạy thử offline
+uv run --group eval python eval/asr_bench.py --smoke --out /tmp/asr_smoke.csv
 ```
 
-FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
+Lệnh `--smoke` chạy thử offline. FLEURS: tải `data/vi_vn/test.tsv` và `data/vi_vn/audio/test.tar.gz` từ `google/fleurs` trên Hugging Face, rồi giải nén để có `fleurs_vi/test.tsv` và `fleurs_vi/test/*.wav`.
 
 ### Chống câu "ma"
 
@@ -397,9 +460,10 @@ Chỉ số và cấu hình:
 uv run --group eval python eval/mt_bench.py --src vi --tgt en \
     --fleurs-src-dir ~/data/fleurs_vi --fleurs-tgt-tsv ~/data/fleurs_en/test.tsv \
     --custom-tsv eval/data/mt_custom_vi_en.tsv --asr-cache results/mt_asr_cache_vi.tsv \
-    --out results/mt_vi_en.csv            # thêm --limit 50 để chạy thử
-uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv   # offline, dữ liệu và bộ dịch giả
+    --out results/mt_vi_en.csv
+uv run --group eval python eval/mt_bench.py --smoke --out /tmp/mt_smoke.csv
 ```
+Thêm `--limit 50` vào lệnh thứ nhất để chạy thử nhanh. Lệnh `--smoke` chạy offline với dữ liệu và bộ dịch giả.
 
 - **Điều kiện đầu vào (`--conditions`):**
   - `text`: câu chuẩn.
@@ -444,10 +508,11 @@ Về model `vibert-capu`:
 
 ```sh
 uv run --with "transformers<5" --with torch python scripts/convert_capu_model.py vibert-capu
-uv run audio-translator --cli --model phowhisper-small      # --restore auto (mặc định) tự dùng model đã convert
+uv run audio-translator --cli --model phowhisper-small
 uv run --group eval python eval/mt_bench.py ... --conditions text,text_norm,asr,asr_seg --restore off,sent,vibert-capu
 uv run --group eval python eval/mt_oracle_ablation.py --fleurs-src-dir ~/data/fleurs_vi --fleurs-tgt-tsv ~/data/fleurs_en/test.tsv
 ```
+Lệnh thứ hai dùng `--restore auto` (mặc định), tức tự dùng model khôi phục đã convert.
 
 **Bảng ngôn ngữ** (`src/audio_translator/languages.py`): mỗi ngôn ngữ một dòng, gồm:
 - mã của từng backend dịch;
@@ -461,8 +526,9 @@ Mỗi backend dịch có `supports(src, tgt)`. `plan_route` chọn dịch thẳn
 ## 5. Kiểm thử
 
 ```sh
-uv run --group eval pytest -q     # 381 passed
+uv run --group eval pytest -q
 ```
+Kết quả trên bản clone mới (19/11/2026): 466 passed, 1 skipped (test đó cần dữ liệu VIVOS). Không có `--group eval` thì 2 file test của bench dịch bị bỏ qua.
 Các test dùng micro, Whisper, bộ dịch và TTS giả, nên chạy được mà không cần thiết bị âm thanh hay mạng. Phạm vi kiểm thử: luồng chạy bình thường, đèn báo (từng ngưỡng, chuyển mức, Start/Stop), câu dài, câu về sai thứ tự, Stop giữa chừng, quá tải, lỗi mạng, mất thiết bị, chọn và tải model, dịch offline kèm dự phòng, giao diện (hai chế độ, đồng bộ, khóa cài đặt, không còn chữ tiếng Anh) và CLI.
 
 ## 6. Kết quả đo
@@ -696,6 +762,7 @@ Vui lòng mở **Issue** trong repo này hoặc liên hệ trực tiếp với m
 ├── scripts/collect_hallucinations.py   thu thập câu ma từ nhiễu không trùng với bench
 ├── results/                CSV kết quả các bench
 ├── docs/manual_test.md     kịch bản thử thật: CLI, Google Meet, môi trường ồn, đèn báo, chế độ thu gọn
+├── docs/demo_checklist.md  checklist buổi demo: chuẩn bị, kịch bản 5 phút, xử lý sự cố
 ├── _bmad-output/           các bản kế hoạch thiết kế (tiếng Anh): MVP, quản lý model, ô chọn model, dịch offline
 ├── pyproject.toml, uv.lock, .python-version
 ├── README.md               (tài liệu này)
